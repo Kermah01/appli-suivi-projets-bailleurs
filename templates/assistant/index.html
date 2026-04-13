@@ -1,0 +1,513 @@
+{% extends "base.html" %}
+
+{% block title %}Assistant IA — Suivi Projets{% endblock %}
+{% block page_title %}Assistant IA{% endblock %}
+{% block page_subtitle %}Posez vos questions sur les projets, bailleurs, financements et décaissements{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Full-height chat layout - fills available viewport */
+    .assistant-wrapper { display: flex; height: calc(100vh - 180px); min-height: 450px; gap: 0; }
+    .history-panel { width: 260px; flex-shrink: 0; display: flex; flex-direction: column; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.875rem; overflow: hidden; }
+    .chat-panel { flex: 1; display: flex; flex-direction: column; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.875rem; overflow: hidden; min-width: 0; }
+    .chat-messages { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+    .chat-messages::-webkit-scrollbar { width: 5px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+    .history-list { flex: 1; overflow-y: auto; }
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 9999px; }
+
+    .msg-user { background: linear-gradient(135deg, #F77F00 0%, #e06f00 100%); color: white; }
+    .msg-ai { background: white; border: 1px solid #e2e8f0; }
+
+    .typing-dot { animation: typingBounce 1.4s infinite ease-in-out both; }
+    .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+    .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typingBounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+    .msg-ai :is(h1,h2,h3,h4) { font-weight: 800; margin-top: 0.75rem; margin-bottom: 0.375rem; color: #1e293b; }
+    .msg-ai h3 { font-size: 0.875rem; }
+    .msg-ai h4 { font-size: 0.8125rem; }
+    .msg-ai p { margin-bottom: 0.5rem; line-height: 1.6; }
+    .msg-ai ul, .msg-ai ol { margin-left: 1.25rem; margin-bottom: 0.5rem; }
+    .msg-ai li { margin-bottom: 0.25rem; }
+    .msg-ai strong { color: #1e293b; font-weight: 700; }
+    .msg-ai code { background: #f1f5f9; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.75rem; }
+    .msg-ai table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.75rem; }
+    .msg-ai th { background: #f8fafc; font-weight: 700; text-align: left; padding: 0.5rem; border-bottom: 2px solid #e2e8f0; }
+    .msg-ai td { padding: 0.5rem; border-bottom: 1px solid #f1f5f9; }
+    .msg-ai tr:hover td { background: #fafbfc; }
+
+    .suggestion-chip { transition: all 0.15s; }
+    .suggestion-chip:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+
+    .chart-box { background: #fafbfc; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1rem; margin-top: 0.75rem; }
+    .table-box { background: white; border: 1px solid #e2e8f0; border-radius: 0.75rem; overflow: hidden; margin-top: 0.75rem; }
+    .table-box table { margin: 0; font-size: 0.75rem; }
+    .table-box th { background: #1e293b; color: white; padding: 0.625rem 0.75rem; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .table-box td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #f1f5f9; }
+    .table-box tr:last-child td { border-bottom: none; }
+    .table-box tr:hover td { background: #fffbf5; }
+
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .conv-item { padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer; transition: all 0.15s; }
+    .conv-item:hover { background: #f8fafc; }
+    .conv-item.active { background: #FFF7ED; border-left: 3px solid #F77F00; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="assistantChat()" x-init="init()" class="assistant-wrapper">
+
+    <!-- ═══ History Sidebar ═══ -->
+    <div class="history-panel mr-4 hidden lg:flex flex-col">
+        <div class="px-4 py-3 border-b border-ci-dark-100 flex items-center justify-between flex-shrink-0">
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Conversations</h3>
+            <button @click="newConversation()" class="w-7 h-7 rounded-lg bg-ci-orange-50 hover:bg-ci-orange-100 flex items-center justify-center transition-colors" title="Nouvelle conversation">
+                <span class="material-symbols-outlined text-[16px] text-ci-orange-600">add</span>
+            </button>
+        </div>
+        <div class="history-list px-2 py-2 space-y-0.5">
+            <template x-for="conv in conversations" :key="conv.id">
+                <div @click="loadConversation(conv.id)" class="conv-item flex items-center gap-2 group"
+                     :class="conv.id === currentConvId ? 'active' : ''">
+                    <span class="material-symbols-outlined text-[14px] text-ci-dark-400 flex-shrink-0">chat_bubble_outline</span>
+                    <span class="text-[0.75rem] text-ci-dark-600 truncate flex-1" x-text="conv.title"></span>
+                    <button @click.stop="deleteConversation(conv.id)" class="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <span class="material-symbols-outlined text-[12px] text-ci-dark-300 hover:text-red-500">close</span>
+                    </button>
+                </div>
+            </template>
+            <div x-show="conversations.length === 0" class="text-center py-6">
+                <span class="material-symbols-outlined text-[24px] text-ci-dark-200 mb-1">forum</span>
+                <p class="text-[0.6875rem] text-ci-dark-300">Aucune conversation</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Chat Panel ═══ -->
+    <div class="chat-panel">
+        <!-- Messages area -->
+        <div class="chat-messages p-5 space-y-4" x-ref="messagesBox">
+
+            <!-- Welcome -->
+            <div x-show="messages.length === 0" class="flex flex-col items-center justify-center h-full text-center py-10 fade-in">
+                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-ci-orange-400 to-ci-orange-600 flex items-center justify-center mb-5 shadow-lg shadow-ci-orange-200">
+                    <span class="material-symbols-outlined text-[36px] text-white">psychology</span>
+                </div>
+                <h3 class="text-[1.125rem] font-black text-ci-dark-800 mb-2">Assistant IA — Suivi des Projets</h3>
+                <p class="text-[0.8125rem] text-ci-dark-400 max-w-md mb-8">
+                    Posez-moi n'importe quelle question sur les projets, bailleurs, financements ou décaissements.
+                    Je peux analyser, comparer et générer des visualisations.
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg w-full">
+                    <button @click="askSuggestion($el.dataset.q)" data-q="Fais-moi une synthèse globale de tous les projets et financements"
+                            class="suggestion-chip text-left px-4 py-3 rounded-xl bg-ci-orange-50 border border-ci-orange-100 hover:bg-ci-orange-100">
+                        <span class="text-[0.6875rem] font-bold text-ci-orange-600 flex items-center gap-1.5 mb-1">
+                            <span class="material-symbols-outlined text-[14px]">summarize</span> Synthèse globale
+                        </span>
+                        <span class="text-[0.75rem] text-ci-dark-500">Vue d'ensemble des projets et financements</span>
+                    </button>
+                    <button @click="askSuggestion($el.dataset.q)" data-q="Quels sont les projets en retard et quel est leur état d'avancement ?"
+                            class="suggestion-chip text-left px-4 py-3 rounded-xl bg-red-50 border border-red-100 hover:bg-red-100">
+                        <span class="text-[0.6875rem] font-bold text-red-600 flex items-center gap-1.5 mb-1">
+                            <span class="material-symbols-outlined text-[14px]">warning</span> Projets en retard
+                        </span>
+                        <span class="text-[0.75rem] text-ci-dark-500">Identifier les dépassements de délais</span>
+                    </button>
+                    <button @click="askSuggestion($el.dataset.q)" data-q="Compare les montants engagés et décaissés par bailleur avec un graphique"
+                            class="suggestion-chip text-left px-4 py-3 rounded-xl bg-blue-50 border border-blue-100 hover:bg-blue-100">
+                        <span class="text-[0.6875rem] font-bold text-blue-600 flex items-center gap-1.5 mb-1">
+                            <span class="material-symbols-outlined text-[14px]">bar_chart</span> Comparatif bailleurs
+                        </span>
+                        <span class="text-[0.75rem] text-ci-dark-500">Engagements vs décaissements par bailleur</span>
+                    </button>
+                    <button @click="askSuggestion($el.dataset.q)" data-q="Montre la répartition des projets par secteur avec un graphique et un tableau"
+                            class="suggestion-chip text-left px-4 py-3 rounded-xl bg-ci-green-50 border border-ci-green-100 hover:bg-ci-green-100">
+                        <span class="text-[0.6875rem] font-bold text-ci-green-600 flex items-center gap-1.5 mb-1">
+                            <span class="material-symbols-outlined text-[14px]">donut_small</span> Par secteur
+                        </span>
+                        <span class="text-[0.75rem] text-ci-dark-500">Distribution des projets et montants par secteur</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Message list -->
+            <template x-for="(msg, idx) in messages" :key="msg.id">
+                <div class="fade-in" :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                    <div class="max-w-[85%]" :class="msg.role === 'assistant' ? 'w-full max-w-[85%]' : ''">
+                        <!-- User message -->
+                        <div x-show="msg.role === 'user'" class="msg-user rounded-2xl rounded-br-md px-4 py-3">
+                            <p class="text-[0.8125rem]" x-text="msg.content"></p>
+                        </div>
+                        <!-- AI message -->
+                        <div x-show="msg.role === 'assistant'" class="space-y-0">
+                            <div class="flex items-start gap-2.5">
+                                <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-ci-orange-400 to-ci-orange-600 flex items-center justify-center flex-shrink-0 mt-1">
+                                    <span class="material-symbols-outlined text-[14px] text-white">psychology</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="msg-ai rounded-2xl rounded-tl-md px-4 py-3 text-[0.8125rem] text-ci-dark-700">
+                                        <div x-html="msg.html"></div>
+                                    </div>
+                                    <!-- Chart -->
+                                    <div x-show="msg.chart" class="chart-box" x-transition>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h4 class="text-[0.8125rem] font-bold text-ci-dark-800" x-text="msg.chart ? msg.chart.title : ''"></h4>
+                                            <button @click="downloadChart(msg.id)" class="text-[0.6875rem] text-ci-dark-400 hover:text-ci-orange-500 flex items-center gap-1 transition-colors">
+                                                <span class="material-symbols-outlined text-[14px]">download</span> PNG
+                                            </button>
+                                        </div>
+                                        <div :id="'chart-'+msg.id" class="w-full" style="min-height:300px;"></div>
+                                    </div>
+                                    <!-- Table -->
+                                    <div x-show="msg.table" class="table-box" x-transition>
+                                        <div class="flex items-center justify-between px-4 py-3 bg-ci-dark-50 border-b border-ci-dark-100">
+                                            <h4 class="text-[0.8125rem] font-bold text-ci-dark-800" x-text="msg.table ? msg.table.title : ''"></h4>
+                                            <button @click="downloadTableCSV(idx)" class="text-[0.6875rem] text-ci-dark-400 hover:text-ci-orange-500 flex items-center gap-1 transition-colors">
+                                                <span class="material-symbols-outlined text-[14px]">download</span> CSV
+                                            </button>
+                                        </div>
+                                        <div x-show="msg.table" class="overflow-x-auto">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <template x-for="h in (msg.table ? msg.table.headers : [])" :key="h">
+                                                            <th x-text="h"></th>
+                                                        </template>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <template x-for="(row, ri) in (msg.table ? msg.table.rows : [])" :key="ri">
+                                                        <tr>
+                                                            <template x-for="(cell, ci) in row" :key="ci">
+                                                                <td x-text="cell"></td>
+                                                            </template>
+                                                        </tr>
+                                                    </template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <!-- Actions row -->
+                                    <div x-show="msg.role === 'assistant'" class="flex items-center gap-3 mt-2 ml-1">
+                                        <button @click="copyText(msg.content)" class="text-[0.625rem] text-ci-dark-300 hover:text-ci-dark-600 flex items-center gap-1 transition-colors">
+                                            <span class="material-symbols-outlined text-[12px]">content_copy</span> Copier
+                                        </button>
+                                        <button x-show="msg.table" @click="downloadTableCSV(idx)" class="text-[0.625rem] text-ci-dark-300 hover:text-ci-dark-600 flex items-center gap-1 transition-colors">
+                                            <span class="material-symbols-outlined text-[12px]">table_chart</span> Exporter CSV
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Typing indicator -->
+            <div x-show="loading" class="flex justify-start fade-in">
+                <div class="flex items-start gap-2.5">
+                    <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-ci-orange-400 to-ci-orange-600 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-[14px] text-white">psychology</span>
+                    </div>
+                    <div class="msg-ai rounded-2xl rounded-tl-md px-5 py-4">
+                        <div class="flex items-center gap-2">
+                            <div class="flex gap-1">
+                                <div class="w-2 h-2 rounded-full bg-ci-orange-400 typing-dot"></div>
+                                <div class="w-2 h-2 rounded-full bg-ci-orange-400 typing-dot"></div>
+                                <div class="w-2 h-2 rounded-full bg-ci-orange-400 typing-dot"></div>
+                            </div>
+                            <span class="text-[0.6875rem] text-ci-dark-400 ml-1">Analyse en cours...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Input area -->
+        <div class="border-t border-ci-dark-100 p-4 bg-white flex-shrink-0">
+            <form @submit.prevent="send()" class="flex items-end gap-3">
+                <div class="flex-1 relative">
+                    <textarea x-model="question" x-ref="input"
+                              @keydown.enter.prevent="if(!$event.shiftKey) send()"
+                              placeholder="Posez votre question sur les données..."
+                              rows="1"
+                              class="w-full px-4 py-3 pr-12 rounded-xl border border-ci-dark-200 focus:border-ci-orange-400 focus:ring-2 focus:ring-ci-orange-100 text-[0.8125rem] text-ci-dark-700 placeholder-ci-dark-300 resize-none transition-all outline-none"
+                              style="max-height: 120px;"
+                              @input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px';"
+                              :disabled="loading"></textarea>
+                </div>
+                <button type="submit" :disabled="loading || !question.trim()"
+                        class="h-[46px] w-[46px] rounded-xl bg-gradient-to-br from-ci-orange-500 to-ci-orange-600 text-white flex items-center justify-center hover:shadow-lg hover:shadow-ci-orange-200 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0">
+                    <span class="material-symbols-outlined text-[20px]">send</span>
+                </button>
+            </form>
+            <div class="flex items-center justify-between mt-2 px-1">
+                <p class="text-[0.625rem] text-ci-dark-300">
+                    <span class="material-symbols-outlined text-[10px] align-middle">info</span>
+                    Propulsé par Google Gemini · Données en temps réel
+                </p>
+                <button x-show="messages.length > 0" @click="clearChat()" class="text-[0.625rem] text-ci-dark-300 hover:text-red-500 flex items-center gap-1 transition-colors">
+                    <span class="material-symbols-outlined text-[12px]">delete</span> Effacer
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function assistantChat() {
+    return {
+        messages: [],
+        question: '',
+        loading: false,
+        charts: {},
+        conversations: [],
+        currentConvId: null,
+        msgCounter: 0,
+
+        init() {
+            this.loadConversations();
+            // Check URL param ?conv=ID to continue from mini-chat
+            const params = new URLSearchParams(window.location.search);
+            const convParam = params.get('conv');
+            if (convParam && this.conversations.find(c => c.id === convParam)) {
+                this.loadConversation(convParam);
+            } else if (this.conversations.length > 0) {
+                this.loadConversation(this.conversations[0].id);
+            } else {
+                this.newConversation();
+            }
+            this.$nextTick(() => { if (this.$refs.input) this.$refs.input.focus(); });
+        },
+
+        // ─── Conversation history (localStorage) ───
+        loadConversations() {
+            try {
+                const raw = localStorage.getItem('ia_conversations');
+                this.conversations = raw ? JSON.parse(raw) : [];
+            } catch(e) { this.conversations = []; }
+        },
+
+        saveConversations() {
+            localStorage.setItem('ia_conversations', JSON.stringify(this.conversations));
+        },
+
+        saveCurrentMessages() {
+            if (!this.currentConvId) return;
+            const conv = this.conversations.find(c => c.id === this.currentConvId);
+            if (conv) {
+                conv.messages = this.messages.map(m => ({
+                    id: m.id, role: m.role, content: m.content,
+                    chart: m.chart, table: m.table
+                }));
+                // Update title from first user message
+                const firstUser = this.messages.find(m => m.role === 'user');
+                if (firstUser) {
+                    conv.title = firstUser.content.substring(0, 50) + (firstUser.content.length > 50 ? '...' : '');
+                }
+                conv.updatedAt = Date.now();
+                this.saveConversations();
+            }
+        },
+
+        newConversation() {
+            const id = 'conv_' + Date.now();
+            const conv = { id, title: 'Nouvelle conversation', messages: [], createdAt: Date.now(), updatedAt: Date.now() };
+            this.conversations.unshift(conv);
+            this.saveConversations();
+            this.currentConvId = id;
+            this.messages = [];
+            this.charts = {};
+            this.msgCounter = 0;
+        },
+
+        loadConversation(id) {
+            const conv = this.conversations.find(c => c.id === id);
+            if (!conv) return;
+            this.currentConvId = id;
+            this.charts = {};
+            this.msgCounter = 0;
+            this.messages = (conv.messages || []).map(m => {
+                const mid = 'msg_' + (++this.msgCounter);
+                return {
+                    id: mid, role: m.role, content: m.content,
+                    html: m.role === 'assistant' ? marked.parse(m.content || '') : '',
+                    chart: m.chart || null, table: m.table || null
+                };
+            });
+            // Re-render charts after DOM update
+            this.$nextTick(() => {
+                this.messages.forEach(m => {
+                    if (m.chart) {
+                        setTimeout(() => this.renderChart(m.id, m.chart), 200);
+                    }
+                });
+                this.scrollDown();
+            });
+        },
+
+        deleteConversation(id) {
+            this.conversations = this.conversations.filter(c => c.id !== id);
+            this.saveConversations();
+            if (this.currentConvId === id) {
+                if (this.conversations.length > 0) {
+                    this.loadConversation(this.conversations[0].id);
+                } else {
+                    this.newConversation();
+                }
+            }
+        },
+
+        askSuggestion(q) {
+            this.question = q;
+            this.send();
+        },
+
+        async send() {
+            const q = this.question.trim();
+            if (!q || this.loading) return;
+
+            const userMsgId = 'msg_' + (++this.msgCounter);
+            this.messages.push({ id: userMsgId, role: 'user', content: q, html: '', chart: null, table: null });
+            this.question = '';
+            this.loading = true;
+            this.$nextTick(() => this.scrollDown());
+            if (this.$refs.input) this.$refs.input.style.height = 'auto';
+
+            try {
+                const history = this.messages.slice(-7, -1).map(m => ({
+                    role: m.role === 'user' ? 'user' : 'model',
+                    content: m.content
+                }));
+
+                const res = await fetch("{% url 'assistant:ask' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ question: q, history })
+                });
+
+                const data = await res.json();
+                const aiMsgId = 'msg_' + (++this.msgCounter);
+
+                if (data.error) {
+                    this.messages.push({
+                        id: aiMsgId, role: 'assistant', content: data.error,
+                        html: `<p class="text-red-600">${data.error}</p>`,
+                        chart: null, table: null
+                    });
+                } else {
+                    const html = marked.parse(data.text || '');
+                    this.messages.push({
+                        id: aiMsgId, role: 'assistant', content: data.text || '',
+                        html: html, chart: data.chart || null, table: data.table || null,
+                    });
+                    if (data.chart) {
+                        this.$nextTick(() => {
+                            setTimeout(() => this.renderChart(aiMsgId, data.chart), 300);
+                        });
+                    }
+                }
+            } catch (err) {
+                const aiMsgId = 'msg_' + (++this.msgCounter);
+                this.messages.push({
+                    id: aiMsgId, role: 'assistant', content: 'Erreur de connexion avec le serveur.',
+                    html: '<p class="text-red-600">Erreur de connexion avec le serveur. Veuillez réessayer.</p>',
+                    chart: null, table: null,
+                });
+            }
+
+            this.loading = false;
+            this.saveCurrentMessages();
+            this.$nextTick(() => {
+                this.scrollDown();
+                if (this.$refs.input) this.$refs.input.focus();
+            });
+        },
+
+        renderChart(msgId, chartData) {
+            const el = document.getElementById('chart-' + msgId);
+            if (!el || typeof ApexCharts === 'undefined') return;
+
+            const type = chartData.type || 'bar';
+            const colors = chartData.colors || ['#F77F00', '#009A44', '#3B82F6', '#8B5CF6', '#EF4444', '#F59E0B', '#10B981', '#6366F1'];
+
+            let options = {
+                chart: { type, height: 300, toolbar: { show: true, tools: { download: true, selection: false, zoom: false, zoomin: false, zoomout: false, pan: false, reset: false } }, fontFamily: 'Inter, sans-serif' },
+                colors, dataLabels: { enabled: false },
+                stroke: { curve: 'smooth', width: type === 'line' || type === 'area' ? 3 : 0 },
+                grid: { borderColor: '#f1f5f9', strokeDashArray: 4 },
+                tooltip: { theme: 'light' },
+            };
+
+            if (['bar', 'line', 'area'].includes(type)) {
+                options.series = chartData.series || [];
+                options.xaxis = { categories: chartData.categories || [], labels: { style: { fontSize: '10px', colors: '#94a3b8' }, rotate: -45, trim: true } };
+                options.yaxis = { labels: { style: { fontSize: '10px', colors: '#94a3b8' }, formatter: v => { if(v>=1e9) return (v/1e9).toFixed(1)+' Mrd'; if(v>=1e6) return (v/1e6).toFixed(1)+' M'; if(v>=1e3) return (v/1e3).toFixed(0)+' k'; return v; } } };
+                if (type === 'bar' && chartData.horizontal) { options.plotOptions = { bar: { horizontal: true, borderRadius: 4, barHeight: '60%' } }; }
+                else if (type === 'bar') { options.plotOptions = { bar: { borderRadius: 4, columnWidth: '55%' } }; }
+            } else if (['donut', 'pie'].includes(type)) {
+                options.series = chartData.series || [];
+                options.labels = chartData.labels || chartData.categories || [];
+                options.legend = { position: 'bottom', fontSize: '11px' };
+                if (type === 'donut') { options.plotOptions = { pie: { donut: { size: '60%', labels: { show: true, total: { show: true, label: 'Total', fontSize: '12px' } } } } }; }
+            } else if (type === 'radialBar') {
+                options.series = chartData.series || [];
+                options.labels = chartData.labels || [];
+                options.plotOptions = { radialBar: { hollow: { size: '60%' }, dataLabels: { name: { fontSize: '12px' }, value: { fontSize: '22px', fontWeight: 800, formatter: v => v + '%' } } } };
+            } else if (type === 'treemap') {
+                options.series = chartData.series || [];
+            }
+
+            try {
+                if (this.charts[msgId]) { this.charts[msgId].destroy(); }
+                const chart = new ApexCharts(el, options);
+                chart.render();
+                this.charts[msgId] = chart;
+            } catch(e) {
+                console.error('Chart error:', e);
+                el.innerHTML = '<p class="text-red-500 text-xs p-4">Erreur de rendu du graphique</p>';
+            }
+        },
+
+        downloadChart(msgId) {
+            const chart = this.charts[msgId];
+            if (chart) { chart.dataURI().then(({ imgURI }) => { const a = document.createElement('a'); a.href = imgURI; a.download = 'graphique.png'; a.click(); }); }
+        },
+
+        downloadTableCSV(idx) {
+            const msg = this.messages[idx];
+            if (!msg || !msg.table) return;
+            let csv = msg.table.headers.join(';') + '\n';
+            msg.table.rows.forEach(row => { csv += row.join(';') + '\n'; });
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = (msg.table.title || 'rapport') + '.csv';
+            a.click();
+        },
+
+        copyText(text) {
+            navigator.clipboard.writeText(text);
+        },
+
+        clearChat() {
+            if (confirm('Effacer cette conversation ?')) {
+                this.messages = [];
+                this.charts = {};
+                this.msgCounter = 0;
+                this.saveCurrentMessages();
+            }
+        },
+
+        scrollDown() {
+            const box = this.$refs.messagesBox;
+            if (box) box.scrollTop = box.scrollHeight;
+        }
+    };
+}
+</script>
+{% endblock %}

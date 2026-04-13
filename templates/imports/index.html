@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Import Excel — Suivi Projets{% endblock %}
+{% block page_title %}Import de données Excel{% endblock %}
+{% block page_subtitle %}Charger un fichier pour actualiser automatiquement les données{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'imports:download_template' %}" class="btn btn-outline">
+    <span class="material-symbols-outlined text-[16px]">download</span>
+    Télécharger le template
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+
+    {% if step == 'upload' or step == 'preview' and not report %}
+    <!-- ═══════════════════════════════════════════════════════════
+         ÉTAPE 1 : UPLOAD
+         ═══════════════════════════════════════════════════════════ -->
+    <div class="card animate-in">
+        <div class="card-header flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-ci-orange-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-orange-500">upload_file</span>
+            </div>
+            <div>
+                <h3 class="text-[0.9375rem] font-bold text-ci-dark-800">Charger un fichier Excel</h3>
+                <p class="text-[0.75rem] text-ci-dark-400">Le fichier sera analysé avant import — rien ne sera modifié sans votre confirmation</p>
+            </div>
+        </div>
+        <div class="p-6">
+            <form method="post" enctype="multipart/form-data" x-data="{ fileName: '', dragging: false }">
+                {% csrf_token %}
+                <div class="border-2 border-dashed rounded-xl p-10 text-center transition-all"
+                     :class="dragging ? 'border-ci-orange-500 bg-ci-orange-50' : 'border-ci-dark-200 hover:border-ci-dark-300'"
+                     @dragover.prevent="dragging = true"
+                     @dragleave.prevent="dragging = false"
+                     @drop.prevent="dragging = false; $refs.fileInput.files = $event.dataTransfer.files; fileName = $event.dataTransfer.files[0]?.name || ''">
+
+                    <span class="material-symbols-outlined text-[48px] text-ci-dark-300 mb-3">cloud_upload</span>
+                    <p class="text-[0.875rem] font-semibold text-ci-dark-600 mb-1">
+                        Glissez-déposez votre fichier ici
+                    </p>
+                    <p class="text-[0.75rem] text-ci-dark-400 mb-4">ou cliquez pour parcourir</p>
+
+                    <label class="btn btn-primary cursor-pointer inline-flex">
+                        <span class="material-symbols-outlined text-[16px]">folder_open</span>
+                        Parcourir
+                        <input type="file" name="excel_file" accept=".xlsx,.xls" class="hidden" x-ref="fileInput"
+                               @change="fileName = $event.target.files[0]?.name || ''">
+                    </label>
+
+                    <p x-show="fileName" x-cloak class="mt-4 text-[0.8125rem] font-semibold text-ci-green-500 flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-[16px]">description</span>
+                        <span x-text="fileName"></span>
+                    </p>
+                </div>
+
+                <div class="mt-6 flex items-center justify-between">
+                    <div class="hint-banner flex-1 mr-4">
+                        <span class="material-symbols-outlined">info</span>
+                        <span>Utilisez le <a href="{% url 'imports:download_template' %}" class="underline font-bold">template officiel</a> pour garantir la compatibilité.</span>
+                    </div>
+                    <button type="submit" name="analyze" class="btn btn-primary" :disabled="!fileName">
+                        <span class="material-symbols-outlined text-[16px]">analytics</span>
+                        Analyser le fichier
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="card animate-in stagger-2">
+        <div class="card-header">
+            <h3 class="text-[0.875rem] font-bold text-ci-dark-800">Comment ça marche ?</h3>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="flex gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                        <span class="text-[1.125rem] font-black text-blue-500">1</span>
+                    </div>
+                    <div>
+                        <p class="text-[0.8125rem] font-bold text-ci-dark-800">Téléchargez le template</p>
+                        <p class="text-[0.75rem] text-ci-dark-400 mt-0.5">Fichier Excel avec 4 feuilles pré-formatées : Bailleurs, Projets, Financements, Décaissements</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-ci-orange-50 flex items-center justify-center flex-shrink-0">
+                        <span class="text-[1.125rem] font-black text-ci-orange-500">2</span>
+                    </div>
+                    <div>
+                        <p class="text-[0.8125rem] font-bold text-ci-dark-800">Remplissez et chargez</p>
+                        <p class="text-[0.75rem] text-ci-dark-400 mt-0.5">Remplissez les données et chargez le fichier. Le système analyse et détecte automatiquement les doublons.</p>
+                    </div>
+                </div>
+                <div class="flex gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-ci-green-50 flex items-center justify-center flex-shrink-0">
+                        <span class="text-[1.125rem] font-black text-ci-green-500">3</span>
+                    </div>
+                    <div>
+                        <p class="text-[0.8125rem] font-bold text-ci-dark-800">Validez l'import</p>
+                        <p class="text-[0.75rem] text-ci-dark-400 mt-0.5">Consultez le résumé des changements et confirmez. Données existantes mises à jour, nouvelles créées.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if step == 'preview' and report %}
+    <!-- ═══════════════════════════════════════════════════════════
+         ÉTAPE 2 : PREVIEW
+         ═══════════════════════════════════════════════════════════ -->
+
+    <!-- Summary cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in">
+        <div class="stat-card">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-ci-green-50 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-ci-green-500">add_circle</span>
+                </div>
+                <div>
+                    <p class="text-[0.6875rem] font-bold text-ci-dark-400 uppercase tracking-wider">À créer</p>
+                    <p class="text-[1.5rem] font-black text-ci-green-600">{{ report.summary.total_create }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-blue-500">sync</span>
+                </div>
+                <div>
+                    <p class="text-[0.6875rem] font-bold text-ci-dark-400 uppercase tracking-wider">À mettre à jour</p>
+                    <p class="text-[1.5rem] font-black text-blue-600">{{ report.summary.total_update }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-red-500">error</span>
+                </div>
+                <div>
+                    <p class="text-[0.6875rem] font-bold text-ci-dark-400 uppercase tracking-wider">Erreurs</p>
+                    <p class="text-[1.5rem] font-black text-red-600">{{ report.summary.total_errors }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail tabs -->
+    <div class="card animate-in stagger-2" x-data="{ tab: 'bailleurs' }">
+        <div class="card-header flex items-center gap-3 justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-ci-orange-50 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-ci-orange-500">preview</span>
+                </div>
+                <div>
+                    <h3 class="text-[0.9375rem] font-bold text-ci-dark-800">Aperçu des modifications</h3>
+                    <p class="text-[0.75rem] text-ci-dark-400">Fichier : {{ file_name }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab buttons -->
+        <div class="flex border-b border-ci-dark-100 px-4 gap-1">
+            <button @click="tab='bailleurs'" class="px-4 py-2.5 text-[0.75rem] font-bold transition-all border-b-2 -mb-px"
+                    :class="tab==='bailleurs' ? 'text-ci-orange-600 border-ci-orange-500' : 'text-ci-dark-400 border-transparent hover:text-ci-dark-600'">
+                <span class="material-symbols-outlined text-[14px] align-middle mr-1">account_balance</span>
+                Bailleurs
+                <span class="ml-1 text-[0.625rem] px-1.5 py-0.5 rounded-full"
+                      :class="tab==='bailleurs' ? 'bg-ci-orange-100 text-ci-orange-600' : 'bg-ci-dark-100 text-ci-dark-400'">
+                    {{ report.bailleurs.create|length|add:report.bailleurs.update|length }}
+                </span>
+            </button>
+            <button @click="tab='projets'" class="px-4 py-2.5 text-[0.75rem] font-bold transition-all border-b-2 -mb-px"
+                    :class="tab==='projets' ? 'text-ci-orange-600 border-ci-orange-500' : 'text-ci-dark-400 border-transparent hover:text-ci-dark-600'">
+                <span class="material-symbols-outlined text-[14px] align-middle mr-1">folder_open</span>
+                Projets
+                <span class="ml-1 text-[0.625rem] px-1.5 py-0.5 rounded-full"
+                      :class="tab==='projets' ? 'bg-ci-orange-100 text-ci-orange-600' : 'bg-ci-dark-100 text-ci-dark-400'">
+                    {{ report.projets.create|length|add:report.projets.update|length }}
+                </span>
+            </button>
+            <button @click="tab='financements'" class="px-4 py-2.5 text-[0.75rem] font-bold transition-all border-b-2 -mb-px"
+                    :class="tab==='financements' ? 'text-ci-orange-600 border-ci-orange-500' : 'text-ci-dark-400 border-transparent hover:text-ci-dark-600'">
+                <span class="material-symbols-outlined text-[14px] align-middle mr-1">payments</span>
+                Financements
+                <span class="ml-1 text-[0.625rem] px-1.5 py-0.5 rounded-full"
+                      :class="tab==='financements' ? 'bg-ci-orange-100 text-ci-orange-600' : 'bg-ci-dark-100 text-ci-dark-400'">
+                    {{ report.financements.create|length|add:report.financements.update|length }}
+                </span>
+            </button>
+            <button @click="tab='decaissements'" class="px-4 py-2.5 text-[0.75rem] font-bold transition-all border-b-2 -mb-px"
+                    :class="tab==='decaissements' ? 'text-ci-orange-600 border-ci-orange-500' : 'text-ci-dark-400 border-transparent hover:text-ci-dark-600'">
+                <span class="material-symbols-outlined text-[14px] align-middle mr-1">receipt_long</span>
+                Décaissements
+                <span class="ml-1 text-[0.625rem] px-1.5 py-0.5 rounded-full"
+                      :class="tab==='decaissements' ? 'bg-ci-orange-100 text-ci-orange-600' : 'bg-ci-dark-100 text-ci-dark-400'">
+                    {{ report.decaissements.create|length|add:report.decaissements.update|length }}
+                </span>
+            </button>
+        </div>
+
+        <!-- Tab content -->
+        <div class="p-5">
+            {% for section in sections %}
+            <div x-show="tab==='{{ section.key }}'" x-cloak>
+
+                {% if section.create %}
+                <div class="mb-5">
+                    <h4 class="text-[0.8125rem] font-bold text-ci-green-700 flex items-center gap-2 mb-3">
+                        <span class="material-symbols-outlined text-[16px]">add_circle</span>
+                        Nouveaux ({{ section.create|length }})
+                    </h4>
+                    <div class="space-y-1">
+                        {% for item in section.create %}
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-ci-green-50/50 border border-ci-green-100">
+                            <span class="w-1.5 h-1.5 rounded-full bg-ci-green-500 flex-shrink-0"></span>
+                            <span class="text-[0.8125rem] text-ci-dark-700">{{ item.info }}</span>
+                            <span class="text-[0.625rem] text-ci-dark-300 ml-auto">Ligne {{ item.line }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if section.update %}
+                <div class="mb-5">
+                    <h4 class="text-[0.8125rem] font-bold text-blue-700 flex items-center gap-2 mb-3">
+                        <span class="material-symbols-outlined text-[16px]">sync</span>
+                        Mises à jour ({{ section.update|length }})
+                    </h4>
+                    <div class="space-y-1">
+                        {% for item in section.update %}
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50/50 border border-blue-100">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0"></span>
+                            <span class="text-[0.8125rem] text-ci-dark-700">{{ item.info }}</span>
+                            {% if item.detail %}
+                            <span class="text-[0.625rem] text-blue-500 font-medium">{{ item.detail }}</span>
+                            {% endif %}
+                            <span class="text-[0.625rem] text-ci-dark-300 ml-auto">Ligne {{ item.line }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if section.errors %}
+                <div class="mb-5">
+                    <h4 class="text-[0.8125rem] font-bold text-red-700 flex items-center gap-2 mb-3">
+                        <span class="material-symbols-outlined text-[16px]">error</span>
+                        Erreurs ({{ section.errors|length }})
+                    </h4>
+                    <div class="space-y-1">
+                        {% for err in section.errors %}
+                        <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50/50 border border-red-100">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>
+                            <span class="text-[0.8125rem] text-red-700">{{ err }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if not section.create and not section.update and not section.errors %}
+                <div class="text-center py-8 text-ci-dark-300">
+                    <span class="material-symbols-outlined text-[32px] mb-2">inbox</span>
+                    <p class="text-[0.8125rem]">Aucune donnée dans cette feuille</p>
+                </div>
+                {% endif %}
+
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="flex items-center justify-between animate-in stagger-3">
+        <a href="{% url 'imports:index' %}" class="btn btn-outline">
+            <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+            Annuler et recommencer
+        </a>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" name="execute" class="btn btn-green"
+                    onclick="return confirm('Confirmer l\'import ? Les données existantes seront mises à jour.')">
+                <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                Confirmer l'import
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+    {% if step == 'done' %}
+    <!-- ═══════════════════════════════════════════════════════════
+         ÉTAPE 3 : RÉSULTAT
+         ═══════════════════════════════════════════════════════════ -->
+    <div class="card animate-in">
+        <div class="p-8 text-center">
+            <div class="w-16 h-16 rounded-2xl bg-ci-green-50 flex items-center justify-center mx-auto mb-4">
+                <span class="material-symbols-outlined text-[32px] text-ci-green-500">task_alt</span>
+            </div>
+            <h3 class="text-[1.25rem] font-black text-ci-dark-800 mb-2">Import terminé avec succès</h3>
+            <p class="text-[0.875rem] text-ci-dark-400 mb-6">Voici le détail des opérations effectuées</p>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto mb-8">
+                {% for key, data in counts.items %}
+                <div class="bg-ci-dark-50 rounded-xl p-4 text-center">
+                    <p class="text-[0.6875rem] font-bold text-ci-dark-400 uppercase tracking-wider mb-1">{{ key|title }}</p>
+                    <div class="flex items-center justify-center gap-3">
+                        <span class="text-[0.75rem] font-bold text-ci-green-600">+{{ data.created }}</span>
+                        <span class="text-[0.75rem] font-bold text-blue-600">↻{{ data.updated }}</span>
+                        {% if data.errors %}
+                        <span class="text-[0.75rem] font-bold text-red-500">✗{{ data.errors|length }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% for key, data in counts.items %}
+            {% if data.errors %}
+            <div class="text-left max-w-2xl mx-auto mb-4">
+                <h4 class="text-[0.8125rem] font-bold text-red-700 mb-2">Erreurs {{ key|title }}</h4>
+                {% for err in data.errors %}
+                <p class="text-[0.75rem] text-red-600 py-1">• {{ err }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endfor %}
+
+            <div class="flex items-center justify-center gap-3">
+                <a href="{% url 'imports:index' %}" class="btn btn-primary">
+                    <span class="material-symbols-outlined text-[16px]">upload_file</span>
+                    Nouvel import
+                </a>
+                <a href="{% url 'dashboard:index' %}" class="btn btn-outline">
+                    <span class="material-symbols-outlined text-[16px]">space_dashboard</span>
+                    Tableau de bord
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

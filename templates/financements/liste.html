@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Financements - Suivi Projets{% endblock %}
+{% block page_title %}Financements{% endblock %}
+{% block page_subtitle %}Suivi des engagements et décaissements{% endblock %}
+
+{% block content %}
+<!-- Summary chips -->
+<div class="flex flex-wrap items-center gap-3 mb-5 animate-in">
+    <div class="flex items-center gap-2.5 bg-white border border-ci-dark-200 rounded-xl px-4 py-2.5 shadow-sm">
+        <div class="w-9 h-9 rounded-lg bg-ci-green-500 flex items-center justify-center">
+            <span class="material-symbols-outlined text-white text-[18px]">payments</span>
+        </div>
+        <div>
+            <p class="text-[1.25rem] font-black text-ci-dark-900 leading-none">{{ financements.count }}</p>
+            <p class="text-[0.5625rem] text-ci-dark-400 font-bold uppercase tracking-wider mt-0.5">Financements</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-2.5 bg-white border border-ci-dark-200 rounded-xl px-4 py-2.5 shadow-sm">
+        <div class="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center">
+            <span class="material-symbols-outlined text-white text-[18px]">account_balance_wallet</span>
+        </div>
+        <div>
+            <p class="text-[1rem] font-black text-ci-dark-900 leading-none">{{ total_engage|floatformat:0|intcomma }}</p>
+            <p class="text-[0.5625rem] text-ci-dark-400 font-bold uppercase tracking-wider mt-0.5">USD engagés</p>
+        </div>
+    </div>
+</div>
+
+<!-- Toolbar -->
+<div class="card mb-5 animate-in stagger-1">
+    <div class="p-4">
+        <form method="get" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div class="relative flex-1 min-w-[220px]">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ci-dark-300 text-[18px]">search</span>
+                <input type="text" name="q" value="{{ query }}" placeholder="Rechercher (projet, bailleur, référence)..." class="form-input !pl-10">
+            </div>
+            <select name="type" class="form-input !w-auto">
+                <option value="">Tous les types</option>
+                {% for code, label in types %}
+                <option value="{{ code }}" {% if type_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-outlined text-[16px]">filter_list</span> Filtrer
+            </button>
+            {% if can_edit %}
+            <a href="{% url 'financements:creer' %}" class="btn btn-green whitespace-nowrap">
+                <span class="material-symbols-outlined text-[16px]">add</span> Nouveau financement
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card overflow-hidden animate-in stagger-2">
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Projet</th>
+                    <th>Bailleur</th>
+                    <th>Type</th>
+                    <th class="text-right">Engagé</th>
+                    <th class="text-right">Décaissé</th>
+                    <th class="text-right">Taux</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in financements %}
+                <tr class="group">
+                    <td>
+                        <a href="{% url 'projets:detail' f.projet.pk %}" class="text-ci-dark-800 hover:text-ci-orange-600 font-semibold transition-colors text-[0.8125rem]">{{ f.projet.code }}</a>
+                        <p class="text-[0.6875rem] text-ci-dark-400 truncate max-w-[200px]">{{ f.projet.titre }}</p>
+                    </td>
+                    <td class="whitespace-nowrap">
+                        <a href="{% url 'bailleurs:detail' f.bailleur.pk %}" class="text-ci-dark-700 hover:text-ci-orange-500 font-semibold transition-colors">{{ f.bailleur.sigle|default:f.bailleur.nom }}</a>
+                    </td>
+                    <td class="text-ci-dark-500 whitespace-nowrap text-[0.75rem]">{{ f.get_type_financement_display }}</td>
+                    <td class="text-right font-bold text-ci-dark-800 whitespace-nowrap">{{ f.montant_engage|floatformat:0|intcomma }} <span class="text-ci-dark-300 text-[0.625rem]">{{ f.devise }}</span></td>
+                    <td class="text-right whitespace-nowrap font-semibold">{{ f.total_decaisse|floatformat:0|intcomma }}</td>
+                    <td class="text-right whitespace-nowrap">
+                        <div class="flex items-center justify-end gap-2">
+                            <div class="w-12 bg-ci-dark-100 rounded-full h-1.5 overflow-hidden">
+                                <div class="h-1.5 rounded-full {% if f.taux_decaissement < 30 %}bg-red-400{% elif f.taux_decaissement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-400{% endif %}" style="width: {{ f.taux_decaissement }}%"></div>
+                            </div>
+                            <span class="text-[0.75rem] font-bold {% if f.taux_decaissement < 30 %}text-red-500{% elif f.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ f.taux_decaissement }}%</span>
+                        </div>
+                    </td>
+                    <td class="text-right whitespace-nowrap">
+                        <a href="{% url 'financements:detail' f.pk %}" class="inline-flex items-center gap-1 text-ci-orange-500 hover:text-ci-orange-700 text-[0.75rem] font-semibold transition-colors">
+                            <span class="material-symbols-outlined text-[12px]">visibility</span> Détail
+                        </a>
+                        {% if can_edit %}
+                        <span class="text-ci-dark-200 mx-1">·</span>
+                        <a href="{% url 'financements:creer_decaissement' f.pk %}" class="inline-flex items-center gap-1 text-ci-green-500 hover:text-ci-green-700 text-[0.75rem] font-semibold transition-colors">
+                            <span class="material-symbols-outlined text-[12px]">add_circle</span> Décaisser
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="!py-20 text-center">
+                        <div class="w-16 h-16 mx-auto rounded-2xl bg-ci-dark-50 flex items-center justify-center mb-4">
+                            <span class="material-symbols-outlined text-ci-dark-200 text-[32px]">payments</span>
+                        </div>
+                        <p class="text-[0.9375rem] font-bold text-ci-dark-500 mb-1">Aucun financement enregistré</p>
+                        <p class="text-[0.75rem] text-ci-dark-400 mb-4">Commencez par ajouter un financement à un projet</p>
+                        {% if can_edit %}
+                        <a href="{% url 'financements:creer' %}" class="btn btn-primary">
+                            <span class="material-symbols-outlined text-[16px]">add</span> Ajouter un financement
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Projets - Suivi Projets{% endblock %}
+{% block page_title %}Projets{% endblock %}
+{% block page_subtitle %}Portefeuille de projets de développement{% endblock %}
+
+{% block extra_head %}
+<style>
+    .progress-mini { width: 48px; height: 5px; border-radius: 3px; background: #E2E8F0; overflow: hidden; }
+    .progress-mini-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+    .row-hover-reveal { opacity: 0; transition: opacity 0.2s ease; }
+    tr:hover .row-hover-reveal { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Summary chips -->
+<div class="flex flex-wrap items-center gap-3 mb-5 animate-in">
+    <div class="flex items-center gap-2.5 bg-white border border-ci-dark-200 rounded-xl px-4 py-2.5 shadow-sm">
+        <div class="w-9 h-9 rounded-lg bg-ci-orange-500 flex items-center justify-center">
+            <span class="material-symbols-outlined text-white text-[18px]">folder_open</span>
+        </div>
+        <div>
+            <p class="text-[1.25rem] font-black text-ci-dark-900 leading-none">{{ projets.count }}</p>
+            <p class="text-[0.5625rem] text-ci-dark-400 font-bold uppercase tracking-wider mt-0.5">Projets</p>
+        </div>
+    </div>
+</div>
+
+<!-- Toolbar -->
+<div class="card mb-5 animate-in stagger-1">
+    <div class="p-4">
+        <form method="get" class="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+            <div class="relative flex-1 min-w-[220px]">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ci-dark-300 text-[18px]">search</span>
+                <input type="text" name="q" value="{{ query }}" placeholder="Rechercher un projet..."
+                       class="form-input !pl-10">
+            </div>
+            <select name="statut" class="form-input !w-auto">
+                <option value="">Tous les statuts</option>
+                {% for code, label in statuts %}
+                <option value="{{ code }}" {% if statut_filter == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+            <select name="secteur" class="form-input !w-auto">
+                <option value="">Tous les secteurs</option>
+                {% for s in secteurs %}
+                <option value="{{ s.pk }}" {% if secteur_filter == s.pk|stringformat:"d" %}selected{% endif %}>{{ s.nom }}</option>
+                {% endfor %}
+            </select>
+            <select name="bailleur" class="form-input !w-auto">
+                <option value="">Tous les bailleurs</option>
+                {% for b in bailleurs %}
+                <option value="{{ b.pk }}" {% if bailleur_filter == b.pk|stringformat:"d" %}selected{% endif %}>{{ b.sigle|default:b.nom }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-outlined text-[16px]">filter_list</span> Filtrer
+            </button>
+            {% if can_edit %}
+            <a href="{% url 'projets:creer' %}" class="btn btn-green whitespace-nowrap">
+                <span class="material-symbols-outlined text-[16px]">add</span> Nouveau projet
+            </a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- Table -->
+<div class="card overflow-hidden animate-in stagger-2">
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Titre du projet</th>
+                    <th>Bailleur</th>
+                    <th>Secteur</th>
+                    <th>Statut</th>
+                    <th class="text-right">Montant</th>
+                    <th class="text-right">Avancement</th>
+                    <th class="text-right">Décaissement</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for projet in projets %}
+                <tr class="group">
+                    <td class="font-mono text-[0.6875rem] text-ci-dark-400 whitespace-nowrap">
+                        <span class="bg-ci-dark-50 px-1.5 py-0.5 rounded font-bold">{{ projet.code }}</span>
+                    </td>
+                    <td>
+                        <a href="{% url 'projets:detail' projet.pk %}" class="text-ci-dark-800 hover:text-ci-orange-600 font-semibold transition-colors text-[0.8125rem]">
+                            {{ projet.titre|truncatechars:50 }}
+                        </a>
+                        {% if projet.est_en_retard %}
+                        <span class="badge badge-red ml-1.5 text-[0.5625rem]">En retard</span>
+                        {% endif %}
+                    </td>
+                    <td class="whitespace-nowrap">
+                        {% with bailleurs=projet.bailleurs_list %}
+                        {% if bailleurs %}
+                            {% for b in bailleurs %}
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[0.625rem] font-bold {% if b.pk == projet.bailleur_principal_id %}bg-ci-orange-50 text-ci-orange-700 border border-ci-orange-200{% else %}bg-ci-dark-50 text-ci-dark-600 border border-ci-dark-200{% endif %}">{{ b.sigle|default:b.nom|truncatechars:15 }}</span>
+                            {% endfor %}
+                            {% if projet.est_cofinance %}<span class="text-[0.5625rem] text-ci-dark-300 font-medium ml-0.5">({{ projet.nombre_bailleurs }})</span>{% endif %}
+                        {% else %}
+                            <span class="font-semibold text-ci-dark-700">{{ projet.bailleur_principal.sigle|default:"-" }}</span>
+                        {% endif %}
+                        {% endwith %}
+                    </td>
+                    <td class="text-ci-dark-500 whitespace-nowrap text-[0.75rem]">{{ projet.secteur|default:"-" }}</td>
+                    <td class="whitespace-nowrap">
+                        <span class="{{ projet.statut_badge_class }}">{{ projet.get_statut_display }}</span>
+                    </td>
+                    <td class="text-right whitespace-nowrap">
+                        <span class="font-bold text-ci-dark-800">{{ projet.montant_total|floatformat:0|intcomma }}</span>
+                        <span class="text-ci-dark-300 font-medium text-[0.625rem] ml-0.5">{{ projet.devise }}</span>
+                    </td>
+                    <td class="text-right whitespace-nowrap">
+                        <div class="flex items-center justify-end gap-2">
+                            <div class="progress-mini">
+                                <div class="progress-mini-fill {% if projet.taux_avancement < 30 %}bg-red-400{% elif projet.taux_avancement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-400{% endif %}" style="width: {{ projet.taux_avancement }}%;"></div>
+                            </div>
+                            <span class="text-[0.75rem] font-bold w-10 text-right {% if projet.taux_avancement < 30 %}text-red-500{% elif projet.taux_avancement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ projet.taux_avancement }}%</span>
+                        </div>
+                    </td>
+                    <td class="text-right whitespace-nowrap">
+                        <span class="text-[0.8125rem] font-bold {% if projet.taux_decaissement < 30 %}text-red-500{% elif projet.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">
+                            {{ projet.taux_decaissement }}%
+                        </span>
+                    </td>
+                    <td class="whitespace-nowrap">
+                        <a href="{% url 'projets:detail' projet.pk %}" class="row-hover-reveal inline-flex items-center gap-1 text-[0.6875rem] text-ci-orange-500 font-semibold hover:text-ci-orange-700 transition-colors">
+                            Détail <span class="material-symbols-outlined text-[12px]">arrow_forward</span>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="!py-20 text-center">
+                        <div class="w-16 h-16 mx-auto rounded-2xl bg-ci-dark-50 flex items-center justify-center mb-4">
+                            <span class="material-symbols-outlined text-ci-dark-200 text-[32px]">folder_off</span>
+                        </div>
+                        <p class="text-[0.9375rem] font-bold text-ci-dark-500 mb-1">Aucun projet trouvé</p>
+                        <p class="text-[0.75rem] text-ci-dark-400 mb-4">Essayez de modifier vos filtres ou ajoutez un nouveau projet</p>
+                        {% if can_edit %}
+                        <a href="{% url 'projets:creer' %}" class="btn btn-primary">
+                            <span class="material-symbols-outlined text-[16px]">add</span> Ajouter un projet
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

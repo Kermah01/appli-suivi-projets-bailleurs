@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Financement {{ financement.pk }} - Suivi Projets{% endblock %}
+{% block page_title %}Financement #{{ financement.pk }}{% endblock %}
+{% block page_subtitle %}{{ financement.bailleur }} &rarr; {{ financement.projet.code }}{% endblock %}
+
+{% block content %}
+<!-- Hero Header -->
+<div class="card mb-6 overflow-hidden animate-in">
+    <div class="h-1.5 bg-ci-green-500"></div>
+    <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex items-start gap-4 flex-1">
+                <div class="w-14 h-14 rounded-xl bg-ci-green-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-ci-green-500/20">
+                    <span class="material-symbols-outlined text-white text-[24px]">payments</span>
+                </div>
+                <div>
+                    <h2 class="text-[1.125rem] font-black text-ci-dark-900 tracking-tight">Financement #{{ financement.pk }}</h2>
+                    <p class="text-[0.8125rem] text-ci-dark-500 font-medium mt-1">{{ financement.bailleur }} &rarr; {{ financement.projet.code }}</p>
+                </div>
+            </div>
+            {% if can_edit %}
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <a href="{% url 'financements:modifier' financement.pk %}" class="btn btn-primary btn-sm">
+                    <span class="material-symbols-outlined text-[14px]">edit</span> Modifier
+                </a>
+                <a href="{% url 'financements:creer_decaissement' financement.pk %}" class="btn btn-green btn-sm">
+                    <span class="material-symbols-outlined text-[14px]">add</span> Décaissement
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Back link -->
+<div class="mb-5 animate-in stagger-1">
+    <a href="{% url 'financements:liste' %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors">
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour à la liste
+    </a>
+</div>
+
+<!-- KPIs -->
+<div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+    <div class="stat-card animate-in stagger-1">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-blue-500 text-[18px]">account_balance_wallet</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant engagé</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ financement.montant_engage|floatformat:0|intcomma }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">{{ financement.devise }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-2">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-green-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-green-500 text-[18px]">payments</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total décaissé</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ financement.total_decaisse|floatformat:0|intcomma }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-3">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-orange-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">hourglass_top</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Reste à décaisser</p>
+        <p class="text-xl font-black text-ci-orange-500 leading-none">{{ financement.reste_a_decaisser|floatformat:0|intcomma }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-4">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-purple-500 text-[18px]">speed</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Taux décaissement</p>
+        <p class="text-xl font-black leading-none {% if financement.taux_decaissement < 30 %}text-red-500{% elif financement.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ financement.taux_decaissement }}%</p>
+        <div class="w-full bg-ci-dark-100 rounded-full h-2 mt-3 overflow-hidden">
+            <div class="h-2 rounded-full {% if financement.taux_decaissement < 30 %}bg-red-400{% elif financement.taux_decaissement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-500{% endif %}" style="width: {{ financement.taux_decaissement }}%;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Info -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+    <div class="card animate-in stagger-5">
+        <div class="card-header flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">info</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Informations</h3>
+        </div>
+        <div class="p-5">
+            <dl class="space-y-0">
+                <div class="flex justify-between py-2.5 border-b border-ci-dark-50 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">description</span> Projet</dt>
+                    <dd><a href="{% url 'projets:detail' financement.projet.pk %}" class="text-ci-orange-500 hover:text-ci-orange-700 font-bold text-[0.8125rem] transition-colors">{{ financement.projet }}</a></dd>
+                </div>
+                <div class="flex justify-between py-2.5 border-b border-ci-dark-50 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">account_balance</span> Bailleur</dt>
+                    <dd><a href="{% url 'bailleurs:detail' financement.bailleur.pk %}" class="text-ci-orange-500 hover:text-ci-orange-700 font-bold text-[0.8125rem] transition-colors">{{ financement.bailleur }}</a></dd>
+                </div>
+                <div class="flex justify-between py-2.5 border-b border-ci-dark-50 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">category</span> Type</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ financement.get_type_financement_display }}</dd>
+                </div>
+                <div class="flex justify-between py-2.5 border-b border-ci-dark-50 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">currency_exchange</span> Devise</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ financement.get_devise_display }}</dd>
+                </div>
+                <div class="flex justify-between py-2.5 border-b border-ci-dark-50 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">calendar_month</span> Date d'accord</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ financement.date_accord|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="flex justify-between py-2.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">tag</span> Référence</dt>
+                    <dd class="text-[0.8125rem] font-bold font-mono text-ci-dark-800 bg-ci-dark-50 px-2 py-0.5 rounded">{{ financement.reference|default:"-" }}</dd>
+                </div>
+            </dl>
+            {% if financement.observations %}
+            <div class="mt-4 pt-4 border-t border-ci-dark-100">
+                <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1.5">Observations</p>
+                <p class="text-[0.8125rem] text-ci-dark-600 leading-relaxed">{{ financement.observations }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Historique décaissements -->
+    <div class="card animate-in stagger-5">
+        <div class="card-header flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-ci-green-500 text-[16px]">receipt_long</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Historique des décaissements</h3>
+            </div>
+            <span class="badge badge-green text-[0.625rem]">{{ financement.decaissements.count }} opération{{ financement.decaissements.count|pluralize:"s" }}</span>
+        </div>
+        {% for d in financement.decaissements.all %}
+        <div class="px-5 py-4 border-b border-ci-dark-100/60 last:border-b-0 hover:bg-slate-50/50 transition-colors">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-[0.875rem] font-black text-ci-dark-800">{{ d.montant|floatformat:0|intcomma }} <span class="text-ci-dark-400 font-medium text-[0.6875rem]">{{ financement.devise }}</span></p>
+                    <p class="text-[0.6875rem] text-ci-dark-400 font-medium mt-0.5 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[12px]">calendar_month</span>
+                        {{ d.date_decaissement|date:"d/m/Y" }} {% if d.reference %}&middot; <span class="font-mono font-bold">{{ d.reference }}</span>{% endif %}
+                    </p>
+                </div>
+                <div class="w-9 h-9 rounded-lg bg-ci-green-50 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-ci-green-500 text-[16px]">check_circle</span>
+                </div>
+            </div>
+            {% if d.description %}<p class="text-[0.6875rem] text-ci-dark-400 mt-1.5 leading-relaxed">{{ d.description }}</p>{% endif %}
+        </div>
+        {% empty %}
+        <div class="px-5 py-12 text-center">
+            <div class="w-12 h-12 mx-auto rounded-xl bg-ci-dark-50 flex items-center justify-center mb-2">
+                <span class="material-symbols-outlined text-ci-dark-200 text-[24px]">receipt_long</span>
+            </div>
+            <p class="text-[0.8125rem] text-ci-dark-300 font-medium">Aucun décaissement enregistré</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

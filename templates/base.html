@@ -1,0 +1,958 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>{% block title %}Suivi Projets Bailleurs{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                    colors: {
+                        ci: {
+                            orange: { 50:'#FFF7ED',100:'#FFEDD5',200:'#FED7AA',300:'#FDBA74',400:'#FB923C',500:'#F77F00',600:'#EA580C',700:'#C2410C',800:'#9A3412',900:'#7C2D12' },
+                            green:  { 50:'#F0FDF4',100:'#DCFCE7',200:'#BBF7D0',300:'#86EFAC',400:'#4ADE80',500:'#009A44',600:'#16A34A',700:'#15803D',800:'#166534',900:'#14532D' },
+                            dark:   { 50:'#F8FAFC',100:'#F1F5F9',200:'#E2E8F0',300:'#CBD5E1',400:'#94A3B8',500:'#64748B',600:'#475569',700:'#334155',800:'#1E293B',900:'#0F172A',950:'#020617' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+
+        /* ── Sidebar ── */
+        .sidebar-link {
+            display: flex; align-items: center; gap: 0.875rem; padding: 0.625rem 1rem;
+            border-radius: 0.625rem; font-size: 0.8125rem; font-weight: 500;
+            color: #475569; transition: all 0.2s cubic-bezier(.4,0,.2,1);
+            position: relative;
+        }
+        .sidebar-link:hover { background: #F1F5F9; color: #0F172A; }
+        .sidebar-link.active {
+            background: #FFF7ED; color: #C2410C; font-weight: 600;
+            box-shadow: 0 1px 3px rgba(247,127,0,0.08);
+        }
+        .sidebar-link.active::before {
+            content: ''; position: absolute; left: -12px; top: 50%; transform: translateY(-50%);
+            width: 4px; height: 24px; border-radius: 0 4px 4px 0; background: #F77F00;
+        }
+        .sidebar-link.active .material-symbols-outlined { color: #EA580C; }
+        .sidebar-link .material-symbols-outlined { font-size: 22px; color: #64748B; transition: all 0.2s ease; }
+        .sidebar-link:hover .material-symbols-outlined { color: #0F172A; }
+
+        /* ── Cards ── */
+        .card {
+            background: #fff; border-radius: 0.875rem; overflow: hidden;
+            border: 1px solid #E2E8F0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s cubic-bezier(.4,0,.2,1);
+        }
+        .card:hover { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.06); }
+        .card-header {
+            padding: 1rem 1.25rem; border-bottom: 1px solid #F1F5F9;
+            background: #fff;
+        }
+
+        /* ── Stat cards ── */
+        .stat-card {
+            background: #fff; border-radius: 0.875rem; padding: 1.5rem; position: relative;
+            border: 1px solid #E2E8F0; transition: all 0.3s cubic-bezier(.4,0,.2,1);
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: #F77F00; opacity: 0; transition: opacity 0.3s ease;
+        }
+        .stat-card:hover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04); transform: translateY(-3px); border-color: #CBD5E1; }
+        .stat-card:hover::before { opacity: 1; }
+
+        /* ── Tables ── */
+        .data-table { width: 100%; font-size: 0.8125rem; border-collapse: collapse; }
+        .data-table thead th {
+            padding: 0.75rem 1rem; text-align: left; font-size: 0.6875rem;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+            color: #64748B; background: #F8FAFC; border-bottom: 2px solid #E2E8F0;
+        }
+        .data-table tbody td {
+            padding: 0.75rem 1rem; border-bottom: 1px solid #F1F5F9;
+            color: #334155; vertical-align: middle;
+        }
+        .data-table tbody tr { transition: all 0.15s ease; }
+        .data-table tbody tr:hover { background: #FFF7ED; }
+        .data-table tbody tr:last-child td { border-bottom: none; }
+
+        /* ── Badges ── */
+        .badge { display: inline-flex; align-items: center; padding: 0.1875rem 0.625rem; border-radius: 9999px; font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.01em; }
+        .badge-orange { background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; }
+        .badge-green { background: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0; }
+        .badge-red { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
+        .badge-blue { background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; }
+        .badge-gray { background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; }
+        .badge-purple { background: #FAF5FF; color: #7C3AED; border: 1px solid #DDD6FE; }
+
+        /* ── Gauge ── */
+        .gauge-ring { transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1); }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+        /* ── Form inputs ── */
+        .form-input {
+            width: 100%; padding: 0.5rem 0.875rem; border: 1px solid #E2E8F0;
+            border-radius: 0.625rem; font-size: 0.8125rem; color: #1E293B;
+            background: #fff; transition: all 0.2s cubic-bezier(.4,0,.2,1); outline: none;
+        }
+        .form-input:focus { border-color: #F77F00; box-shadow: 0 0 0 3px rgba(247,127,0,0.1), 0 1px 2px rgba(0,0,0,0.05); }
+        .form-input:hover:not(:focus) { border-color: #CBD5E1; }
+        select.form-input { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748B' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2.25rem; }
+        textarea.form-input { resize: vertical; min-height: 5rem; }
+
+        /* ── Animations ── */
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInLeft { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+        .animate-in { animation: fadeInUp 0.4s cubic-bezier(.4,0,.2,1) both; }
+        .animate-in-left { animation: fadeInLeft 0.4s cubic-bezier(.4,0,.2,1) both; }
+        .animate-scale { animation: scaleIn 0.3s cubic-bezier(.4,0,.2,1) both; }
+        .animate-slide-down { animation: slideDown 0.3s cubic-bezier(.4,0,.2,1) both; }
+
+        .stagger-1 { animation-delay: 0.05s; }
+        .stagger-2 { animation-delay: 0.1s; }
+        .stagger-3 { animation-delay: 0.15s; }
+        .stagger-4 { animation-delay: 0.2s; }
+        .stagger-5 { animation-delay: 0.25s; }
+        .stagger-6 { animation-delay: 0.3s; }
+
+        /* ── Flag bar ── */
+        .flag-bar { height: 3px; display: flex; }
+        .flag-bar-orange { flex: 1; background: #F77F00; }
+        .flag-bar-white { flex: 1; background: #fff; }
+        .flag-bar-green { flex: 1; background: #009A44; }
+
+        /* ── Buttons ── */
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.5rem 1.125rem;
+            border-radius: 0.625rem; font-size: 0.8125rem; font-weight: 600;
+            transition: all 0.2s cubic-bezier(.4,0,.2,1); cursor: pointer; border: none;
+        }
+        .btn-primary { background: #F77F00; color: #fff; box-shadow: 0 2px 4px rgba(247,127,0,0.25); }
+        .btn-primary:hover { box-shadow: 0 4px 12px rgba(247,127,0,0.35); transform: translateY(-1px); }
+        .btn-green { background: #009A44; color: #fff; box-shadow: 0 2px 4px rgba(0,154,68,0.25); }
+        .btn-green:hover { box-shadow: 0 4px 12px rgba(0,154,68,0.35); transform: translateY(-1px); }
+        .btn-outline { background: #fff; color: #334155; border: 1px solid #E2E8F0; }
+        .btn-outline:hover { background: #F8FAFC; border-color: #CBD5E1; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+        .btn-danger { background: #DC2626; color: #fff; box-shadow: 0 2px 4px rgba(220,38,38,0.25); }
+        .btn-danger:hover { box-shadow: 0 4px 12px rgba(220,38,38,0.35); transform: translateY(-1px); }
+        .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+
+        /* ── Hint ── */
+        .hint-dot { position: relative; display: inline-flex; }
+        .hint-dot::before {
+            content: ''; position: absolute; top: -2px; right: -2px; width: 6px; height: 6px;
+            border-radius: 50%; background: #F77F00; animation: pulse-dot 2s ease-in-out infinite;
+        }
+        @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .hint-banner {
+            background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 0.625rem;
+            padding: 0.75rem 1rem; font-size: 0.75rem; color: #9A3412;
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .hint-banner .material-symbols-outlined { font-size: 16px; color: #F77F00; }
+
+        /* ── Glass morphism utility ── */
+        .glass { background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        .glass-dark { background: rgba(15,23,42,0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+
+        /* ── Pulse notification ── */
+        .pulse-ring { animation: pulseRing 2s cubic-bezier(.4,0,.6,1) infinite; }
+        @keyframes pulseRing { 0% { transform: scale(0.9); opacity: 1; } 100% { transform: scale(1.8); opacity: 0; } }
+
+        /* ── Navbar search ── */
+        .nav-search {
+            background: rgba(30,41,59,0.5); border: 1px solid rgba(71,85,105,0.4);
+            border-radius: 0.625rem; padding: 0.375rem 0.75rem 0.375rem 2.25rem;
+            font-size: 0.8125rem; color: #E2E8F0; outline: none;
+            transition: all 0.25s ease; width: 240px;
+        }
+        .nav-search::placeholder { color: #64748B; }
+        .nav-search:focus { background: rgba(30,41,59,0.8); border-color: #F77F00; width: 320px; box-shadow: 0 0 0 2px rgba(247,127,0,0.15); }
+
+        /* ── Tooltip for collapsed sidebar ── */
+        .sidebar-tooltip {
+            position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
+            margin-left: 12px; padding: 0.375rem 0.75rem; border-radius: 0.375rem;
+            background: #1E293B; color: #fff; font-size: 0.75rem; font-weight: 600;
+            white-space: nowrap; pointer-events: none;
+            opacity: 0; transition: opacity 0.15s ease;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        .sidebar-tooltip::before {
+            content: ''; position: absolute; right: 100%; top: 50%; transform: translateY(-50%);
+            border: 5px solid transparent; border-right-color: #1E293B;
+        }
+
+        /* ── Progress bar ── */
+        .progress-bar { height: 6px; border-radius: 3px; background: #E2E8F0; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+
+        /* ── Search dropdown ── */
+        .search-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+            background: #fff; border: 1px solid #E2E8F0; border-radius: 0.75rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); z-index: 999;
+            max-height: 400px; overflow-y: auto;
+        }
+        .search-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 1rem; cursor: pointer; transition: background 0.1s; text-decoration: none; color: inherit; }
+        .search-item:hover { background: #FFF7ED; }
+
+        /* ── Notification dropdown ── */
+        .notif-dropdown {
+            position: absolute; top: 100%; right: 0; margin-top: 8px; width: 360px;
+            background: #fff; border: 1px solid #E2E8F0; border-radius: 0.75rem;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); z-index: 999;
+            max-height: 420px; overflow-y: auto;
+        }
+        .notif-item { display: flex; align-items: flex-start; gap: 0.625rem; padding: 0.75rem 1rem; border-bottom: 1px solid #F1F5F9; cursor: pointer; transition: background 0.1s; text-decoration: none; color: inherit; }
+        .notif-item:hover { background: #FFF7ED; }
+        .notif-item:last-child { border-bottom: none; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="h-full bg-ci-dark-50 font-sans antialiased" x-data="{ sidebarOpen: true, mobileSidebar: false }">
+
+    <!-- Flag bar -->
+    <div class="flag-bar fixed top-0 left-0 right-0 z-[60]">
+        <div class="flag-bar-orange"></div>
+        <div class="flag-bar-white"></div>
+        <div class="flag-bar-green"></div>
+    </div>
+
+    <!-- Global Top Navbar -->
+    <div class="fixed top-[3px] left-0 right-0 z-[55] glass-dark border-b border-white/5 h-[60px] flex items-center justify-between px-4 sm:px-6">
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl bg-ci-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-ci-orange-500/25">
+                <span class="material-symbols-outlined text-white text-[22px]">monitoring</span>
+            </div>
+            <div class="flex flex-col">
+                <h1 class="text-[0.875rem] sm:text-[1rem] font-black text-white tracking-wide uppercase leading-tight">
+                    Plateforme de Suivi des Projets
+                </h1>
+                <p class="text-[0.625rem] sm:text-[0.6875rem] font-medium text-ci-dark-400 tracking-wider hidden sm:block">
+                    Portefeuille des projets financés par les partenaires au développement
+                </p>
+            </div>
+        </div>
+
+        <!-- Center: Search (functional) -->
+        <div class="hidden lg:block relative" x-data="globalSearch()" @click.outside="open=false" @keydown.escape.window="open=false">
+            <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-ci-dark-500 text-[18px] pointer-events-none z-10">search</span>
+            <input type="text" class="nav-search" placeholder="Rechercher projets, bailleurs..."
+                   x-model="query" @input.debounce.300ms="search()" @focus="if(results.length) open=true"
+                   @keydown.enter.prevent="goFirst()">
+            <!-- Search results dropdown -->
+            <div class="search-dropdown" x-show="open && results.length > 0" x-cloak x-transition.opacity>
+                <template x-for="r in results" :key="r.url">
+                    <a :href="r.url" class="search-item">
+                        <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                             :class="r.type==='projet' ? 'bg-ci-orange-50 text-ci-orange-500' : r.type==='bailleur' ? 'bg-blue-50 text-blue-500' : 'bg-ci-green-50 text-ci-green-500'">
+                            <span class="material-symbols-outlined text-[16px]" x-text="r.icon"></span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[0.8125rem] font-semibold text-ci-dark-800 truncate" x-text="r.label"></p>
+                            <p class="text-[0.625rem] text-ci-dark-400" x-text="r.sub"></p>
+                        </div>
+                        <span class="badge badge-gray text-[0.5625rem]" x-text="r.type"></span>
+                    </a>
+                </template>
+            </div>
+            <div class="search-dropdown px-4 py-6 text-center" x-show="open && results.length===0 && query.length>=2 && !loading" x-cloak x-transition.opacity>
+                <p class="text-[0.8125rem] text-ci-dark-400">Aucun résultat pour "<span x-text="query" class="font-semibold"></span>"</p>
+            </div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="flex items-center gap-3">
+            <!-- Notification Bell (functional) -->
+            <div class="relative" x-data="globalNotifs()" @click.outside="open=false">
+                <button @click="toggle()" class="relative p-2 rounded-lg hover:bg-white/10 text-ci-dark-400 hover:text-white transition-all">
+                    <span class="material-symbols-outlined text-[20px]">notifications</span>
+                    <span x-show="count > 0" class="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[0.5625rem] font-bold flex items-center justify-center" x-text="count" x-cloak></span>
+                </button>
+                <!-- Notifications dropdown -->
+                <div class="notif-dropdown" x-show="open" x-cloak x-transition.opacity>
+                    <div class="px-4 py-3 border-b border-ci-dark-100 flex items-center justify-between">
+                        <h4 class="text-[0.8125rem] font-bold text-ci-dark-800">Notifications</h4>
+                        <span class="badge badge-orange text-[0.5625rem]" x-text="count + ' alerte(s)'" x-show="count>0"></span>
+                    </div>
+                    <template x-for="n in notifs" :key="n.title+n.message">
+                        <a :href="n.url" class="notif-item">
+                            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                                 :class="n.type==='warning' ? 'bg-red-50 text-red-500' : n.type==='alert' ? 'bg-ci-orange-50 text-ci-orange-500' : 'bg-blue-50 text-blue-500'">
+                                <span class="material-symbols-outlined text-[16px]" x-text="n.icon"></span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-[0.75rem] font-bold text-ci-dark-800" x-text="n.title"></p>
+                                <p class="text-[0.625rem] text-ci-dark-400 mt-0.5" x-text="n.message"></p>
+                            </div>
+                            <span class="text-[0.5625rem] text-ci-dark-300 font-semibold flex-shrink-0" x-text="n.time"></span>
+                        </a>
+                    </template>
+                    <div x-show="notifs.length===0" class="px-4 py-8 text-center text-ci-dark-300 text-[0.8125rem]">Aucune notification</div>
+                </div>
+            </div>
+
+            <div class="hidden md:block w-px h-8 bg-white/10"></div>
+
+            {% if user.is_authenticated %}
+            <span class="hidden md:flex items-center gap-2 text-[0.75rem] text-ci-dark-300 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
+                <span class="w-2 h-2 rounded-full bg-ci-green-500 relative">
+                    <span class="absolute inset-0 rounded-full bg-ci-green-500 animate-ping opacity-75"></span>
+                </span>
+                {{ user.get_full_name|default:user.username }}
+            </span>
+            <div class="relative" x-data="{ open: false }">
+                <button @click="open = !open" class="w-9 h-9 rounded-xl bg-ci-dark-700 border border-white/10 flex items-center justify-center text-[0.75rem] font-bold text-white shadow-sm cursor-pointer hover:ring-2 hover:ring-ci-orange-500/50 transition-all">
+                    {{ user.first_name|first|upper|default:'U' }}{{ user.last_name|first|upper }}
+                </button>
+                <div x-show="open" x-cloak @click.outside="open = false" x-transition
+                     class="absolute right-0 mt-2 w-56 bg-white rounded-xl border border-ci-dark-200 shadow-xl z-50 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-ci-dark-100">
+                        <p class="text-[0.8125rem] font-bold text-ci-dark-800">{{ user.get_full_name|default:user.username }}</p>
+                        <p class="text-[0.625rem] text-ci-dark-400">{{ user.email }}</p>
+                        {% if user_profile %}<p class="text-[0.5625rem] text-ci-orange-500 font-semibold mt-0.5">{{ user_profile.get_role_display }}</p>{% endif %}
+                    </div>
+                    <a href="{% url 'accounts:logout' %}" class="flex items-center gap-2 px-4 py-2.5 text-[0.8125rem] font-semibold text-red-600 hover:bg-red-50 transition-colors">
+                        <span class="material-symbols-outlined text-[16px]">logout</span> Se déconnecter
+                    </a>
+                </div>
+            </div>
+            {% else %}
+            <a href="{% url 'accounts:login' %}" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-ci-orange-500 text-white text-[0.75rem] font-bold hover:bg-ci-orange-600 transition-all shadow-sm">
+                <span class="material-symbols-outlined text-[16px]">login</span> Connexion
+            </a>
+            {% endif %}
+            <!-- Mobile Menu Toggle -->
+            <button @click="mobileSidebar = !mobileSidebar" class="lg:hidden p-2 rounded-lg hover:bg-white/10 text-ci-dark-400 hover:text-white transition-all">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="flex h-full pt-[63px]">
+        <!-- Sidebar -->
+        <aside class="hidden lg:flex lg:flex-col fixed top-[63px] h-[calc(100%-63px)] z-[50] transition-all duration-300 bg-white border-r border-ci-dark-200/80"
+               :class="sidebarOpen ? 'w-[260px]' : 'w-[72px]'">
+            
+            <!-- Navigation -->
+            <nav class="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
+                <p x-show="sidebarOpen" x-transition class="px-3 mb-3 mt-2 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Navigation</p>
+
+                <a href="{% url 'dashboard:index' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'dashboard' %}active{% endif %}">
+                    <span class="material-symbols-outlined">space_dashboard</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Tableau de bord</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Tableau de bord</span>
+                </a>
+                <a href="{% url 'projets:liste' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'projets' %}active{% endif %}">
+                    <span class="material-symbols-outlined">folder_open</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Projets</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Projets</span>
+                </a>
+                <a href="{% url 'bailleurs:liste' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'bailleurs' %}active{% endif %}">
+                    <span class="material-symbols-outlined">account_balance</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Bailleurs</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Bailleurs</span>
+                </a>
+                <a href="{% url 'financements:liste' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'financements' %}active{% endif %}">
+                    <span class="material-symbols-outlined">payments</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Financements</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Financements</span>
+                </a>
+
+                <div class="my-5 mx-2 border-t border-ci-dark-100"></div>
+                <p x-show="sidebarOpen" x-transition class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Stratégie</p>
+
+                <a href="{% url 'pnd:index' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'pnd' %}active{% endif %}">
+                    <span class="material-symbols-outlined">flag</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Alignements sur le PND</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">PND</span>
+                </a>
+
+                <div class="my-5 mx-2 border-t border-ci-dark-100"></div>
+                <p x-show="sidebarOpen" x-transition class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Outils</p>
+
+                <a href="{% url 'assistant:index' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'assistant' %}active{% endif %}">
+                    <span class="material-symbols-outlined">psychology</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Assistant IA</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Assistant IA</span>
+                </a>
+
+                {% if is_admin %}
+                <a href="{% url 'imports:index' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'imports' %}active{% endif %}">
+                    <span class="material-symbols-outlined">upload_file</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Import Excel</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Import Excel</span>
+                </a>
+                {% endif %}
+
+                <div class="my-5 mx-2 border-t border-ci-dark-100"></div>
+                <p x-show="sidebarOpen" x-transition class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Administration</p>
+
+                {% if is_admin %}
+                <a href="{% url 'accounts:user_management' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'accounts' %}active{% endif %}">
+                    <span class="material-symbols-outlined">group</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Utilisateurs</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Utilisateurs</span>
+                </a>
+                {% endif %}
+                <a href="/admin/" class="sidebar-link group" target="_blank">
+                    <span class="material-symbols-outlined">settings</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Admin Django</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Admin</span>
+                </a>
+            </nav>
+
+            <!-- Sidebar footer with version -->
+            <div class="px-3 py-4 border-t border-ci-dark-100 flex-shrink-0">
+                <button @click="sidebarOpen = !sidebarOpen" class="sidebar-link w-full flex items-center" :class="!sidebarOpen && 'justify-center'">
+                    <span class="material-symbols-outlined transition-transform duration-300 text-ci-dark-500" :style="!sidebarOpen && 'transform: rotate(180deg)'">chevron_left</span>
+                    <span x-show="sidebarOpen" class="font-medium text-ci-dark-500 text-[0.75rem]">Réduire</span>
+                </button>
+                <div x-show="sidebarOpen" x-transition class="mt-2 px-3">
+                    <p class="text-[0.625rem] text-ci-dark-300 font-medium">v3.0 &mdash; ECharts</p>
+                </div>
+            </div>
+
+            <!-- Resize handle -->
+            <div class="absolute top-0 right-0 w-[3px] h-full cursor-col-resize hover:bg-ci-orange-500/50 transition-colors z-40"
+                 @mousedown.prevent="
+                    const sidebar = $el.parentElement;
+                    const startX = $event.clientX;
+                    const startW = sidebar.offsetWidth;
+                    const onMove = e => {
+                        let w = Math.max(68, Math.min(400, startW + e.clientX - startX));
+                        sidebar.style.width = w + 'px';
+                        document.querySelector('[data-main]').style.marginLeft = w + 'px';
+                        if(w < 100) { sidebarOpen = false; } else { sidebarOpen = true; }
+                    };
+                    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                 "
+            ></div>
+        </aside>
+
+        <!-- Mobile sidebar -->
+        <div x-show="mobileSidebar" x-cloak @click="mobileSidebar = false"
+             class="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm" x-transition.opacity></div>
+
+        <!-- Main content -->
+        <div data-main class="flex-1 flex flex-col min-h-screen transition-all duration-300"
+             :class="sidebarOpen ? 'lg:ml-[260px]' : 'lg:ml-[72px]'"
+             style="background: #F8FAFC;">
+
+            <!-- Page Header -->
+            <header class="glass border-b border-ci-dark-200/60 sticky top-[63px] z-20">
+                <div class="flex items-center justify-between px-4 sm:px-6 lg:px-8 h-[56px]">
+                    <div class="flex items-center gap-3">
+                        <div class="w-1 h-8 rounded-full bg-ci-orange-500"></div>
+                        <div>
+                            <h2 class="text-[1.0625rem] font-extrabold text-ci-dark-900 tracking-tight leading-tight">{% block page_title %}Tableau de bord{% endblock %}</h2>
+                            <p class="text-[0.6875rem] font-semibold text-ci-dark-400">{% block page_subtitle %}Vue d'ensemble{% endblock %}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        {% block page_actions %}{% endblock %}
+                    </div>
+                </div>
+            </header>
+
+            <!-- Page content -->
+            <main class="flex-1 p-4 sm:p-6 lg:p-8">
+                {% if messages %}
+                <div class="mb-5 space-y-2 animate-slide-down">
+                    {% for message in messages %}
+                    <div class="flex items-center gap-2.5 px-4 py-3 rounded-xl text-[0.8125rem] font-medium shadow-sm
+                        {% if message.tags == 'success' %}bg-ci-green-50 text-ci-green-700 border border-ci-green-200
+                        {% elif message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
+                        {% elif message.tags == 'warning' %}bg-ci-orange-50 text-ci-orange-700 border border-ci-orange-200
+                        {% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}"
+                        x-data="{ show: true }" x-show="show" x-transition>
+                        <span class="material-symbols-outlined text-[16px]">
+                            {% if message.tags == 'success' %}check_circle{% elif message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}
+                        </span>
+                        <span class="flex-1">{{ message }}</span>
+                        <button @click="show = false" class="opacity-40 hover:opacity-100 transition-opacity">
+                            <span class="material-symbols-outlined text-[16px]">close</span>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </main>
+
+            <!-- Footer -->
+            <footer class="bg-white border-t border-ci-dark-200/60 px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-0.5">
+                            <div class="w-4 h-1.5 rounded-full bg-ci-orange-500"></div>
+                            <div class="w-4 h-1.5 rounded-full bg-ci-dark-200"></div>
+                            <div class="w-4 h-1.5 rounded-full bg-ci-green-500"></div>
+                        </div>
+                        <p class="text-[0.6875rem] text-ci-dark-400 font-medium">Plateforme de Suivi des Projets &mdash; Cabinet du Ministre du Plan et du Développement</p>
+                    </div>
+                    <p class="text-[0.625rem] text-ci-dark-300 font-semibold hidden sm:block">République de Côte d'Ivoire</p>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Global Search & Notification Alpine Components -->
+    <script>
+        function globalSearch() {
+            return {
+                query: '', results: [], open: false, loading: false,
+                async search() {
+                    if (this.query.length < 2) { this.results = []; this.open = false; return; }
+                    this.loading = true;
+                    try {
+                        const r = await fetch('/api/search/?q=' + encodeURIComponent(this.query));
+                        const data = await r.json();
+                        this.results = data.results || [];
+                        this.open = true;
+                    } catch(e) { console.error(e); }
+                    this.loading = false;
+                },
+                goFirst() {
+                    if (this.results.length > 0) window.location.href = this.results[0].url;
+                }
+            };
+        }
+        function globalNotifs() {
+            return {
+                notifs: [], count: 0, open: false, loaded: false,
+                async toggle() {
+                    this.open = !this.open;
+                    if (this.open && !this.loaded) {
+                        try {
+                            const r = await fetch('/api/notifications/');
+                            const data = await r.json();
+                            this.notifs = data.notifications || [];
+                            this.count = data.count || 0;
+                            this.loaded = true;
+                        } catch(e) { console.error(e); }
+                    }
+                },
+                init() {
+                    // Pre-load count on page load
+                    fetch('/api/notifications/').then(r=>r.json()).then(data => { this.count = data.count || 0; }).catch(()=>{});
+                }
+            };
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+
+    <!-- ═══ Floating AI Chat Widget (all pages) ═══ -->
+    {% if user.is_authenticated %}
+    <div x-data="miniChat()" x-init="init()" x-cloak
+         class="fixed bottom-6 right-6 z-[999]"
+         {% if request.resolver_match.app_name == 'assistant' %}style="display:none"{% endif %}>
+
+        <!-- Mini chat window -->
+        <div x-show="open" x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0 scale-95 translate-y-4"
+             x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+             x-transition:leave-end="opacity-0 scale-95 translate-y-4"
+             class="mb-3 w-[400px] h-[560px] bg-white rounded-2xl shadow-2xl border border-ci-dark-200 flex flex-col overflow-hidden"
+             style="box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-ci-orange-500 to-ci-orange-600 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-[18px] text-white">psychology</span>
+                    </div>
+                    <div>
+                        <h4 class="text-[0.8125rem] font-bold text-white leading-tight">Assistant IA</h4>
+                        <p class="text-[0.5625rem] text-white/70">Données en temps réel</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button @click="newConversation()" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors" title="Nouvelle conversation">
+                        <span class="material-symbols-outlined text-[16px] text-white">add</span>
+                    </button>
+                    <a :href="'{% url 'assistant:index' %}?conv=' + currentConvId" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors" title="Ouvrir en plein écran">
+                        <span class="material-symbols-outlined text-[16px] text-white">open_in_full</span>
+                    </a>
+                    <button @click="open = false" class="w-7 h-7 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors">
+                        <span class="material-symbols-outlined text-[16px] text-white">close</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            <div class="flex-1 overflow-y-auto p-3 space-y-3" x-ref="miniMsgBox" style="scroll-behavior:smooth;">
+                <!-- Welcome -->
+                <div x-show="messages.length === 0" class="flex flex-col items-center justify-center h-full text-center py-4">
+                    <div class="w-12 h-12 rounded-xl bg-ci-orange-50 flex items-center justify-center mb-3">
+                        <span class="material-symbols-outlined text-[24px] text-ci-orange-500">psychology</span>
+                    </div>
+                    <p class="text-[0.75rem] text-ci-dark-500 mb-4 max-w-[260px]">Posez-moi une question sur les projets, bailleurs ou financements.</p>
+                    <div class="space-y-1.5 w-full">
+                        <button @click="askQ('Fais-moi une synthèse globale de tous les projets et financements')" class="w-full text-left px-3 py-2 rounded-lg bg-ci-dark-50 hover:bg-ci-orange-50 text-[0.6875rem] text-ci-dark-600 transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[12px] text-ci-orange-500">summarize</span> Synthèse globale
+                        </button>
+                        <button @click="askQ('Quels sont les projets en retard et quel est leur état d\'avancement ?')" class="w-full text-left px-3 py-2 rounded-lg bg-ci-dark-50 hover:bg-red-50 text-[0.6875rem] text-ci-dark-600 transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[12px] text-red-500">warning</span> Projets en retard
+                        </button>
+                        <button @click="askQ('Compare les montants engagés et décaissés par bailleur avec un graphique')" class="w-full text-left px-3 py-2 rounded-lg bg-ci-dark-50 hover:bg-blue-50 text-[0.6875rem] text-ci-dark-600 transition-colors flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[12px] text-blue-500">bar_chart</span> Comparatif bailleurs
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <template x-for="(msg, idx) in messages" :key="msg.id">
+                    <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                        <div :class="msg.role === 'user' ? 'max-w-[85%]' : 'w-full'">
+                            <!-- User -->
+                            <div x-show="msg.role === 'user'" class="px-3 py-2 rounded-xl rounded-br-sm text-[0.75rem] text-white" style="background:linear-gradient(135deg,#F77F00,#e06f00);">
+                                <span x-text="msg.content"></span>
+                            </div>
+                            <!-- AI -->
+                            <div x-show="msg.role === 'assistant'" class="flex items-start gap-2">
+                                <div class="w-5 h-5 rounded bg-ci-orange-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                    <span class="material-symbols-outlined text-[10px] text-ci-orange-600">psychology</span>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="px-3 py-2 rounded-xl rounded-tl-sm bg-ci-dark-50 border border-ci-dark-100 text-[0.75rem] text-ci-dark-700 mini-ai-msg" x-html="msg.html"></div>
+                                    <!-- Mini chart -->
+                                    <div x-show="msg.chart" class="mt-2 bg-white border border-ci-dark-100 rounded-lg p-2">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-[0.625rem] font-bold text-ci-dark-700 truncate" x-text="msg.chart ? msg.chart.title : ''"></span>
+                                            <button @click="downloadMiniChart(msg.id)" class="text-[0.5625rem] text-ci-dark-400 hover:text-ci-orange-500 flex items-center gap-0.5">
+                                                <span class="material-symbols-outlined text-[10px]">download</span>PNG
+                                            </button>
+                                        </div>
+                                        <div :id="'mchart-'+msg.id" style="min-height:200px;"></div>
+                                    </div>
+                                    <!-- Mini table -->
+                                    <div x-show="msg.table" class="mt-2 bg-white border border-ci-dark-100 rounded-lg overflow-hidden">
+                                        <div class="flex items-center justify-between px-2 py-1.5 bg-ci-dark-50 border-b border-ci-dark-100">
+                                            <span class="text-[0.625rem] font-bold text-ci-dark-700 truncate" x-text="msg.table ? msg.table.title : ''"></span>
+                                            <button @click="downloadMiniCSV(idx)" class="text-[0.5625rem] text-ci-dark-400 hover:text-ci-orange-500 flex items-center gap-0.5">
+                                                <span class="material-symbols-outlined text-[10px]">download</span>CSV
+                                            </button>
+                                        </div>
+                                        <div class="overflow-x-auto max-h-[150px] overflow-y-auto">
+                                            <table class="w-full mini-tbl">
+                                                <thead><tr>
+                                                    <template x-for="h in (msg.table ? msg.table.headers : [])" :key="h"><th x-text="h"></th></template>
+                                                </tr></thead>
+                                                <tbody>
+                                                    <template x-for="(row, ri) in (msg.table ? msg.table.rows : [])" :key="ri"><tr>
+                                                        <template x-for="(cell, ci) in row" :key="ci"><td x-text="cell"></td></template>
+                                                    </tr></template>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <!-- Copy -->
+                                    <div x-show="msg.role==='assistant'" class="flex items-center gap-2 mt-1 ml-1">
+                                        <button @click="copyText(msg.content)" class="text-[0.5625rem] text-ci-dark-300 hover:text-ci-dark-600 flex items-center gap-0.5 transition-colors">
+                                            <span class="material-symbols-outlined text-[10px]">content_copy</span> Copier
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Loading -->
+                <div x-show="loading" class="flex justify-start">
+                    <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-ci-dark-50 border border-ci-dark-100">
+                        <div class="flex gap-1">
+                            <div class="w-1.5 h-1.5 rounded-full bg-ci-orange-400" style="animation:typingBounce 1.4s infinite ease-in-out both;animation-delay:-0.32s"></div>
+                            <div class="w-1.5 h-1.5 rounded-full bg-ci-orange-400" style="animation:typingBounce 1.4s infinite ease-in-out both;animation-delay:-0.16s"></div>
+                            <div class="w-1.5 h-1.5 rounded-full bg-ci-orange-400" style="animation:typingBounce 1.4s infinite ease-in-out both"></div>
+                        </div>
+                        <span class="text-[0.625rem] text-ci-dark-400">Analyse en cours...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="border-t border-ci-dark-100 p-3 flex-shrink-0 bg-white">
+                <form @submit.prevent="send()" class="flex items-center gap-2">
+                    <input type="text" x-model="question" x-ref="miniInput"
+                           @keydown.enter.prevent="send()"
+                           placeholder="Posez votre question sur les données..."
+                           class="flex-1 px-3 py-2 rounded-lg border border-ci-dark-200 focus:border-ci-orange-400 focus:ring-1 focus:ring-ci-orange-100 text-[0.75rem] text-ci-dark-700 placeholder-ci-dark-300 outline-none"
+                           :disabled="loading">
+                    <button type="submit" :disabled="loading || !question.trim()"
+                            class="w-8 h-8 rounded-lg bg-ci-orange-500 text-white flex items-center justify-center hover:bg-ci-orange-600 transition-colors disabled:opacity-40 flex-shrink-0">
+                        <span class="material-symbols-outlined text-[16px]">send</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- FAB Button -->
+        <button @click="toggleOpen()"
+                class="w-14 h-14 rounded-full bg-gradient-to-br from-ci-orange-500 to-ci-orange-600 text-white flex items-center justify-center shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
+                style="box-shadow: 0 8px 25px rgba(247,127,0,0.4);">
+            <span x-show="!open" class="material-symbols-outlined text-[26px]">psychology</span>
+            <span x-show="open" class="material-symbols-outlined text-[26px]">keyboard_arrow_down</span>
+        </button>
+    </div>
+
+    <style>
+        @keyframes typingBounce { 0%, 80%, 100% { transform: scale(0); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+        .mini-ai-msg :is(h1,h2,h3,h4) { font-weight: 700; margin-top: 0.375rem; margin-bottom: 0.25rem; font-size: 0.75rem; color: #1e293b; }
+        .mini-ai-msg p { margin-bottom: 0.375rem; line-height: 1.5; }
+        .mini-ai-msg ul, .mini-ai-msg ol { margin-left: 1rem; margin-bottom: 0.375rem; }
+        .mini-ai-msg li { margin-bottom: 0.125rem; }
+        .mini-ai-msg strong { color: #1e293b; font-weight: 600; }
+        .mini-ai-msg code { background: #e2e8f0; padding: 0.0625rem 0.25rem; border-radius: 0.1875rem; font-size: 0.625rem; }
+        .mini-ai-msg table { width: 100%; border-collapse: collapse; margin: 0.375rem 0; font-size: 0.625rem; }
+        .mini-ai-msg th { background: #f1f5f9; font-weight: 600; text-align: left; padding: 0.25rem; border-bottom: 1px solid #e2e8f0; }
+        .mini-ai-msg td { padding: 0.25rem; border-bottom: 1px solid #f1f5f9; }
+        .mini-tbl { font-size: 0.625rem; border-collapse: collapse; }
+        .mini-tbl th { background: #1e293b; color: #fff; padding: 0.25rem 0.375rem; font-size: 0.5625rem; text-transform: uppercase; letter-spacing: 0.03em; }
+        .mini-tbl td { padding: 0.25rem 0.375rem; border-bottom: 1px solid #f1f5f9; }
+        .mini-tbl tr:hover td { background: #fffbf5; }
+    </style>
+
+    <script>
+    function miniChat() {
+        return {
+            open: false,
+            messages: [],
+            question: '',
+            loading: false,
+            charts: {},
+            conversations: [],
+            currentConvId: null,
+            msgCounter: 0,
+
+            init() {
+                this.loadConversations();
+                if (this.conversations.length > 0) {
+                    this.loadConversation(this.conversations[0].id);
+                } else {
+                    this.newConversation();
+                }
+            },
+
+            toggleOpen() {
+                this.open = !this.open;
+                if (this.open) this.$nextTick(() => this.$refs.miniInput && this.$refs.miniInput.focus());
+            },
+
+            // ─── Shared localStorage (same key as full page) ───
+            loadConversations() {
+                try {
+                    const raw = localStorage.getItem('ia_conversations');
+                    this.conversations = raw ? JSON.parse(raw) : [];
+                } catch(e) { this.conversations = []; }
+            },
+            saveConversations() {
+                localStorage.setItem('ia_conversations', JSON.stringify(this.conversations));
+            },
+            saveCurrentMessages() {
+                if (!this.currentConvId) return;
+                const conv = this.conversations.find(c => c.id === this.currentConvId);
+                if (conv) {
+                    conv.messages = this.messages.map(m => ({
+                        id: m.id, role: m.role, content: m.content,
+                        chart: m.chart, table: m.table
+                    }));
+                    const firstUser = this.messages.find(m => m.role === 'user');
+                    if (firstUser) conv.title = firstUser.content.substring(0, 50) + (firstUser.content.length > 50 ? '...' : '');
+                    conv.updatedAt = Date.now();
+                    this.saveConversations();
+                }
+            },
+
+            newConversation() {
+                const id = 'conv_' + Date.now();
+                this.conversations.unshift({ id, title: 'Nouvelle conversation', messages: [], createdAt: Date.now(), updatedAt: Date.now() });
+                this.saveConversations();
+                this.currentConvId = id;
+                this.messages = [];
+                this.charts = {};
+                this.msgCounter = 0;
+            },
+
+            loadConversation(id) {
+                const conv = this.conversations.find(c => c.id === id);
+                if (!conv) return;
+                this.currentConvId = id;
+                this.charts = {};
+                this.msgCounter = 0;
+                this.messages = (conv.messages || []).map(m => {
+                    const mid = 'mini_' + (++this.msgCounter);
+                    return {
+                        id: mid, role: m.role, content: m.content,
+                        html: m.role === 'assistant' ? (typeof marked !== 'undefined' ? marked.parse(m.content || '') : m.content || '') : '',
+                        chart: m.chart || null, table: m.table || null
+                    };
+                });
+                this.$nextTick(() => {
+                    this.messages.forEach(m => {
+                        if (m.chart) setTimeout(() => this.renderMiniChart(m.id, m.chart), 200);
+                    });
+                    this.scrollMini();
+                });
+            },
+
+            askQ(q) { this.question = q; this.send(); },
+
+            async send() {
+                const q = this.question.trim();
+                if (!q || this.loading) return;
+
+                const userMsgId = 'mini_' + (++this.msgCounter);
+                this.messages.push({ id: userMsgId, role: 'user', content: q, html: '', chart: null, table: null });
+                this.question = '';
+                this.loading = true;
+                this.$nextTick(() => this.scrollMini());
+
+                try {
+                    const history = this.messages.slice(-7, -1).map(m => ({
+                        role: m.role === 'user' ? 'user' : 'model', content: m.content
+                    }));
+
+                    const res = await fetch("{% url 'assistant:ask' %}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCsrf() },
+                        body: JSON.stringify({ question: q, history })
+                    });
+                    const data = await res.json();
+                    const aiMsgId = 'mini_' + (++this.msgCounter);
+
+                    if (data.error) {
+                        this.messages.push({ id: aiMsgId, role: 'assistant', content: data.error, html: '<p class="text-red-600 text-xs">' + data.error + '</p>', chart: null, table: null });
+                    } else {
+                        const html = typeof marked !== 'undefined' ? marked.parse(data.text || '') : (data.text || '');
+                        this.messages.push({ id: aiMsgId, role: 'assistant', content: data.text || '', html, chart: data.chart || null, table: data.table || null });
+                        if (data.chart) {
+                            this.$nextTick(() => setTimeout(() => this.renderMiniChart(aiMsgId, data.chart), 300));
+                        }
+                    }
+                } catch (err) {
+                    const aiMsgId = 'mini_' + (++this.msgCounter);
+                    this.messages.push({ id: aiMsgId, role: 'assistant', content: 'Erreur de connexion.', html: '<p class="text-red-500 text-xs">Erreur de connexion avec le serveur.</p>', chart: null, table: null });
+                }
+
+                this.loading = false;
+                this.saveCurrentMessages();
+                this.$nextTick(() => { this.scrollMini(); if(this.$refs.miniInput) this.$refs.miniInput.focus(); });
+            },
+
+            renderMiniChart(msgId, chartData) {
+                const el = document.getElementById('mchart-' + msgId);
+                if (!el || typeof ApexCharts === 'undefined') return;
+
+                const type = chartData.type || 'bar';
+                const colors = chartData.colors || ['#F77F00','#009A44','#3B82F6','#8B5CF6','#EF4444','#F59E0B','#10B981','#6366F1'];
+
+                let opts = {
+                    chart: { type, height: 200, toolbar: { show: false }, fontFamily: 'Inter, sans-serif', sparkline: { enabled: false } },
+                    colors, dataLabels: { enabled: false },
+                    stroke: { curve: 'smooth', width: type === 'line' || type === 'area' ? 2 : 0 },
+                    grid: { borderColor: '#f1f5f9', strokeDashArray: 4, padding: { left: 4, right: 4 } },
+                    tooltip: { theme: 'light', style: { fontSize: '10px' } },
+                };
+
+                if (['bar','line','area'].includes(type)) {
+                    opts.series = chartData.series || [];
+                    opts.xaxis = { categories: chartData.categories || [], labels: { style: { fontSize: '8px', colors: '#94a3b8' }, rotate: -45, trim: true, maxHeight: 60 } };
+                    opts.yaxis = { labels: { style: { fontSize: '8px', colors: '#94a3b8' }, formatter: v => { if(v>=1e9) return (v/1e9).toFixed(1)+'Mrd'; if(v>=1e6) return (v/1e6).toFixed(1)+'M'; if(v>=1e3) return (v/1e3).toFixed(0)+'k'; return v; } } };
+                    if (type==='bar' && chartData.horizontal) opts.plotOptions = { bar: { horizontal: true, borderRadius: 3, barHeight: '60%' } };
+                    else if (type==='bar') opts.plotOptions = { bar: { borderRadius: 3, columnWidth: '55%' } };
+                } else if (['donut','pie'].includes(type)) {
+                    opts.series = chartData.series || [];
+                    opts.labels = chartData.labels || chartData.categories || [];
+                    opts.legend = { position: 'bottom', fontSize: '9px' };
+                    if (type==='donut') opts.plotOptions = { pie: { donut: { size: '55%', labels: { show: true, total: { show: true, label: 'Total', fontSize: '10px' } } } } };
+                } else if (type==='radialBar') {
+                    opts.series = chartData.series || [];
+                    opts.labels = chartData.labels || [];
+                    opts.plotOptions = { radialBar: { hollow: { size: '55%' }, dataLabels: { name: { fontSize: '10px' }, value: { fontSize: '16px', fontWeight: 700, formatter: v => v+'%' } } } };
+                } else if (type==='treemap') {
+                    opts.series = chartData.series || [];
+                }
+
+                try {
+                    if (this.charts[msgId]) this.charts[msgId].destroy();
+                    const chart = new ApexCharts(el, opts);
+                    chart.render();
+                    this.charts[msgId] = chart;
+                } catch(e) {
+                    console.error('Mini chart error:', e);
+                    el.innerHTML = '<p class="text-red-500 text-[0.5625rem] p-2">Erreur graphique</p>';
+                }
+            },
+
+            downloadMiniChart(msgId) {
+                const chart = this.charts[msgId];
+                if (chart) chart.dataURI().then(({ imgURI }) => { const a = document.createElement('a'); a.href = imgURI; a.download = 'graphique.png'; a.click(); });
+            },
+
+            downloadMiniCSV(idx) {
+                const msg = this.messages[idx];
+                if (!msg || !msg.table) return;
+                let csv = msg.table.headers.join(';') + '\n';
+                msg.table.rows.forEach(row => { csv += row.join(';') + '\n'; });
+                const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                a.download = (msg.table.title || 'rapport') + '.csv'; a.click();
+            },
+
+            copyText(text) { navigator.clipboard.writeText(text); },
+
+            scrollMini() {
+                const box = this.$refs.miniMsgBox;
+                if (box) box.scrollTop = box.scrollHeight;
+            },
+
+            getCsrf() {
+                const meta = document.querySelector('meta[name="csrf-token"]');
+                return meta ? meta.getAttribute('content') : '';
+            }
+        };
+    }
+    </script>
+    {% endif %}
+</body>
+</html>

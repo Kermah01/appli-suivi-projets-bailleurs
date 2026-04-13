@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Nouveau décaissement - Suivi Projets{% endblock %}
+{% block page_title %}Nouveau décaissement{% endblock %}
+{% block page_subtitle %}{{ financement.bailleur.sigle }} &rarr; {{ financement.projet.code }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl">
+    <a href="{% url 'financements:detail' financement.pk %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors mb-6 animate-in">
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour au financement
+    </a>
+
+    <!-- Résumé financement -->
+    <div class="card mb-5 animate-in stagger-1">
+        <div class="p-5 flex items-center justify-between">
+            <div>
+                <p class="text-[0.8125rem] font-bold text-ci-dark-800">{{ financement.bailleur }} &rarr; {{ financement.projet.code }}</p>
+                <p class="text-[0.6875rem] text-ci-dark-400 font-medium">{{ financement.get_type_financement_display }} &middot; {{ financement.devise }}</p>
+            </div>
+            <div class="text-right">
+                <p class="text-[0.8125rem] text-ci-dark-500">Engagé: <strong class="text-ci-dark-800">{{ financement.montant_engage|floatformat:0|intcomma }}</strong></p>
+                <p class="text-[0.8125rem] text-ci-dark-500">Décaissé: <strong class="text-ci-dark-800">{{ financement.total_decaisse|floatformat:0|intcomma }}</strong> <span class="badge badge-blue ml-1">{{ financement.taux_decaissement }}%</span></p>
+                <p class="text-[0.8125rem] text-ci-orange-500 font-bold mt-0.5">Reste: {{ financement.reste_a_decaisser|floatformat:0|intcomma }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card overflow-hidden animate-in stagger-2">
+        <div class="h-1 bg-ci-green-500"></div>
+        <div class="card-header flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-green-500 text-[16px]">payments</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Enregistrer un décaissement</h3>
+        </div>
+        <form method="post" class="p-6 space-y-5">
+            {% csrf_token %}
+            {% for field in form %}
+            <div>
+                <label for="{{ field.id_for_label }}" class="block text-[0.8125rem] font-semibold text-ci-dark-700 mb-1.5">
+                    {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
+                </label>
+                {{ field }}
+                {% if field.errors %}<p class="text-red-500 text-[0.75rem] mt-1 font-medium">{{ field.errors.0 }}</p>{% endif %}
+            </div>
+            {% endfor %}
+            <div class="flex items-center gap-3 pt-5 border-t border-ci-dark-100">
+                <button type="submit" class="btn btn-green">
+                    <span class="material-symbols-outlined text-[16px]">save</span> Enregistrer le décaissement
+                </button>
+                <a href="{% url 'financements:detail' financement.pk %}" class="btn btn-outline">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

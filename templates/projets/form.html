@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ titre }} - Suivi Projets{% endblock %}
+{% block page_title %}{{ titre }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl" x-data="projetForm()">
+    <a href="{% url 'projets:liste' %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors mb-5 animate-in">
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour à la liste
+    </a>
+
+    <form method="post" @submit="syncFinancements()">
+        {% csrf_token %}
+        {{ form.financements_json }}
+
+        <!-- Section 1: Informations générales -->
+        <div class="card mb-4 overflow-hidden animate-in stagger-1">
+            <div class="h-1 bg-ci-orange-500"></div>
+            <div class="card-header flex items-center gap-2">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">info</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-700">Informations générales</h3>
+            </div>
+            <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for field in form %}
+                {% if field.name != 'financements_json' %}
+                <div class="{% if field.name == 'titre' or field.name == 'description' or field.name == 'objectifs_pnd' %}md:col-span-2{% endif %}">
+                    <label for="{{ field.id_for_label }}" class="block text-[0.75rem] font-medium text-ci-dark-600 mb-1">
+                        {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.errors %}<p class="text-red-500 text-[0.6875rem] mt-0.5">{{ field.errors.0 }}</p>{% endif %}
+                    {% if field.help_text %}<p class="text-ci-dark-300 text-[0.6875rem] mt-0.5">{{ field.help_text }}</p>{% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- FCFA Converter -->
+        <div class="card mb-4">
+            <div class="p-4 flex items-center justify-between bg-ci-orange-50 border-b border-ci-orange-200">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">currency_exchange</span>
+                    <span class="text-[0.75rem] font-semibold text-ci-orange-700">Conversion FCFA</span>
+                </div>
+                <span class="text-[0.75rem] text-ci-dark-500" x-text="fcfaDisplay"></span>
+            </div>
+            <div class="p-4 text-[0.75rem] text-ci-dark-500">
+                <div class="flex items-center justify-between">
+                    <span>Montant total en FCFA (XOF) :</span>
+                    <span class="font-bold text-ci-dark-800 text-[0.875rem]" x-text="fcfaAmount"></span>
+                </div>
+                <p class="text-[0.6875rem] text-ci-dark-300 mt-1">Taux indicatifs &mdash; USD: 615, EUR: 655,957, GBP: 775, JPY: 4,10, CHF: 685, CNY: 85</p>
+            </div>
+        </div>
+
+        <!-- Section 2: Financements (multi-bailleurs / cofinancement) -->
+        {% if is_creation %}
+        <div class="card mb-4 animate-in stagger-2">
+            <div class="card-header flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-500 text-[16px]">group_work</span>
+                    <h3 class="text-[0.8125rem] font-bold text-ci-dark-700">Financements</h3>
+                    <span class="badge badge-blue text-[0.5625rem]" x-text="financements.length + ' bailleur(s)'" x-show="financements.length > 0"></span>
+                </div>
+                <span class="badge badge-orange text-[0.625rem]">Optionnel</span>
+            </div>
+            <div class="p-5">
+                <div class="hint-banner mb-4" x-data="{ show: true }" x-show="show">
+                    <span class="material-symbols-outlined">lightbulb</span>
+                    <span class="flex-1">Ajoutez un ou plusieurs bailleurs pour saisir les financements. Chaque bailleur peut apporter un type de financement différent (Don, Prêt, etc.). C'est le <strong>cofinancement</strong>.</span>
+                    <button type="button" @click="show=false" class="text-ci-dark-400 hover:text-ci-dark-600"><span class="material-symbols-outlined text-[14px]">close</span></button>
+                </div>
+
+                <!-- Financements list -->
+                <template x-for="(fin, idx) in financements" :key="idx">
+                    <div class="border border-ci-dark-100 rounded-xl p-4 mb-3 bg-ci-dark-50/30 relative group">
+                        <button type="button" @click="financements.splice(idx, 1)" class="absolute top-2 right-2 w-6 h-6 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span class="material-symbols-outlined text-[14px]">close</span>
+                        </button>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                            <div>
+                                <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Bailleur *</label>
+                                <select x-model="fin.bailleur_id" class="form-input text-[0.8125rem]">
+                                    <option value="">-- Choisir --</option>
+                                    <template x-for="b in bailleursOptions" :key="b.id">
+                                        <option :value="b.id" x-text="b.label"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Type</label>
+                                <select x-model="fin.type_financement" class="form-input text-[0.8125rem]">
+                                    <template x-for="t in typeOptions" :key="t.value">
+                                        <option :value="t.value" x-text="t.label"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Montant engagé *</label>
+                                <input type="number" x-model.number="fin.montant" step="0.01" min="0" class="form-input text-[0.8125rem]" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Devise</label>
+                                <select x-model="fin.devise" class="form-input text-[0.8125rem]">
+                                    <option value="USD">USD</option>
+                                    <option value="EUR">EUR</option>
+                                    <option value="XOF">XOF</option>
+                                    <option value="GBP">GBP</option>
+                                    <option value="JPY">JPY</option>
+                                    <option value="CHF">CHF</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Total recap -->
+                <div x-show="financements.length > 0" class="flex items-center justify-between p-3 bg-blue-50 rounded-xl border border-blue-100 mb-3">
+                    <span class="text-[0.75rem] font-bold text-blue-700">Total engagé (financements) :</span>
+                    <span class="text-[0.875rem] font-black text-blue-800" x-text="totalFinancements()"></span>
+                </div>
+
+                <!-- Add button -->
+                <button type="button" @click="addFinancement()" class="btn btn-outline btn-sm w-full border-dashed border-2 text-ci-dark-400 hover:text-ci-orange-500 hover:border-ci-orange-300">
+                    <span class="material-symbols-outlined text-[16px]">add</span> Ajouter un financement
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
+        <div class="flex items-center gap-3">
+            <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-outlined text-[16px]">save</span> Enregistrer
+            </button>
+            <a href="{% url 'projets:liste' %}" class="btn btn-outline">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function projetForm() {
+    var rates = { XOF:1, USD:615, EUR:655.957, GBP:775, JPY:4.10, CHF:685, CNY:85 };
+    var bailleursData = {{ form.get_bailleurs_json|safe }};
+    var typeData = {{ form.get_type_choices_json|safe }};
+    return {
+        financements: [],
+        bailleursOptions: bailleursData,
+        typeOptions: typeData,
+        get fcfaAmount() {
+            var deviseEl = document.getElementById('id_devise');
+            var montantEl = document.getElementById('id_montant_total');
+            if (!deviseEl || !montantEl) return '\u2014';
+            var devise = deviseEl.value || 'USD';
+            var montant = parseFloat(montantEl.value) || 0;
+            var fcfa = montant * (rates[devise] || 1);
+            return new Intl.NumberFormat('fr-FR').format(Math.round(fcfa)) + ' FCFA';
+        },
+        get fcfaDisplay() {
+            var deviseEl = document.getElementById('id_devise');
+            var devise = deviseEl ? deviseEl.value : 'USD';
+            return '1 ' + devise + ' = ' + new Intl.NumberFormat('fr-FR').format(rates[devise] || 1) + ' FCFA';
+        },
+        addFinancement() {
+            this.financements.push({
+                bailleur_id: '',
+                type_financement: 'don',
+                montant: null,
+                devise: document.getElementById('id_devise') ? document.getElementById('id_devise').value : 'USD',
+            });
+        },
+        totalFinancements() {
+            var total = this.financements.reduce(function(s, f) { return s + (parseFloat(f.montant) || 0); }, 0);
+            return new Intl.NumberFormat('fr-FR').format(Math.round(total));
+        },
+        syncFinancements() {
+            var el = document.getElementById('financements_json');
+            if (el) {
+                var valid = this.financements.filter(function(f) { return f.bailleur_id && f.montant > 0; });
+                el.value = JSON.stringify(valid);
+            }
+        },
+        init() {
+            var deviseEl = document.getElementById('id_devise');
+            var montantEl = document.getElementById('id_montant_total');
+            var self = this;
+            if (deviseEl) deviseEl.addEventListener('change', function() { self.$nextTick(function(){}); });
+            if (montantEl) montantEl.addEventListener('input', function() { self.$nextTick(function(){}); });
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ pilier }} - Suivi Projets{% endblock %}
+{% block page_title %}{{ pilier }}{% endblock %}
+{% block page_subtitle %}{{ pilier.plan }}{% endblock %}
+
+{% block content %}
+<!-- Hero Header -->
+<div class="card mb-6 overflow-hidden animate-in">
+    <div class="h-1.5 bg-ci-orange-500"></div>
+    <div class="p-6">
+        <div class="flex items-start gap-4">
+            <div class="w-16 h-16 rounded-xl bg-ci-orange-500 flex items-center justify-center text-white font-black text-2xl flex-shrink-0 shadow-lg shadow-ci-orange-500/20">
+                {{ pilier.numero }}
+            </div>
+            <div>
+                <h2 class="text-[1.25rem] font-black text-ci-dark-900 tracking-tight leading-tight">{{ pilier.nom }}</h2>
+                <p class="text-[0.8125rem] text-ci-dark-400 font-medium mt-1">{{ pilier.plan }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Back link -->
+<div class="mb-5 animate-in stagger-1">
+    <a href="{% url 'pnd:index' %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors">
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour au PND
+    </a>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="stat-card animate-in stagger-1">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-orange-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">folder_open</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Projets rattachés</p>
+        <p class="text-[1.75rem] font-black text-ci-dark-900 leading-none">{{ projets.count }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-2">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-green-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-green-500 text-[18px]">payments</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant total engagé</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ montant_total|floatformat:0|intcomma }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">USD</p>
+    </div>
+    <div class="stat-card animate-in stagger-3">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-purple-500 text-[18px]">target</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Sous-objectifs</p>
+        <p class="text-[1.75rem] font-black text-ci-dark-900 leading-none">{{ pilier.sous_objectifs.count }}</p>
+    </div>
+</div>
+
+{% if pilier.description %}
+<div class="card mb-5 animate-in stagger-4">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-dark-400 text-[16px]">description</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Description</h3>
+    </div>
+    <div class="p-5 text-[0.8125rem] text-ci-dark-600 leading-relaxed">{{ pilier.description|linebreaks }}</div>
+</div>
+{% endif %}
+
+<!-- Sous-objectifs -->
+<div class="card mb-5 animate-in stagger-5">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-green-500 text-[16px]">target</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Sous-objectifs stratégiques</h3>
+    </div>
+    <div class="p-5">
+        <div class="space-y-2.5">
+            {% for so in pilier.sous_objectifs.all %}
+            <div class="flex items-start gap-3 p-3.5 rounded-xl {% if so.nombre_projets > 0 %}bg-ci-green-50 border border-ci-green-200/50{% else %}bg-ci-dark-50/50 border border-ci-dark-100{% endif %} hover:shadow-sm transition-all">
+                <div class="w-8 h-8 rounded-lg bg-ci-orange-500 flex items-center justify-center flex-shrink-0">
+                    <span class="text-[0.625rem] font-mono font-bold text-white">{{ so.numero }}</span>
+                </div>
+                <div class="flex-1">
+                    <p class="text-[0.8125rem] font-bold {% if so.nombre_projets > 0 %}text-ci-dark-800{% else %}text-ci-dark-500{% endif %}">{{ so.nom }}</p>
+                    <div class="flex items-center gap-2 mt-1.5">
+                        {% if so.nombre_projets > 0 %}
+                        <span class="text-[0.6875rem] text-ci-green-600 font-bold">{{ so.nombre_projets }} projet{{ so.nombre_projets|pluralize:"s" }}</span>
+                        {% else %}
+                        <span class="badge badge-orange text-[0.5625rem]">Non couvert</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center py-8">
+                <div class="w-12 h-12 mx-auto rounded-xl bg-ci-dark-50 flex items-center justify-center mb-2">
+                    <span class="material-symbols-outlined text-ci-dark-200 text-[24px]">target</span>
+                </div>
+                <p class="text-[0.8125rem] text-ci-dark-300 font-medium">Aucun sous-objectif défini</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Projets rattachés -->
+<div class="card animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">folder_open</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Projets rattachés à ce pilier</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Titre</th>
+                    <th>Bailleur</th>
+                    <th>Statut</th>
+                    <th class="text-right">Montant</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for projet in projets %}
+                <tr class="group">
+                    <td class="font-mono text-[0.6875rem] text-ci-dark-400 whitespace-nowrap">
+                        <span class="bg-ci-dark-50 px-1.5 py-0.5 rounded font-bold">{{ projet.code }}</span>
+                    </td>
+                    <td><a href="{% url 'projets:detail' projet.pk %}" class="text-ci-dark-800 hover:text-ci-orange-600 font-semibold transition-colors text-[0.8125rem]">{{ projet.titre|truncatechars:60 }}</a></td>
+                    <td class="text-ci-dark-600 font-semibold whitespace-nowrap">{{ projet.bailleur_principal.sigle|default:"-" }}</td>
+                    <td><span class="{{ projet.statut_badge_class }}">{{ projet.get_statut_display }}</span></td>
+                    <td class="text-right">
+                        <span class="font-bold text-ci-dark-800">{{ projet.montant_total|floatformat:0|intcomma }}</span>
+                        <span class="text-ci-dark-300 text-[0.625rem] font-medium ml-0.5">USD</span>
+                    </td>
+                    <td class="whitespace-nowrap">
+                        <a href="{% url 'projets:detail' projet.pk %}" class="opacity-0 group-hover:opacity-100 inline-flex items-center gap-1 text-[0.6875rem] text-ci-orange-500 font-semibold hover:text-ci-orange-700 transition-all">
+                            Voir <span class="material-symbols-outlined text-[12px]">arrow_forward</span>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="!py-12 text-center">
+                        <div class="w-12 h-12 mx-auto rounded-xl bg-ci-dark-50 flex items-center justify-center mb-2">
+                            <span class="material-symbols-outlined text-ci-dark-200 text-[24px]">folder_off</span>
+                        </div>
+                        <p class="text-[0.8125rem] text-ci-dark-300 font-medium">Aucun projet rattaché à ce pilier</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

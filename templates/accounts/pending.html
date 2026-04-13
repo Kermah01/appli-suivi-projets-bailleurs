@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compte en attente - Suivi Projets Bailleurs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                colors: { ci: {
+                    orange: { 50:'#FFF7ED',500:'#F77F00',600:'#EA580C',700:'#C2410C' },
+                    green:  { 50:'#F0FDF4',500:'#009A44' },
+                    dark:   { 50:'#F8FAFC',100:'#F1F5F9',200:'#E2E8F0',300:'#CBD5E1',400:'#94A3B8',500:'#64748B',600:'#475569',700:'#334155',800:'#1E293B',900:'#0F172A' },
+                }}
+            }}
+        }
+    </script>
+    <style>
+        .ci-stripe { height: 4px; background: linear-gradient(90deg, #F77F00 33%, #fff 33%, #fff 66%, #009A44 66%); }
+        @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .pulse-slow { animation: pulse-slow 2s ease-in-out infinite; }
+        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .spin-slow { animation: spin-slow 8s linear infinite; }
+    </style>
+</head>
+<body class="h-full bg-ci-dark-50 font-sans flex items-center justify-center">
+    <div class="ci-stripe fixed top-0 left-0 right-0 z-50"></div>
+
+    <div class="text-center px-6 max-w-lg">
+        <!-- Animated icon -->
+        <div class="relative w-24 h-24 mx-auto mb-6">
+            <div class="absolute inset-0 rounded-full border-4 border-ci-orange-500/20 spin-slow"></div>
+            <div class="absolute inset-2 rounded-full bg-ci-orange-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[36px] pulse-slow">hourglass_top</span>
+            </div>
+        </div>
+
+        <h1 class="text-2xl font-black text-ci-dark-900 mb-2">Compte en attente de validation</h1>
+        <p class="text-ci-dark-400 text-[0.9375rem] leading-relaxed mb-6">
+            Votre demande d'inscription a bien été enregistrée.<br>
+            Un administrateur doit valider votre compte avant que vous puissiez accéder à la plateforme.
+        </p>
+
+        <div class="bg-white rounded-2xl border border-ci-dark-200 p-6 text-left mb-6 shadow-sm">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-ci-dark-100 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-ci-dark-500 text-[20px]">person</span>
+                </div>
+                <div>
+                    <p class="text-[0.9375rem] font-bold text-ci-dark-900">{{ user.get_full_name }}</p>
+                    <p class="text-[0.75rem] text-ci-dark-400">{{ user.email }}</p>
+                </div>
+            </div>
+
+            {% if user.profile.bailleurs.exists %}
+            <div class="border-t border-ci-dark-100 pt-3">
+                <p class="text-[0.6875rem] font-bold text-ci-dark-500 uppercase tracking-wider mb-2">Bailleurs sélectionnés</p>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for b in user.profile.bailleurs.all %}
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-lg bg-ci-orange-50 text-ci-orange-700 text-[0.6875rem] font-semibold border border-ci-orange-200">
+                        {{ b.sigle|default:b.nom }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center justify-center gap-4">
+            <a href="{% url 'accounts:logout' %}"
+               class="flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-ci-dark-200 text-[0.8125rem] font-bold text-ci-dark-600 hover:border-red-300 hover:text-red-600 hover:bg-red-50 transition-all">
+                <span class="material-symbols-outlined text-[16px]">logout</span>
+                Se déconnecter
+            </a>
+            <a href="{% url 'accounts:pending' %}"
+               class="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[0.8125rem] font-bold text-white bg-ci-orange-500 hover:bg-ci-orange-600 shadow-sm transition-all">
+                <span class="material-symbols-outlined text-[16px]">refresh</span>
+                Vérifier l'état
+            </a>
+        </div>
+
+        <p class="mt-8 text-[0.625rem] text-ci-dark-300">
+            Cabinet du Ministre du Plan et du Développement — République de Côte d'Ivoire
+        </p>
+    </div>
+</body>
+</html>

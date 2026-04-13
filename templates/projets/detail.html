@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ projet.code }} - Suivi Projets{% endblock %}
+{% block page_title %}{{ projet.titre }}{% endblock %}
+{% block page_subtitle %}{{ projet.code }} &middot; {{ projet.get_statut_display }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .detail-row { transition: background 0.15s ease; }
+    .detail-row:hover { background: #FAFBFC; }
+    .progress-bar-anim { transition: width 1s cubic-bezier(.4,0,.2,1); }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Header -->
+<div class="card mb-6 overflow-hidden animate-in">
+    <div class="h-1.5 bg-ci-orange-500"></div>
+    <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex items-start gap-4 flex-1 min-w-0">
+                <div class="w-14 h-14 rounded-xl bg-ci-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-ci-orange-500/20">
+                    <span class="material-symbols-outlined text-white text-[24px]">description</span>
+                </div>
+                <div class="min-w-0">
+                    <h2 class="text-[1.125rem] font-black text-ci-dark-900 tracking-tight leading-tight">{{ projet.titre }}</h2>
+                    <div class="flex items-center gap-2.5 mt-2 flex-wrap">
+                        <span class="bg-ci-dark-50 px-2 py-0.5 rounded font-mono text-[0.75rem] font-bold text-ci-dark-600">{{ projet.code }}</span>
+                        <span class="{{ projet.statut_badge_class }}">{{ projet.get_statut_display }}</span>
+                        {% if projet.est_en_retard %}
+                        <span class="badge badge-red gap-1 text-[0.625rem]"><span class="material-symbols-outlined text-[12px]">warning</span> En retard</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if can_edit %}
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <a href="{% url 'projets:modifier' projet.pk %}" class="btn btn-primary btn-sm">
+                    <span class="material-symbols-outlined text-[14px]">edit</span> Modifier
+                </a>
+                <a href="{% url 'projets:supprimer' projet.pk %}" class="btn btn-outline btn-sm text-red-500 border-red-200 hover:bg-red-50">
+                    <span class="material-symbols-outlined text-[14px]">delete</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Back link -->
+<div class="mb-5 animate-in stagger-1">
+    <a href="{% url 'projets:liste' %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors">
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour à la liste
+    </a>
+</div>
+
+<!-- KPIs -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="stat-card animate-in stagger-1">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-blue-500 text-[18px]">account_balance_wallet</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant total</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ projet.montant_total|floatformat:0|intcomma }} <span class="text-[0.6875rem] font-semibold text-ci-dark-400">{{ projet.devise }}</span></p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">~ {{ projet.montant_total_fcfa|floatformat:0|intcomma }} FCFA</p>
+    </div>
+    <div class="stat-card animate-in stagger-2">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-green-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-green-500 text-[18px]">payments</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total décaissé</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ projet.total_decaisse|floatformat:0|intcomma }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">{{ projet.devise }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-3">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-purple-500 text-[18px]">speed</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Taux décaissement</p>
+        <p class="text-[1.75rem] font-black leading-none mt-1 {% if projet.taux_decaissement < 30 %}text-red-500{% elif projet.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ projet.taux_decaissement }}%</p>
+    </div>
+    <div class="stat-card animate-in stagger-4">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-orange-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">trending_up</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Avancement physique</p>
+        <p class="text-[1.75rem] font-black text-ci-dark-900 leading-none mt-1">{{ projet.taux_avancement }}%</p>
+        <div class="w-full bg-ci-dark-100 rounded-full h-2 mt-3 overflow-hidden">
+            <div class="h-2 rounded-full progress-bar-anim {% if projet.taux_avancement < 30 %}bg-red-400{% elif projet.taux_avancement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-500{% endif %}" style="width: {{ projet.taux_avancement }}%;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Info cards -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+    <div class="card animate-in stagger-5">
+        <div class="card-header flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">info</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Informations générales</h3>
+        </div>
+        <div class="p-5">
+            <dl class="space-y-0">
+                {% with items="Code|projet.code,Bailleur principal|bailleur,Secteur|secteur,Zone géographique|zone,Responsable|responsable,Statut|statut" %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">tag</span> Code</dt>
+                    <dd class="text-[0.8125rem] font-bold text-ci-dark-800 font-mono bg-ci-dark-50 px-2 py-0.5 rounded">{{ projet.code }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">account_balance</span> Bailleurs</dt>
+                    <dd class="text-[0.8125rem] font-semibold flex flex-wrap gap-1.5 items-center">
+                        {% for b in projet.bailleurs_list %}
+                        <a href="{% url 'bailleurs:detail' b.pk %}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[0.75rem] font-bold transition-colors {% if b.pk == projet.bailleur_principal_id %}bg-ci-orange-50 text-ci-orange-700 border border-ci-orange-200 hover:bg-ci-orange-100{% else %}bg-ci-dark-50 text-ci-dark-700 border border-ci-dark-200 hover:bg-ci-dark-100{% endif %}">
+                            {{ b.sigle|default:b.nom|truncatechars:25 }}
+                            {% if b.pk == projet.bailleur_principal_id %}<span class="text-[0.5625rem] text-ci-orange-400 font-medium">(principal)</span>{% endif %}
+                        </a>
+                        {% empty %}
+                        {% if projet.bailleur_principal %}<a href="{% url 'bailleurs:detail' projet.bailleur_principal.pk %}" class="text-ci-orange-500 hover:text-ci-orange-700 hover:underline font-bold transition-colors">{{ projet.bailleur_principal }}</a>{% else %}<span class="text-ci-dark-300">-</span>{% endif %}
+                        {% endfor %}
+                        {% if projet.est_cofinance %}<span class="badge badge-blue text-[0.5625rem]">Cofinancé</span>{% endif %}
+                    </dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">category</span> Secteur</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.secteur|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">location_on</span> Zone géographique</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.zone_geographique|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">person</span> Responsable</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.responsable|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">flag</span> Statut</dt>
+                    <dd><span class="{{ projet.statut_badge_class }}">{{ projet.get_statut_display }}</span></dd>
+                </div>
+                {% endwith %}
+            </dl>
+        </div>
+    </div>
+
+    <div class="card animate-in stagger-5">
+        <div class="card-header flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-green-500 text-[16px]">calendar_month</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Calendrier</h3>
+        </div>
+        <div class="p-5">
+            <dl class="space-y-0">
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">edit_calendar</span> Date de signature</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.date_signature|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">play_arrow</span> Date de début</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.date_debut|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">event</span> Date de fin prévue</dt>
+                    <dd class="text-[0.8125rem] font-bold {% if projet.est_en_retard %}text-red-500{% else %}text-ci-dark-800{% endif %}">{{ projet.date_fin_prevue|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">event_available</span> Date de fin effective</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.date_fin_effective|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+</div>
+
+{% if projet.description %}
+<div class="card mb-5 animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-dark-400 text-[16px]">description</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Description</h3>
+    </div>
+    <div class="p-5 text-[0.8125rem] text-ci-dark-600 leading-relaxed">{{ projet.description|linebreaks }}</div>
+</div>
+{% endif %}
+
+<!-- Objectifs PND -->
+<div class="card mb-5 animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-green-500 text-[16px]">flag</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Objectifs PND rattachés</h3>
+    </div>
+    <div class="p-5">
+        {% if projet.objectifs_pnd.all %}
+        <div class="space-y-2.5">
+            {% for obj in projet.objectifs_pnd.all %}
+            <div class="flex items-center gap-3 p-3.5 rounded-xl bg-ci-green-50 border border-ci-green-200/50 hover:shadow-sm transition-shadow">
+                <div class="w-9 h-9 rounded-lg bg-ci-green-500 flex items-center justify-center flex-shrink-0 shadow-sm shadow-ci-green-500/20">
+                    <span class="material-symbols-outlined text-white text-[16px]">check</span>
+                </div>
+                <div>
+                    <p class="text-[0.8125rem] font-bold text-ci-dark-800">{{ obj.numero }} - {{ obj.nom }}</p>
+                    <p class="text-[0.6875rem] text-ci-dark-400 font-medium mt-0.5">{{ obj.pilier }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <div class="w-12 h-12 mx-auto rounded-xl bg-ci-dark-50 flex items-center justify-center mb-2">
+                <span class="material-symbols-outlined text-ci-dark-200 text-[24px]">flag</span>
+            </div>
+            <p class="text-[0.8125rem] text-ci-dark-300 font-medium">Aucun objectif PND rattaché</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Cofinancement breakdown -->
+{% if projet.est_cofinance %}
+<div class="card mb-5 animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-purple-500 text-[16px]">group_work</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition du cofinancement</h3>
+        <span class="badge badge-blue text-[0.5625rem] ml-1">{{ projet.nombre_bailleurs }} bailleurs</span>
+    </div>
+    <div class="p-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <!-- Breakdown bars -->
+            <div class="space-y-3">
+                {% for r in projet.repartition_financements %}
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[0.8125rem] font-bold text-ci-dark-800">{{ r.sigle }}</span>
+                            <span class="text-[0.625rem] text-ci-dark-400">{{ r.type_financement }}</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[0.8125rem] font-black text-ci-dark-900">{{ r.part_pct }}%</span>
+                        </div>
+                    </div>
+                    <div class="w-full bg-ci-dark-100 rounded-full h-3 overflow-hidden">
+                        <div class="h-3 rounded-full transition-all duration-700 {% cycle 'bg-ci-orange-500' 'bg-blue-500' 'bg-ci-green-500' 'bg-purple-500' 'bg-red-400' 'bg-yellow-500' %}" style="width: {{ r.part_pct }}%;"></div>
+                    </div>
+                    <div class="flex items-center justify-between mt-0.5">
+                        <span class="text-[0.625rem] text-ci-dark-400">Engagé: <span class="font-bold text-ci-dark-600">{{ r.montant_engage|floatformat:0|intcomma }} {{ r.devise }}</span></span>
+                        <span class="text-[0.625rem] {% if r.taux_decaissement < 30 %}text-red-500{% elif r.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %} font-bold">Décaissé: {{ r.taux_decaissement }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <!-- Donut chart -->
+            <div class="flex items-center justify-center">
+                <div id="cofinChart" style="width:100%;min-height:280px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Financements -->
+<div class="card mb-5 animate-in stagger-6">
+    <div class="card-header flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">payments</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Financements</h3>
+        </div>
+        {% if can_edit %}
+        <a href="{% url 'financements:creer' %}" class="btn btn-green btn-sm">
+            <span class="material-symbols-outlined text-[14px]">add</span> Ajouter
+        </a>
+        {% endif %}
+    </div>
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Bailleur</th>
+                    <th>Type</th>
+                    <th class="text-right">Engagé</th>
+                    <th class="text-right">Décaissé</th>
+                    <th class="text-right">Taux</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in projet.financements.all %}
+                <tr class="group">
+                    <td class="font-bold text-ci-dark-800">{{ f.bailleur.sigle|default:f.bailleur.nom }}</td>
+                    <td class="text-ci-dark-500 text-[0.75rem]">{{ f.get_type_financement_display }}</td>
+                    <td class="text-right font-bold text-ci-dark-800">{{ f.montant_engage|floatformat:0|intcomma }} <span class="text-ci-dark-300 text-[0.625rem]">{{ f.devise }}</span></td>
+                    <td class="text-right font-semibold">{{ f.total_decaisse|floatformat:0|intcomma }}</td>
+                    <td class="text-right">
+                        <span class="font-bold text-[0.8125rem] {% if f.taux_decaissement < 30 %}text-red-500{% elif f.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ f.taux_decaissement }}%</span>
+                    </td>
+                    <td class="text-right whitespace-nowrap">
+                        <a href="{% url 'financements:detail' f.pk %}" class="inline-flex items-center gap-1 text-ci-orange-500 hover:text-ci-orange-700 text-[0.75rem] font-semibold transition-colors">
+                            <span class="material-symbols-outlined text-[12px]">visibility</span> Détail
+                        </a>
+                        {% if can_edit %}
+                        <span class="text-ci-dark-200 mx-1">·</span>
+                        <a href="{% url 'financements:creer_decaissement' f.pk %}" class="inline-flex items-center gap-1 text-ci-green-500 hover:text-ci-green-700 text-[0.75rem] font-semibold transition-colors">
+                            <span class="material-symbols-outlined text-[12px]">add_circle</span> Décaisser
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="!py-12 text-center">
+                        <div class="w-12 h-12 mx-auto rounded-xl bg-ci-dark-50 flex items-center justify-center mb-2">
+                            <span class="material-symbols-outlined text-ci-dark-200 text-[24px]">payments</span>
+                        </div>
+                        <p class="text-[0.8125rem] text-ci-dark-300 font-medium">Aucun financement enregistré</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if projet.est_cofinance %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof ApexCharts === 'undefined') return;
+    var el = document.getElementById('cofinChart');
+    if (!el) return;
+
+    var labels = [];
+    var series = [];
+    var colors = ['#F77F00','#3B82F6','#009A44','#8B5CF6','#EF4444','#F59E0B','#10B981','#6366F1'];
+    {% for r in projet.repartition_financements %}
+    labels.push('{{ r.sigle|escapejs }}');
+    series.push({{ r.montant_engage|floatformat:0 }});
+    {% endfor %}
+
+    new ApexCharts(el, {
+        chart: { type: 'donut', height: 280, fontFamily: 'Inter, sans-serif' },
+        series: series,
+        labels: labels,
+        colors: colors.slice(0, series.length),
+        legend: { position: 'bottom', fontSize: '11px', fontWeight: 600 },
+        plotOptions: { pie: { donut: { size: '60%', labels: { show: true, total: { show: true, label: 'Total engagé', fontSize: '10px', fontWeight: 600, formatter: function(w) { var t = w.globals.seriesTotals.reduce(function(a,b){return a+b},0); if(t>=1e9) return (t/1e9).toFixed(1)+' Mrd'; if(t>=1e6) return (t/1e6).toFixed(1)+' M'; return t.toLocaleString(); } } } } } },
+        dataLabels: { enabled: true, formatter: function(val){ return val.toFixed(1)+'%'; }, style: { fontSize: '10px', fontWeight: 700 } },
+        tooltip: { y: { formatter: function(val){ if(val>=1e9) return (val/1e9).toFixed(2)+' Mrd'; if(val>=1e6) return (val/1e6).toFixed(1)+' M'; return val.toLocaleString(); } } },
+    }).render();
+});
+</script>
+{% endif %}
+{% endblock extra_js %}

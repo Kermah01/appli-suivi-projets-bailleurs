@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}{{ bailleur }} - Suivi Projets{% endblock %}
+{% block page_title %}{{ bailleur.nom }}{% endblock %}
+{% block page_subtitle %}{{ bailleur.get_type_bailleur_display }} {% if bailleur.pays_siege %}&middot; {{ bailleur.pays_siege }}{% endif %}{% endblock %}
+
+{% block extra_head %}
+<style>
+    #bailleurMap { height: 520px; border-radius: 0 0 0.75rem 0.75rem; z-index: 1; }
+    .region-label { background: none !important; border: none !important; box-shadow: none !important; pointer-events: none; }
+    .leaflet-tooltip-custom { font-family: 'Inter', sans-serif; font-size: 0.6875rem; padding: 8px 12px; border-radius: 8px; border: 1px solid #E2E8F0; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+    .chart-panel { overflow: visible; min-height: 0; position: relative; }
+    .card-resizable { resize: both; overflow: auto; min-height: 400px; position: relative; }
+    .card-resizable::after { content: ''; position: absolute; bottom: 4px; right: 4px; width: 12px; height: 12px; border-right: 2px solid #CBD5E1; border-bottom: 2px solid #CBD5E1; border-radius: 0 0 3px 0; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+    .card-resizable:hover::after { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Bailleur Hero Header -->
+<div class="card mb-6 overflow-hidden animate-in">
+    <div class="h-1.5 bg-ci-orange-500"></div>
+    <div class="p-6">
+        <div class="flex items-start justify-between">
+            <div class="flex items-start gap-4">
+                <div class="w-16 h-16 rounded-xl bg-ci-orange-500 flex items-center justify-center text-white font-bold text-[1.125rem] flex-shrink-0 shadow-lg shadow-ci-orange-500/20">
+                    {{ bailleur.sigle|default:bailleur.nom|truncatechars:3 }}
+                </div>
+                <div>
+                    <h2 class="text-[1.25rem] font-black text-ci-dark-900 tracking-tight">{{ bailleur.nom }}</h2>
+                    <div class="flex items-center gap-2 mt-1.5">
+                        <span class="badge badge-gray">{{ bailleur.get_type_bailleur_display }}</span>
+                        {% if bailleur.pays_siege %}<span class="text-[0.75rem] text-ci-dark-400 font-medium">{{ bailleur.pays_siege }}</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if can_edit %}
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <a href="{% url 'projets:creer' %}?bailleur={{ bailleur.pk }}" class="btn btn-green btn-sm">
+                    <span class="material-symbols-outlined text-[14px]">add</span> Projet
+                </a>
+                <a href="{% url 'bailleurs:modifier' bailleur.pk %}" class="btn btn-primary btn-sm">
+                    <span class="material-symbols-outlined text-[14px]">edit</span> Modifier
+                </a>
+                <a href="{% url 'bailleurs:supprimer' bailleur.pk %}" class="btn btn-outline btn-sm text-red-500 border-red-200 hover:bg-red-50">
+                    <span class="material-symbols-outlined text-[14px]">delete</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Back link -->
+<div class="mb-5 animate-in stagger-1">
+    <a href="{% url 'bailleurs:liste' %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors">
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour à la liste
+    </a>
+</div>
+
+<!-- KPI Stats Row -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="stat-card animate-in stagger-1">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-orange-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">folder_open</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Projets financés</p>
+        <p class="text-[1.75rem] font-black text-ci-dark-900 leading-none">{{ bailleur.nombre_projets }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-2">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-blue-500 text-[18px]">account_balance_wallet</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total engagé</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ total_engage|floatformat:0|intcomma }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-0.5 font-semibold">USD</p>
+    </div>
+    <div class="stat-card animate-in stagger-3">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-green-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-green-500 text-[18px]">payments</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total décaissé</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ total_decaisse|floatformat:0|intcomma }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-0.5 font-semibold">USD</p>
+    </div>
+    <div class="stat-card animate-in stagger-4">
+        <div class="flex items-center gap-3">
+            <div id="bailleurGauge" style="width:90px;height:90px;"></div>
+            <div>
+                <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Taux décaissement</p>
+                <p class="text-xl font-black leading-none {% if taux_dec < 30 %}text-red-600{% elif taux_dec < 60 %}text-ci-orange-500{% else %}text-ci-green-600{% endif %}">{{ taux_dec }}%</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Info card -->
+{% if bailleur.description or bailleur.site_web or bailleur.contact_email %}
+<div class="card mb-5">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">info</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Informations</h3>
+    </div>
+    <div class="p-5 text-[0.8125rem] text-ci-dark-600 space-y-2">
+        {% if bailleur.description %}<p class="leading-relaxed">{{ bailleur.description }}</p>{% endif %}
+        {% if bailleur.site_web %}<p><strong class="text-ci-dark-700">Site web:</strong> <a href="{{ bailleur.site_web }}" target="_blank" class="text-ci-orange-500 hover:underline">{{ bailleur.site_web }}</a></p>{% endif %}
+        {% if bailleur.contact_email %}<p><strong class="text-ci-dark-700">Email:</strong> {{ bailleur.contact_email }}</p>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══════ 6 ANALYTICS PANELS ═══════ -->
+{% if projets.count > 0 %}
+<h3 class="text-[0.8125rem] font-bold text-ci-dark-800 mb-3 flex items-center gap-2">
+    <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">analytics</span>
+    Analyse du portefeuille
+</h3>
+<!-- Row 1: 3 charts -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+    <!-- Panel 1: Répartition par secteur -->
+    <div class="card card-resizable">
+        <div class="card-header"><h3 class="text-[0.75rem] font-semibold text-ci-dark-700">Répartition par secteur</h3></div>
+        <div class="p-3 chart-panel"><div id="chartSector" style="width:100%;height:300px;"></div></div>
+    </div>
+    <!-- Panel 2: Statut des projets -->
+    <div class="card card-resizable">
+        <div class="card-header"><h3 class="text-[0.75rem] font-semibold text-ci-dark-700">Statut des projets</h3></div>
+        <div class="p-3 chart-panel"><div id="chartStatus" style="width:100%;height:300px;"></div></div>
+    </div>
+    <!-- Panel 3: Types de financement -->
+    <div class="card card-resizable">
+        <div class="card-header"><h3 class="text-[0.75rem] font-semibold text-ci-dark-700">Types de financement</h3></div>
+        <div class="p-3 chart-panel"><div id="chartFinType" style="width:100%;height:300px;"></div></div>
+    </div>
+</div>
+<!-- Row 2: 2 charts -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+    <!-- Panel 4: Montants par zone -->
+    <div class="card card-resizable">
+        <div class="card-header"><h3 class="text-[0.75rem] font-semibold text-ci-dark-700">Montants par zone géographique</h3></div>
+        <div class="p-3 chart-panel"><div id="chartZone" style="width:100%;height:300px;"></div></div>
+    </div>
+    <!-- Panel 5: Avancement vs décaissement -->
+    <div class="card card-resizable">
+        <div class="card-header"><h3 class="text-[0.75rem] font-semibold text-ci-dark-700">Avancement vs Décaissement</h3></div>
+        <div class="p-3 chart-panel"><div id="chartScatter" style="width:100%;height:300px;"></div></div>
+    </div>
+</div>
+<!-- Row 3: Map full-width -->
+<div class="mb-6">
+    <div class="card">
+        <div class="card-header flex items-center justify-between">
+            <h3 class="text-[0.75rem] font-semibold text-ci-dark-700 flex items-center gap-2">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">map</span>
+                Carte d'intervention
+            </h3>
+            <div class="flex items-center gap-1.5">
+                <div class="flex items-center gap-0.5 w-20"><div class="flex-1 h-2.5 rounded-l" style="background:#DCE1E8;"></div><div class="flex-1 h-2.5" style="background:#B0BEC5;"></div><div class="flex-1 h-2.5" style="background:#F59E0B;"></div><div class="flex-1 h-2.5" style="background:#F77F00;"></div><div class="flex-1 h-2.5 rounded-r" style="background:#009A44;"></div></div>
+                <span class="text-[0.5625rem] text-ci-dark-400 font-medium">projets</span>
+            </div>
+        </div>
+        <div class="p-0"><div id="bailleurMap" style="height:520px;"></div></div>
+    </div>
+</div>
+{% else %}
+<div class="hint-banner mb-4" x-data="{ show: true }" x-show="show">
+    <span class="material-symbols-outlined">lightbulb</span>
+    <span class="flex-1">Ce bailleur n'a pas encore de projet. <a href="{% url 'projets:creer' %}?bailleur={{ bailleur.pk }}" class="font-semibold underline">Créez un projet</a> directement lié à ce bailleur.</span>
+    <button @click="show=false" class="text-ci-dark-400 hover:text-ci-dark-600"><span class="material-symbols-outlined text-[14px]">close</span></button>
+</div>
+{% endif %}
+
+<!-- Projets table -->
+<div class="card mb-5">
+    <div class="card-header flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-green-500 text-[18px]">folder_open</span>
+            <h3 class="text-[0.8125rem] font-semibold text-ci-dark-700">Projets financés</h3>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="badge badge-gray">{{ projets.count }}</span>
+            <a href="{% url 'projets:creer' %}?bailleur={{ bailleur.pk }}" class="btn btn-sm btn-green"><span class="material-symbols-outlined text-[14px]">add</span> Projet</a>
+        </div>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Titre</th>
+                    <th>Secteur</th>
+                    <th>Statut</th>
+                    <th class="text-right">Montant</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for projet in projets %}
+                <tr>
+                    <td class="font-mono text-[0.75rem] text-ci-dark-400">{{ projet.code }}</td>
+                    <td>
+                        <a href="{% url 'projets:detail' projet.pk %}" class="text-ci-dark-800 hover:text-ci-orange-500 font-semibold transition-colors">{{ projet.titre|truncatechars:60 }}</a>
+                        {% if projet.est_cofinance %}<span class="badge badge-blue text-[0.5625rem] ml-1">Cofinancé ({{ projet.nombre_bailleurs }})</span>{% endif %}
+                    </td>
+                    <td class="text-ci-dark-500">{{ projet.secteur|default:"-" }}</td>
+                    <td><span class="{{ projet.statut_badge_class }}">{{ projet.get_statut_display }}</span></td>
+                    <td class="text-right font-bold">{{ projet.montant_total|floatformat:0|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="!py-10 text-center text-ci-dark-300 text-[0.8125rem]">Aucun projet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Financements table -->
+<div class="card">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">payments</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Financements détaillés</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Projet</th>
+                    <th>Type</th>
+                    <th class="text-right">Engagé</th>
+                    <th class="text-right">Décaissé</th>
+                    <th class="text-right">Taux</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in financements %}
+                <tr>
+                    <td><a href="{% url 'financements:detail' f.pk %}" class="text-ci-orange-500 hover:underline font-semibold">{{ f.projet.code }}</a></td>
+                    <td class="text-ci-dark-500">{{ f.get_type_financement_display }}</td>
+                    <td class="text-right font-bold">{{ f.montant_engage|floatformat:0|intcomma }} {{ f.devise }}</td>
+                    <td class="text-right">{{ f.total_decaisse|floatformat:0|intcomma }}</td>
+                    <td class="text-right">
+                        <span class="font-bold {% if f.taux_decaissement < 30 %}text-red-500{% elif f.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ f.taux_decaissement }}%</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="!py-10 text-center text-ci-dark-300 text-[0.8125rem]">Aucun financement</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var BD = {
+    bySector: {{ by_sector_json|safe }},
+    byStatus: {{ by_status_json|safe }},
+    byZone: {{ by_zone_json|safe }},
+    byType: {{ by_type_json|safe }},
+    projets: {{ projets_chart_json|safe }},
+    ciRegions: {{ ci_regions_json|safe }}
+};
+var PAL = ['#F77F00','#009A44','#2563EB','#7C3AED','#DC2626','#0891B2','#D97706','#059669','#4F46E5','#BE185D','#94A3B8'];
+var fN = function(v){ return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(v); };
+var fC = function(v){ return new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v); };
+
+var _bdCharts = [];
+
+function initBailleurCharts() {
+    _bdCharts = [];
+
+    // ── Gauge (ECharts) ──
+    var taux = {{ taux_dec_js }};
+    var gcColor = taux < 30 ? '#DC2626' : taux < 60 ? '#F77F00' : '#009A44';
+    var gaugeEl = document.getElementById('bailleurGauge');
+    if (gaugeEl) {
+        if (gaugeEl._ec) { try { gaugeEl._ec.dispose(); } catch(e){} }
+        var gc = echarts.init(gaugeEl);
+        gaugeEl._ec = gc;
+        gc.setOption({ series:[{type:'gauge',startAngle:220,endAngle:-40,min:0,max:100,radius:'100%',center:['50%','55%'],
+            pointer:{show:false},progress:{show:true,width:10,roundCap:true,itemStyle:{color:gcColor}},
+            axisLine:{lineStyle:{width:10,color:[[1,'#E2E8F0']]}},axisTick:{show:false},splitLine:{show:false},axisLabel:{show:false},
+            detail:{fontSize:14,fontWeight:800,fontFamily:'Inter',color:'#0F172A',offsetCenter:[0,'25%'],formatter:'{value}%'},
+            data:[{value:taux}],animationDuration:1200}]});
+        _bdCharts.push(gc);
+    }
+
+    var sColors = {'Identification':'#94A3B8','Préparation':'#F77F00','Négociation':'#FB923C',"En cours d'exécution":'#009A44','Suspendu':'#DC2626','Clôturé':'#64748B','Annulé':'#B91C1C'};
+
+    // ── Panel 1: Sector donut (ECharts) ──
+    var secL = Object.keys(BD.bySector);
+    var el1 = document.getElementById('chartSector');
+    if (el1 && secL.length > 0) {
+        if (el1._ec) { try { el1._ec.dispose(); } catch(e){} }
+        var c1 = echarts.init(el1);
+        el1._ec = c1;
+        c1.setOption({
+            tooltip:{trigger:'item',formatter:'{b}: {c} USD ({d}%)'},
+            legend:{bottom:0,type:'scroll',textStyle:{fontSize:10,fontWeight:600}},
+            series:[{type:'pie',radius:['40%','68%'],center:['50%','45%'],avoidLabelOverlap:true,
+                label:{show:false},emphasis:{label:{show:true,fontSize:12,fontWeight:700}},
+                data:secL.map(function(s,i){return{value:BD.bySector[s].montant,name:s,itemStyle:{color:PAL[i%PAL.length]}};}),
+                animationType:'scale',animationDuration:700}]
+        });
+        _bdCharts.push(c1);
+    }
+
+    // ── Panel 2: Status bar (ECharts) ──
+    var stL = Object.keys(BD.byStatus);
+    var el2 = document.getElementById('chartStatus');
+    if (el2 && stL.length > 0) {
+        if (el2._ec) { try { el2._ec.dispose(); } catch(e){} }
+        var c2 = echarts.init(el2);
+        el2._ec = c2;
+        c2.setOption({
+            tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(p){return p[0].name+': '+p[0].value+' projet(s)';}},
+            grid:{left:10,right:10,top:10,bottom:40,containLabel:true},
+            xAxis:{type:'category',data:stL.map(function(s){return s.length>12?s.substring(0,11)+'…':s;}),
+                axisLabel:{rotate:stL.length>4?45:0,fontSize:9,fontWeight:600,color:'#334155'}},
+            yAxis:{type:'value',axisLabel:{fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+            series:[{type:'bar',data:stL.map(function(s){return{value:BD.byStatus[s],itemStyle:{color:sColors[s]||'#CBD5E1',borderRadius:[4,4,0,0]}};}),
+                barWidth:'55%',label:{show:true,position:'top',fontSize:11,fontWeight:700,color:'#475569'}}],
+            animationDuration:700
+        });
+        _bdCharts.push(c2);
+    }
+
+    // ── Panel 3: Financing type pie (ECharts) ──
+    var ftL = Object.keys(BD.byType);
+    var el3 = document.getElementById('chartFinType');
+    if (el3 && ftL.length > 0) {
+        if (el3._ec) { try { el3._ec.dispose(); } catch(e){} }
+        var c3 = echarts.init(el3);
+        el3._ec = c3;
+        c3.setOption({
+            tooltip:{trigger:'item',formatter:'{b}: {c} USD ({d}%)'},
+            legend:{bottom:0,type:'scroll',textStyle:{fontSize:10,fontWeight:600}},
+            series:[{type:'pie',radius:['0%','68%'],center:['50%','45%'],
+                label:{show:ftL.length<=6,fontSize:10,fontWeight:600},emphasis:{label:{show:true,fontSize:12,fontWeight:700}},
+                data:ftL.map(function(t,i){return{value:BD.byType[t],name:t,itemStyle:{color:PAL[i%PAL.length]}};}),
+                animationType:'scale',animationDuration:700}]
+        });
+        _bdCharts.push(c3);
+    }
+
+    // ── Panel 4: Zone treemap (ECharts) ──
+    var zL = Object.entries(BD.byZone).sort(function(a,b){return b[1].montant-a[1].montant;});
+    var el4 = document.getElementById('chartZone');
+    if (el4 && zL.length > 0) {
+        if (el4._ec) { try { el4._ec.dispose(); } catch(e){} }
+        var c4 = echarts.init(el4);
+        el4._ec = c4;
+        c4.setOption({
+            tooltip:{formatter:function(p){return p.name+'<br/>'+fN(p.value)+' USD';}},
+            series:[{type:'treemap',roam:false,breadcrumb:{show:false},
+                label:{show:true,formatter:function(p){return p.name+'\n'+fC(p.value);},fontSize:10,fontWeight:700,color:'#fff'},
+                data:zL.map(function(e,i){return{name:e[0]+' ('+e[1].count+')',value:Math.round(e[1].montant),itemStyle:{color:PAL[i%PAL.length]}};}),
+                animationDuration:600}]
+        });
+        _bdCharts.push(c4);
+    }
+
+    // ── Panel 5: Scatter avancement vs décaissement (ECharts) ──
+    var el5 = document.getElementById('chartScatter');
+    if (el5 && BD.projets.length > 0) {
+        if (el5._ec) { try { el5._ec.dispose(); } catch(e){} }
+        var c5 = echarts.init(el5);
+        el5._ec = c5;
+        c5.setOption({
+            tooltip:{trigger:'item',formatter:function(p){var d=p.data;return'<strong>'+d[2]+'</strong><br/>'+d[3]+'<br/>Avancement: '+d[0]+'%<br/>Décaissement: '+d[1]+'%';}},
+            grid:{left:50,right:20,top:20,bottom:50},
+            xAxis:{type:'value',name:'Avancement (%)',nameLocation:'center',nameGap:30,min:0,max:100,
+                axisLabel:{formatter:'{value}%',fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+            yAxis:{type:'value',name:'Décaissement (%)',nameLocation:'center',nameGap:35,min:0,max:100,
+                axisLabel:{formatter:'{value}%',fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+            series:[{type:'scatter',symbolSize:10,
+                data:BD.projets.map(function(p){return[p.taux_avancement,p.taux_decaissement,p.code,p.titre];}),
+                itemStyle:{color:'#F77F00',opacity:0.7,borderColor:'#fff',borderWidth:1},
+                emphasis:{itemStyle:{opacity:1,shadowBlur:10,shadowColor:'rgba(247,127,0,0.5)'}},
+                markLine:{silent:true,data:[[{coord:[50,0]},{coord:[50,100]}],[{coord:[0,50]},{coord:[100,50]}]],
+                    lineStyle:{type:'dashed',color:'#CBD5E1'}}}],
+            animationDuration:500
+        });
+        _bdCharts.push(c5);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){
+        initBailleurCharts();
+        setTimeout(function(){ _bdCharts.forEach(function(c){ if(c && !c.isDisposed()) c.resize(); }); }, 300);
+    }, 100);
+});
+window.addEventListener('resize', function(){ _bdCharts.forEach(function(c){ if(c && !c.isDisposed()) c.resize(); }); });
+
+document.addEventListener('DOMContentLoaded', function(){
+    // ── Panel 6: GeoJSON choropleth map — improved zoom ──
+    var mapEl = document.getElementById('bailleurMap');
+    if(mapEl){
+        var map = L.map('bailleurMap', {
+            scrollWheelZoom:true, zoomControl:true, preferCanvas:true,
+            doubleClickZoom:false, zoomSnap:0.25, zoomDelta:0.5,
+            minZoom:6, maxZoom:12
+        }).setView([7.54,-5.55],7.0);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',{
+            attribution:'&copy; CARTO',maxZoom:18,subdomains:'abcd'
+        }).addTo(map);
+        map.zoomControl.setPosition('topright');
+        L.control.scale({position:'bottomleft',imperial:false,metric:true}).addTo(map);
+        setTimeout(function(){map.invalidateSize();},300);
+
+        var zoneToRegion = {
+            'Abidjan':'ABIDJAN','Yamoussoukro':'YAMOUSSOUKRO','Bouaké':'GBEKE',
+            'San-Pédro':'SAN-PEDRO','Daloa':'HAUT-SASSANDRA','Korhogo':'PORO',
+            'Man':'TONKPI','Gagnoa':'GÔH','Bondoukou':'GONTOUGO',
+            'Soubré':'NAWA','Ferkessédougou':'TCHOLOGO','Dimbokro':"N'ZI",
+            'Odienné':'KABADOUGOU','Agboville':'AGNEBY-TIASSA',
+            'Grand-Bassam':'SUD-COMOE','Sassandra':'GBOKLE',
+            'Séguéla':'WORODOUGOU','Abengourou':'INDENIE-DJUABLIN',
+            'Divo':'LÔH-DJIBOUA','Touba':'BAFING','Mankono':'BERE',
+            'Dabou':'GRANDS-PONTS','Adzopé':'LA ME','Bongouanou':'MORONOU',
+            'Katiola':'HAMBOL','Boundiali':'BAGOUE','Tingréla':'BAGOUE',
+            'National':null
+        };
+
+        var byRegion = {};
+        BD.projets.forEach(function(p){
+            var zone = p.zone||'Non précisé';
+            var reg = zoneToRegion[zone]||zone.toUpperCase();
+            if(!reg) return;
+            if(!byRegion[reg]) byRegion[reg]={projets:[],montant:0,count:0};
+            byRegion[reg].projets.push(p);
+            byRegion[reg].montant += p.montant;
+            byRegion[reg].count++;
+        });
+
+        var vals = Object.values(byRegion).map(function(r){return r.count;});
+        var maxVal = vals.length>0?Math.max.apply(null,vals):1;
+
+        function choroplethColor(ratio){
+            if(ratio<=0)return'#DCE1E8';if(ratio<0.15)return'#B0BEC5';
+            if(ratio<0.35)return'#F59E0B';if(ratio<0.65)return'#F77F00';return'#009A44';
+        }
+
+        fetch('/api/regions-geojson/')
+            .then(function(r){return r.json();})
+            .then(function(geojson){
+                // Fit bounds
+                var bounds = L.geoJSON(geojson).getBounds();
+                map.fitBounds(bounds.pad(0.05),{maxZoom:7.5});
+
+                L.geoJSON(geojson,{style:{fill:false,weight:2.5,color:'#1E293B',opacity:0.7},interactive:false}).addTo(map);
+
+                var geoLayer = L.geoJSON(geojson,{
+                    style:function(feature){
+                        var reg=feature.properties.NomReg,rd=byRegion[reg],count=rd?rd.count:0,ratio=maxVal>0?count/maxVal:0;
+                        return{fillColor:choroplethColor(ratio),weight:1,color:'#64748B',fillOpacity:count>0?0.7:0.4};
+                    },
+                    onEachFeature:function(feature,layer){
+                        var reg=feature.properties.NomReg,rd=byRegion[reg];
+                        var tip='<div style="text-align:center;min-width:100px"><strong style="font-size:12px">'+reg+'</strong><br>';
+                        if(rd) tip+='<span style="color:#F77F00;font-weight:700">'+rd.count+' projet(s)</span><br><span style="color:#64748B;font-size:10px">'+fC(rd.montant)+' USD</span>';
+                        else tip+='<span style="color:#94A3B8">Aucun projet</span>';
+                        tip+='</div>';
+                        layer.bindTooltip(tip,{sticky:true,className:'leaflet-tooltip-custom',direction:'top',opacity:0.95});
+                        layer.on('mouseover',function(){this.setStyle({weight:2.5,color:'#F77F00',fillOpacity:0.85});this.bringToFront();});
+                        layer.on('mouseout',function(){geoLayer.resetStyle(this);});
+                        layer.on('click',function(){
+                            if(rd&&rd.projets.length>0){
+                                var pop='<div style="font-family:Inter;font-size:11px;min-width:160px"><strong>'+reg+'</strong><br>'
+                                    +'<span style="color:#F77F00;font-weight:700">'+rd.count+' projet(s) · '+fN(rd.montant)+' USD</span><hr style="margin:4px 0;border-color:#E2E8F0">';
+                                rd.projets.forEach(function(p){pop+='<a href="/projets/'+p.id+'/" style="color:#1E293B;text-decoration:none;display:block;padding:2px 0"><strong>'+p.code+'</strong> '+p.titre+' <span style="color:#F77F00">'+p.taux_decaissement+'%</span></a>';});
+                                pop+='</div>';
+                                layer.bindPopup(pop,{maxWidth:300}).openPopup();
+                            }
+                        });
+                    }
+                }).addTo(map);
+
+                var labelLayer = L.layerGroup().addTo(map);
+                function drawLabels(){
+                    labelLayer.clearLayers();
+                    var zoom=map.getZoom(),mapBounds=map.getBounds();
+                    var fs=zoom>=10?11:zoom>=8?9:zoom>=7?8:7;
+                    geoLayer.eachLayer(function(layer){
+                        if(!layer.feature)return;
+                        var reg=layer.feature.properties.NomReg,rd=byRegion[reg],count=rd?rd.count:0,b=layer.getBounds();
+                        if(!mapBounds.intersects(b))return;if(zoom<8&&count===0)return;
+                        var c=b.getCenter();
+                        var html='<div style="font-family:Inter,sans-serif;font-size:'+fs+'px;font-weight:700;color:#1E293B;text-align:center;white-space:nowrap;text-shadow:1px 1px 2px #fff,-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff,0 0 4px #fff">'+reg;
+                        if(count>0)html+='<br><span style="font-size:'+(fs+2)+'px;color:#F77F00;font-weight:800">'+count+'</span>';
+                        html+='</div>';
+                        L.marker(c,{icon:L.divIcon({className:'region-label',html:html,iconSize:[120,30],iconAnchor:[60,15]}),interactive:false}).addTo(labelLayer);
+                    });
+                }
+                drawLabels();
+                map.on('zoomstart movestart',function(){labelLayer.clearLayers();});
+                map.on('zoomend moveend',drawLabels);
+            })
+            .catch(function(err){console.error('GeoJSON load error:',err);});
+    }
+});
+</script>
+{% endblock %}

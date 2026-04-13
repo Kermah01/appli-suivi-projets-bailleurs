@@ -1,0 +1,1320 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Tableau de bord - Suivi Projets{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
+{% block page_subtitle %}Vue d'ensemble stratégique &amp; analyses{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ── Tab buttons ── */
+    .tab-btn {
+        padding: 0.5rem 1.125rem; font-size: 0.75rem; font-weight: 600; border-radius: 0.5rem;
+        transition: all 0.25s cubic-bezier(.4,0,.2,1); cursor: pointer; position: relative;
+    }
+    .tab-btn.active { background: #F77F00; color: #fff; box-shadow: 0 2px 8px rgba(247,127,0,0.3); }
+    .tab-btn:not(.active) { color: #64748B; }
+    .tab-btn:not(.active):hover { background: #F1F5F9; color: #334155; }
+
+    /* ── Select / form elements ── */
+    .sel-label { font-size: 0.625rem; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.25rem; display: block; }
+    .sel-input { width: 100%; padding: 0.375rem 0.625rem; border: 1px solid #E2E8F0; border-radius: 0.5rem; font-size: 0.75rem; color: #1E293B; background: #fff; outline: none; transition: all 0.2s ease; }
+    .sel-input:focus { border-color: #F77F00; box-shadow: 0 0 0 2px rgba(247,127,0,0.1); }
+    .sel-input:hover:not(:focus) { border-color: #CBD5E1; }
+
+    /* ── Chips ── */
+    .chip { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.1875rem 0.625rem; border-radius: 9999px; font-size: 0.625rem; font-weight: 600; cursor: pointer; transition: all 0.2s cubic-bezier(.4,0,.2,1); border: 1px solid #E2E8F0; background: #fff; color: #475569; }
+    .chip.selected { background: #F77F00; color: #fff; border-color: transparent; box-shadow: 0 2px 4px rgba(247,127,0,0.25); }
+    .chip:hover:not(.selected) { background: #FFF7ED; border-color: #FED7AA; transform: translateY(-1px); }
+
+    /* ── KPI Cards ── */
+    .kpi-card {
+        background: #fff; border-radius: 0.875rem; padding: 1.5rem; position: relative; overflow: hidden;
+        border: 1px solid #E2E8F0; transition: all 0.3s cubic-bezier(.4,0,.2,1);
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04);
+    }
+    .kpi-card::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+        background: var(--kpi-color, #F77F00);
+        transform: scaleX(0); transform-origin: left; transition: transform 0.4s cubic-bezier(.4,0,.2,1);
+    }
+    .kpi-card:hover { box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08); transform: translateY(-3px); }
+    .kpi-card:hover::before { transform: scaleX(1); }
+    .kpi-card .kpi-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; transition: transform 0.3s ease; }
+    .kpi-card:hover .kpi-icon { transform: scale(1.08); }
+    .kpi-card .kpi-bg-pattern {
+        position: absolute; top: -20px; right: -20px; width: 100px; height: 100px;
+        border-radius: 50%; opacity: 0.05; pointer-events: none;
+        background: var(--kpi-color, #F77F00);
+    }
+    .kpi-var { display: inline-flex; align-items: center; gap: 2px; font-size: 0.625rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+    .kpi-var.up { background: #F0FDF4; color: #15803D; }
+    .kpi-var.down { background: #FEF2F2; color: #DC2626; }
+    .kpi-var.neutral { background: #F1F5F9; color: #64748B; }
+    .kpi-clickable { cursor: pointer; }
+    .kpi-clickable:hover { border-color: #F77F00; }
+
+    /* ── Animated counter ── */
+    .kpi-value { font-variant-numeric: tabular-nums; }
+
+    /* ── Charts ── */
+    .chart-panel { overflow: visible; min-height: 0; position: relative; }
+
+    /* ── Resizable cards ── */
+    .card-resizable { resize: both; overflow: auto; min-height: 420px; position: relative; }
+    .card-resizable::after { content: ''; position: absolute; bottom: 4px; right: 4px; width: 12px; height: 12px; border-right: 2px solid #CBD5E1; border-bottom: 2px solid #CBD5E1; border-radius: 0 0 3px 0; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+    .card-resizable:hover::after { opacity: 1; }
+
+    /* ── Map ── */
+    #mapContainer { height: 100%; min-height: 600px; border-radius: 0.75rem; z-index: 1; }
+    .leaflet-popup-content { font-family: 'Inter', sans-serif; font-size: 0.75rem; }
+    .leaflet-tooltip-custom { font-family: 'Inter', sans-serif; font-size: 0.6875rem; padding: 8px 12px; border-radius: 8px; border: 1px solid #E2E8F0; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+    .region-label { background: none !important; border: none !important; box-shadow: none !important; pointer-events: none; }
+
+    /* ── Welcome banner ── */
+    .welcome-banner { background: #0F172A; position: relative; overflow: hidden; }
+
+    /* ── Analysis smart hint ── */
+    .smart-hint { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.6875rem; color: #92400E; display: flex; align-items: center; gap: 0.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="dashboardApp()" x-init="init()">
+
+<!-- Welcome Banner -->
+<div class="welcome-banner rounded-xl p-5 mb-5 animate-in" style="animation-delay: 0.05s;">
+    <div class="relative z-10 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-ci-orange-500 flex items-center justify-center shadow-lg shadow-ci-orange-500/30">
+                <span class="material-symbols-outlined text-white text-[26px]">monitoring</span>
+            </div>
+            <div>
+                <h2 class="text-white font-extrabold text-[1.125rem] tracking-tight">Vue d'ensemble du portefeuille</h2>
+                <p class="text-ci-dark-400 text-[0.75rem] font-medium mt-0.5">{{ total_projets }} projets &middot; {{ total_bailleurs }} bailleurs &middot; Dernière mise à jour : aujourd'hui</p>
+            </div>
+        </div>
+        <div class="hidden md:flex items-center gap-2">
+            <a href="{% url 'projets:creer' %}" class="btn btn-primary btn-sm">
+                <span class="material-symbols-outlined text-[14px]">add</span> Nouveau projet
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Row -->
+<div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+    <!-- Projets -->
+    <div class="kpi-card animate-in stagger-1" style="--kpi-color: #F77F00; --kpi-color-light: #FB923C;">
+        <div class="kpi-bg-pattern"></div>
+        <div class="flex items-center justify-between mb-3">
+            <div class="kpi-icon bg-ci-orange-50">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[20px]">folder_open</span>
+            </div>
+            {% if var_projets > 0 %}<span class="kpi-var up"><span class="material-symbols-outlined text-[10px]">trending_up</span>+{{ var_projets }}</span>
+            {% elif var_projets < 0 %}<span class="kpi-var down"><span class="material-symbols-outlined text-[10px]">trending_down</span>{{ var_projets }}</span>
+            {% else %}<span class="kpi-var neutral">=</span>{% endif %}
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Projets</p>
+        <div class="flex items-end justify-between">
+            <p class="text-[1.75rem] font-black text-ci-dark-900 kpi-value leading-none" data-count="{{ total_projets }}">{{ total_projets }}</p>
+            <span class="badge badge-green text-[0.5625rem]">{{ projets_en_cours }} actifs</span>
+        </div>
+    </div>
+    <!-- Bailleurs -->
+    <div class="kpi-card animate-in stagger-2" style="--kpi-color: #009A44; --kpi-color-light: #4ADE80;">
+        <div class="kpi-bg-pattern"></div>
+        <div class="flex items-center justify-between mb-3">
+            <div class="kpi-icon bg-ci-green-50">
+                <span class="material-symbols-outlined text-ci-green-500 text-[20px]">account_balance</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Bailleurs</p>
+        <p class="text-[1.75rem] font-black text-ci-dark-900 kpi-value leading-none" data-count="{{ total_bailleurs }}">{{ total_bailleurs }}</p>
+    </div>
+    <!-- Engagé -->
+    <div class="kpi-card animate-in stagger-3" style="--kpi-color: #2563EB; --kpi-color-light: #60A5FA;">
+        <div class="kpi-bg-pattern"></div>
+        <div class="flex items-center justify-between mb-3">
+            <div class="kpi-icon bg-blue-50">
+                <span class="material-symbols-outlined text-blue-500 text-[20px]">account_balance_wallet</span>
+            </div>
+            {% if var_engage > 0 %}<span class="kpi-var up"><span class="material-symbols-outlined text-[10px]">trending_up</span>+</span>
+            {% elif var_engage < 0 %}<span class="kpi-var down"><span class="material-symbols-outlined text-[10px]">trending_down</span>-</span>
+            {% else %}<span class="kpi-var neutral">=</span>{% endif %}
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Engagé (USD)</p>
+        <p class="text-xl font-black text-ci-dark-900 kpi-value leading-none">{{ total_engage|floatformat:0|intcomma }}</p>
+    </div>
+    <!-- Décaissement — radialBar rendered by ApexCharts -->
+    <div class="kpi-card animate-in stagger-4" style="--kpi-color: #7C3AED; --kpi-color-light: #A78BFA;">
+        <div class="kpi-bg-pattern"></div>
+        <div class="flex items-center gap-3">
+            <div id="kpiGauge" style="width:90px;height:90px;"></div>
+            <div class="flex-1 min-w-0">
+                <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Décaissé</p>
+                <p class="text-base font-black text-ci-dark-900 leading-none">{{ total_decaisse|floatformat:0|intcomma }}</p>
+                <p class="text-[0.5625rem] text-ci-dark-300 mt-0.5">sur {{ total_engage|floatformat:0|intcomma }}</p>
+                {% if var_decaisse > 0 %}<span class="kpi-var up mt-1.5"><span class="material-symbols-outlined text-[10px]">trending_up</span>+</span>
+                {% elif var_decaisse < 0 %}<span class="kpi-var down mt-1.5"><span class="material-symbols-outlined text-[10px]">trending_down</span>-</span>
+                {% else %}<span class="kpi-var neutral mt-1.5">=</span>{% endif %}
+            </div>
+        </div>
+    </div>
+    <!-- En retard — clickable -->
+    <a href="#section-retards" class="kpi-card kpi-clickable animate-in stagger-5 {% if projets_en_retard > 0 %}border-red-200{% endif %}" id="kpiRetard" style="--kpi-color: {% if projets_en_retard > 0 %}#DC2626{% else %}#009A44{% endif %}; --kpi-color-light: {% if projets_en_retard > 0 %}#F87171{% else %}#4ADE80{% endif %};">
+        <div class="kpi-bg-pattern"></div>
+        <div class="flex items-center justify-between mb-3">
+            <div class="kpi-icon {% if projets_en_retard > 0 %}bg-red-50{% else %}bg-ci-green-50{% endif %}">
+                <span class="material-symbols-outlined {% if projets_en_retard > 0 %}text-red-500{% else %}text-ci-green-500{% endif %} text-[20px]">{% if projets_en_retard > 0 %}warning{% else %}verified{% endif %}</span>
+            </div>
+            {% if var_retard > 0 %}<span class="kpi-var down"><span class="material-symbols-outlined text-[10px]">trending_up</span>+{{ var_retard }}</span>
+            {% elif var_retard < 0 %}<span class="kpi-var up"><span class="material-symbols-outlined text-[10px]">trending_down</span>{{ var_retard }}</span>
+            {% else %}<span class="kpi-var neutral">=</span>{% endif %}
+        </div>
+        <p class="text-[0.625rem] {% if projets_en_retard > 0 %}text-red-500{% else %}text-ci-dark-400{% endif %} font-bold uppercase tracking-wider mb-1">En retard</p>
+        <div class="flex items-end justify-between">
+            <p class="text-[1.75rem] font-black leading-none {% if projets_en_retard > 0 %}text-red-600{% else %}text-ci-dark-900{% endif %} kpi-value" data-count="{{ projets_en_retard }}">{{ projets_en_retard }}</p>
+            {% if projets_en_retard > 0 %}<span class="text-[0.5625rem] text-red-400 font-semibold flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">arrow_forward</span>Voir</span>{% endif %}
+        </div>
+    </a>
+</div>
+
+<!-- Tab navigation -->
+<div class="flex items-center gap-1 mb-5 bg-white border border-ci-dark-200 rounded-xl p-1.5 w-fit shadow-sm animate-in" style="animation-delay: 0.15s;">
+    <button @click="activeTab='synthese'" :class="activeTab==='synthese' && 'active'" class="tab-btn">
+        <span class="material-symbols-outlined text-[14px] align-middle mr-1">dashboard</span>Synthèse
+    </button>
+    <button @click="activeTab='analyses'; $nextTick(() => renderAnalysis())" :class="activeTab==='analyses' && 'active'" class="tab-btn">
+        <span class="material-symbols-outlined text-[14px] align-middle mr-1">analytics</span>Analyses avancées
+    </button>
+    <button @click="activeTab='carte'; $nextTick(() => initMap())" :class="activeTab==='carte' && 'active'" class="tab-btn">
+        <span class="material-symbols-outlined text-[14px] align-middle mr-1">map</span>Carte interactive
+    </button>
+</div>
+
+<!-- ═══════════════════ TAB: SYNTHÈSE ═══════════════════ -->
+<div x-show="activeTab==='synthese'" x-transition>
+
+    <!-- Quick charts row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+        <div class="card card-resizable animate-in stagger-1">
+            <div class="card-header flex items-center gap-2">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">bar_chart</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Engagements par bailleur (Top 10)</h3>
+            </div>
+            <div class="p-4 chart-panel"><div id="chartSynthBailleurs" style="width:100%;height:300px;"></div></div>
+        </div>
+        <div class="card card-resizable animate-in stagger-2">
+            <div class="card-header flex items-center gap-2">
+                <span class="material-symbols-outlined text-ci-green-500 text-[16px]">donut_large</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition par statut</h3>
+            </div>
+            <div class="p-4 chart-panel"><div id="chartSynthStatut" style="width:100%;height:300px;"></div></div>
+        </div>
+    </div>
+
+    <!-- Secteurs + Zones -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+        <div class="card card-resizable animate-in stagger-3">
+            <div class="card-header flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-500 text-[16px]">grid_view</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Montants par secteur</h3>
+            </div>
+            <div class="p-4 chart-panel"><div id="chartSynthSecteurs" style="width:100%;height:300px;"></div></div>
+        </div>
+        <div class="card card-resizable animate-in stagger-4">
+            <div class="card-header flex items-center gap-2">
+                <span class="material-symbols-outlined text-purple-500 text-[16px]">location_on</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Projets par zone géographique</h3>
+            </div>
+            <div class="p-4 chart-panel"><div id="chartSynthZones" style="width:100%;height:300px;"></div></div>
+        </div>
+    </div>
+
+    <!-- PND -->
+    {% if piliers_data %}
+    <div class="card mb-6 animate-in stagger-5">
+        <div class="card-header flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">flag</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Couverture PND{% if plan_actif %} — {{ plan_actif.sigle|default:plan_actif.nom }}{% endif %}</h3>
+            </div>
+            <a href="{% url 'pnd:index' %}" class="text-[0.6875rem] text-ci-orange-500 hover:underline font-semibold flex items-center gap-1">
+                Détail <span class="material-symbols-outlined text-[12px]">arrow_forward</span>
+            </a>
+        </div>
+        <div class="p-5 space-y-3">
+            {% for item in piliers_data %}
+            <div class="flex items-center gap-4 group">
+                <div class="w-8 h-8 rounded-lg bg-ci-orange-500 flex items-center justify-center text-[0.6875rem] font-bold text-white flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">{{ item.pilier.numero }}</div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[0.75rem] font-semibold text-ci-dark-800 truncate">{{ item.pilier.nom }}</span>
+                        <span class="text-[0.6875rem] text-ci-dark-500 font-bold flex-shrink-0 ml-2">{{ item.nb_projets }} projet{{ item.nb_projets|pluralize:"s" }}</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-ci-green-500" style="width: {% if total_projets > 0 %}{% widthratio item.nb_projets total_projets 100 %}{% else %}0{% endif %}%;"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tables: Derniers projets + Retards -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        <div class="card animate-in stagger-6">
+            <div class="card-header flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-500 text-[16px]">schedule</span>
+                    <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Derniers projets</h3>
+                </div>
+                <a href="{% url 'projets:liste' %}" class="text-[0.6875rem] text-ci-orange-500 font-semibold hover:underline flex items-center gap-1">Voir tout <span class="material-symbols-outlined text-[12px]">arrow_forward</span></a>
+            </div>
+            {% for projet in derniers_projets %}
+            <a href="{% url 'projets:detail' projet.pk %}" class="flex items-center gap-3 px-4 py-3 border-b border-ci-dark-100/60 last:border-b-0 hover:bg-ci-orange-50/50 transition-all group">
+                <div class="w-8 h-8 rounded-lg bg-ci-dark-50 flex items-center justify-center flex-shrink-0 group-hover:bg-ci-orange-50 transition-colors">
+                    <span class="material-symbols-outlined text-ci-dark-400 group-hover:text-ci-orange-500 text-[16px] transition-colors">description</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[0.75rem] font-semibold text-ci-dark-800 truncate group-hover:text-ci-orange-700 transition-colors">{{ projet.titre }}</p>
+                    <p class="text-[0.625rem] text-ci-dark-400">{{ projet.code }} · {{ projet.bailleur_principal.sigle|default:"-" }}</p>
+                </div>
+                <span class="badge {{ projet.statut_badge_class }} whitespace-nowrap flex-shrink-0">{{ projet.get_statut_display }}</span>
+            </a>
+            {% empty %}
+            <div class="px-4 py-8 text-center text-ci-dark-300 text-[0.75rem]">
+                <span class="material-symbols-outlined text-[28px] block mb-2">inbox</span>
+                Aucun projet
+            </div>
+            {% endfor %}
+        </div>
+        <div class="card {% if projets_retard_list %}border-red-200{% endif %} animate-in stagger-6" id="section-retards">
+            <div class="card-header flex items-center justify-between {% if projets_retard_list %}bg-red-50{% endif %}">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined {% if projets_retard_list %}text-red-500{% else %}text-ci-dark-400{% endif %} text-[16px]">{% if projets_retard_list %}warning{% else %}verified{% endif %}</span>
+                    <h3 class="text-[0.8125rem] font-bold {% if projets_retard_list %}text-red-700{% else %}text-ci-dark-800{% endif %}">Alertes & retards</h3>
+                </div>
+                {% if projets_retard_list %}<span class="badge badge-red text-[0.5625rem]">{{ projets_retard_list|length }}</span>{% endif %}
+            </div>
+            {% for projet in projets_retard_list %}
+            <a href="{% url 'projets:detail' projet.pk %}" class="flex items-center gap-3 px-4 py-3 border-b border-red-100 last:border-b-0 hover:bg-red-50/50 transition-all group">
+                <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-red-400 text-[16px]">error_outline</span>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[0.75rem] font-semibold text-ci-dark-800 truncate">{{ projet.titre }}</p>
+                    <p class="text-[0.625rem] text-ci-dark-400">Fin prévue: {{ projet.date_fin_prevue|date:"d/m/Y" }}</p>
+                </div>
+                <span class="text-[0.75rem] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md">{{ projet.taux_avancement }}%</span>
+            </a>
+            {% empty %}
+            <div class="px-4 py-8 text-center">
+                <div class="w-12 h-12 mx-auto rounded-full bg-ci-green-50 flex items-center justify-center mb-2">
+                    <span class="material-symbols-outlined text-ci-green-500 text-[24px]">check_circle</span>
+                </div>
+                <p class="text-[0.8125rem] font-semibold text-ci-green-600">Aucun retard</p>
+                <p class="text-[0.625rem] text-ci-dark-400 mt-0.5">Tous les projets sont dans les temps</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════ TAB: ANALYSES AVANCÉES ═══════════════════ -->
+<div x-show="activeTab==='analyses'" x-cloak x-transition>
+
+    <!-- Control panel -->
+    <div class="card mb-4">
+        <div class="p-4">
+            <!-- Smart hint -->
+            <div class="smart-hint mb-3" x-show="smartHint" x-transition>
+                <span class="material-symbols-outlined text-[14px]">lightbulb</span>
+                <span x-text="smartHint"></span>
+                <button @click="smartHint=''" class="ml-auto text-ci-dark-400 hover:text-ci-dark-600"><span class="material-symbols-outlined text-[12px]">close</span></button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3 mb-3">
+                <!-- Analysis type -->
+                <div>
+                    <label class="sel-label">Type d'analyse</label>
+                    <select class="sel-input" x-model="analysisType" @change="onAnalysisTypeChange()">
+                        <option value="repartition">Répartition</option>
+                        <option value="comparaison">Comparaison</option>
+                        <option value="evolution">Évolution temporelle</option>
+                        <option value="correlation">Corrélation</option>
+                    </select>
+                </div>
+                <!-- Dimension (for repartition & comparaison) -->
+                <div x-show="analysisType!=='correlation'">
+                    <label class="sel-label">Dimension</label>
+                    <select class="sel-input" x-model="varX" @change="validateAndRender()">
+                        <option value="bailleur">Bailleur</option>
+                        <option value="secteur">Secteur</option>
+                        <option value="statut">Statut</option>
+                        <option value="zone">Zone géographique</option>
+                        <option value="categorie">Catégorie bailleur</option>
+                        <option value="devise">Devise</option>
+                    </select>
+                </div>
+                <!-- Second dimension (comparaison) -->
+                <div x-show="analysisType==='comparaison'">
+                    <label class="sel-label">Croiser avec</label>
+                    <select class="sel-input" x-model="varY" @change="validateAndRender()">
+                        <template x-for="opt in crossOptions" :key="opt.value">
+                            <option :value="opt.value" x-text="opt.label"></option>
+                        </template>
+                    </select>
+                </div>
+                <!-- Time grouping (evolution) -->
+                <div x-show="analysisType==='evolution'">
+                    <label class="sel-label">Regrouper par</label>
+                    <select class="sel-input" x-model="timeGroup" @change="validateAndRender()">
+                        <option value="year">Année</option>
+                        <option value="quarter">Trimestre</option>
+                        <option value="month">Mois</option>
+                    </select>
+                </div>
+                <!-- Measure -->
+                <div>
+                    <label class="sel-label">Mesure</label>
+                    <select class="sel-input" x-model="measure" @change="validateAndRender()">
+                        <option value="count">Nombre de projets</option>
+                        <option value="montant">Montant total (USD)</option>
+                        <option value="taux_dec">Taux décaissement moyen</option>
+                        <option value="taux_avanc">Taux avancement moyen</option>
+                    </select>
+                </div>
+                <!-- Chart type — smartly filtered -->
+                <div>
+                    <label class="sel-label">Type de graphique</label>
+                    <select class="sel-input" x-model="chartType" @change="validateAndRender()">
+                        <template x-for="ct in allowedChartTypes" :key="ct.value">
+                            <option :value="ct.value" x-text="ct.label"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Bailleur multi-filter -->
+            <div class="border-t border-ci-dark-100 pt-3">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="sel-label mb-0">Filtrer les bailleurs</label>
+                    <div class="flex gap-2">
+                        <button @click="selectAllBailleurs()" class="text-[0.625rem] text-ci-orange-500 hover:underline font-semibold cursor-pointer">Tout sélectionner</button>
+                        <button @click="deselectAllBailleurs()" class="text-[0.625rem] text-ci-dark-400 hover:underline font-semibold cursor-pointer">Tout désélectionner</button>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-1.5 mb-2">
+                    <template x-for="cat in categories" :key="cat.code">
+                        <button class="chip" :class="isCatSelected(cat.code) && 'selected'"
+                                @click="toggleCategory(cat.code)">
+                            <span x-text="cat.label"></span>
+                            <span class="text-[0.5625rem] opacity-70" x-text="'('+countBailleursByCat(cat.code)+')'"></span>
+                        </button>
+                    </template>
+                </div>
+                <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                    <template x-for="b in allBailleurs" :key="b.id">
+                        <button class="chip text-[0.5625rem]" :class="selectedBailleurs.has(b.id) && 'selected'"
+                                @click="toggleBailleur(b.id)">
+                            <span x-text="b.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart area -->
+    <div class="card card-resizable mb-4">
+        <div class="card-header flex items-center justify-between">
+            <h3 class="text-[0.75rem] font-semibold text-ci-dark-700" x-text="chartTitle"></h3>
+            <div class="flex items-center gap-2">
+                <span class="text-[0.625rem] text-ci-dark-400" x-text="chartSubtitle"></span>
+                <button @click="downloadChart()" class="btn btn-outline btn-sm text-[0.625rem]" title="Télécharger">
+                    <span class="material-symbols-outlined text-[12px]">download</span>
+                </button>
+            </div>
+        </div>
+        <div class="p-3 chart-panel">
+            <div id="analysisChart" style="width:100%;min-height:380px;"></div>
+        </div>
+    </div>
+
+    <!-- Data table -->
+    <div class="card">
+        <div class="card-header flex items-center justify-between">
+            <h3 class="text-[0.75rem] font-semibold text-ci-dark-700">Données détaillées</h3>
+            <span class="text-[0.625rem] text-ci-dark-400" x-text="filteredProjets.length + ' projets filtrés'"></span>
+        </div>
+        <div class="overflow-x-auto max-h-64 overflow-y-auto">
+            <table class="data-table">
+                <thead class="sticky top-0">
+                    <tr>
+                        <th>Code</th>
+                        <th>Titre</th>
+                        <th>Bailleur</th>
+                        <th>Secteur</th>
+                        <th>Statut</th>
+                        <th>Zone</th>
+                        <th class="text-right">Montant</th>
+                        <th class="text-right">Décais. %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="p in filteredProjets.slice(0, 50)" :key="p.id">
+                        <tr>
+                            <td class="font-mono text-[0.6875rem] text-ci-dark-400" x-text="p.code"></td>
+                            <td class="max-w-[200px] truncate" x-text="p.titre"></td>
+                            <td x-text="p.bailleur" class="whitespace-nowrap"></td>
+                            <td x-text="p.secteur" class="whitespace-nowrap"></td>
+                            <td><span class="badge badge-gray" x-text="p.statut"></span></td>
+                            <td x-text="p.zone" class="whitespace-nowrap text-[0.6875rem]"></td>
+                            <td class="text-right font-bold whitespace-nowrap" x-text="fmt(p.montant)"></td>
+                            <td class="text-right font-bold" :class="p.taux_decaissement < 30 ? 'text-red-500' : p.taux_decaissement < 60 ? 'text-ci-orange-500' : 'text-ci-green-500'" x-text="p.taux_decaissement + '%'"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════ TAB: CARTE INTERACTIVE ═══════════════════ -->
+<div x-show="activeTab==='carte'" x-cloak x-transition>
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <!-- Sidebar controls -->
+        <div class="space-y-3">
+            <div class="card">
+                <div class="card-header"><h3 class="text-[0.75rem] font-semibold text-ci-dark-700">Thématique & filtres</h3></div>
+                <div class="p-3 space-y-2.5">
+                    <div>
+                        <label class="sel-label">Coloration par</label>
+                        <select class="sel-input" x-model="mapColorBy" @change="updateMap()">
+                            <option value="nb_projets">Nombre de projets</option>
+                            <option value="montant">Montant engagé</option>
+                            <option value="nb_bailleurs">Nombre de bailleurs</option>
+                            <option value="taux_dec">Taux décaissement moyen</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="sel-label">Secteur</label>
+                        <select class="sel-input" x-model="mapSecteurFilter" @change="updateMap()">
+                            <option value="">Tous les secteurs</option>
+                            <template x-for="s in secteurs" :key="s.id">
+                                <option :value="s.nom" x-text="s.nom"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="sel-label">Bailleur</label>
+                        <select class="sel-input" x-model="mapBailleurFilter" @change="updateMap()">
+                            <option value="">Tous les bailleurs</option>
+                            <template x-for="b in allBailleurs" :key="b.id">
+                                <option :value="b.id" x-text="b.label"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="sel-label">Catégorie</label>
+                        <select class="sel-input" x-model="mapCatFilter" @change="updateMap()">
+                            <option value="">Toutes</option>
+                            <template x-for="cat in categories" :key="cat.code">
+                                <option :value="cat.code" x-text="cat.label"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <!-- Legend -->
+                    <div class="border-t border-ci-dark-100 pt-2">
+                        <p class="sel-label mb-1">Échelle de couleur</p>
+                        <div class="flex items-center gap-1.5 mb-1">
+                            <div class="flex items-center gap-0.5 flex-1">
+                                <div class="flex-1 h-3 rounded-l" style="background:#DCE1E8;"></div>
+                                <div class="flex-1 h-3" style="background:#B0BEC5;"></div>
+                                <div class="flex-1 h-3" style="background:#F59E0B;"></div>
+                                <div class="flex-1 h-3" style="background:#F77F00;"></div>
+                                <div class="flex-1 h-3 rounded-r" style="background:#009A44;"></div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between text-[0.5rem] text-ci-dark-400 font-semibold">
+                            <span>Aucun</span><span>Faible</span><span>Moyen</span><span>Élevé</span><span>Fort</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Region list -->
+            <div class="card">
+                <div class="card-header flex items-center justify-between">
+                    <h3 class="text-[0.75rem] font-semibold text-ci-dark-700">Régions</h3>
+                    <span class="text-[0.5625rem] text-ci-dark-400 font-semibold" x-text="mapZoneStats.length + ' régions'"></span>
+                </div>
+                <div class="max-h-72 overflow-y-auto">
+                    <template x-for="z in mapZoneStats" :key="z.region">
+                        <button class="w-full flex items-center justify-between px-3 py-1.5 text-left border-b border-ci-dark-100/50 hover:bg-ci-orange-50 transition-colors"
+                                :class="mapSelectedZone === z.region && 'bg-ci-orange-50 border-l-2 border-l-ci-orange-500'"
+                                @click="selectMapZone(z.region)">
+                            <div class="min-w-0 flex-1">
+                                <span class="text-[0.6875rem] font-semibold text-ci-dark-700 block truncate" x-text="z.region"></span>
+                                <span class="text-[0.5625rem] text-ci-dark-400" x-text="z.count + ' projets · ' + fmtN(z.montant) + ' USD'"></span>
+                            </div>
+                            <div class="w-3 h-3 rounded-sm flex-shrink-0 ml-2 border border-white/50" :style="'background:' + z.color"></div>
+                        </button>
+                    </template>
+                    <div x-show="mapZoneStats.length === 0" class="px-3 py-4 text-center text-ci-dark-300 text-[0.6875rem]">Aucune donnée</div>
+                </div>
+            </div>
+            <!-- Selected region detail -->
+            <div class="card" x-show="mapSelectedZone" x-transition>
+                <div class="card-header bg-ci-orange-50 flex items-center justify-between">
+                    <h3 class="text-[0.75rem] font-bold text-ci-orange-700" x-text="mapSelectedZone"></h3>
+                    <button @click="mapSelectedZone=null; updateMap()" class="text-ci-dark-400 hover:text-ci-dark-600"><span class="material-symbols-outlined text-[14px]">close</span></button>
+                </div>
+                <div class="p-3 space-y-2">
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="text-center"><p class="text-lg font-extrabold text-ci-dark-900" x-text="mapSelectedData.count || 0"></p><p class="text-[0.5625rem] text-ci-dark-400 font-semibold">Projets</p></div>
+                        <div class="text-center"><p class="text-lg font-extrabold text-ci-dark-900" x-text="mapSelectedData.nb_bailleurs || 0"></p><p class="text-[0.5625rem] text-ci-dark-400 font-semibold">Bailleurs</p></div>
+                        <div class="text-center"><p class="text-sm font-extrabold text-ci-orange-500" x-text="fmtN(mapSelectedData.montant || 0)"></p><p class="text-[0.5625rem] text-ci-dark-400 font-semibold">USD</p></div>
+                    </div>
+                    <div class="border-t border-ci-dark-100 pt-2 space-y-1 max-h-40 overflow-y-auto">
+                        <template x-for="p in (mapSelectedData.projets || [])" :key="p.id">
+                            <a :href="'/projets/' + p.id + '/'" class="flex items-center justify-between py-1 hover:bg-ci-dark-50 px-1 rounded transition-colors">
+                                <span class="text-[0.625rem] text-ci-dark-700 truncate flex-1" x-text="p.titre"></span>
+                                <span class="text-[0.5625rem] font-bold ml-2 flex-shrink-0" :class="p.taux_decaissement < 30 ? 'text-red-500' : p.taux_decaissement < 60 ? 'text-ci-orange-500' : 'text-ci-green-500'" x-text="p.taux_decaissement + '%'"></span>
+                            </a>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Map -->
+        <div class="card lg:col-span-3 p-0" style="min-height:600px;">
+            <div id="mapContainer" style="min-height:600px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Hint -->
+{% if total_projets == 0 %}
+<div class="hint-banner mt-4" x-data="{ show: true }" x-show="show">
+    <span class="material-symbols-outlined">lightbulb</span>
+    <span class="flex-1">Commencez par <a href="{% url 'projets:creer' %}" class="font-semibold underline">créer un projet</a> ou <a href="{% url 'bailleurs:creer' %}" class="font-semibold underline">ajouter un bailleur</a>.</span>
+    <button @click="show=false" class="text-ci-dark-400 hover:text-ci-dark-600"><span class="material-symbols-outlined text-[14px]">close</span></button>
+</div>
+{% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var DASH_DATA = {
+    projets: {{ projets_json|safe }},
+    bailleurs: {{ bailleurs_json|safe }},
+    financements: {{ financements_json|safe }},
+    secteurs: {{ secteurs_json|safe }},
+    statuts: {{ statut_choices_json|safe }},
+    categories: {{ categorie_choices_json|safe }},
+    zones: {{ zones_json|safe }},
+    ciRegions: {{ ci_regions_json|safe }}
+};
+var PALETTE = ['#F77F00','#009A44','#2563EB','#7C3AED','#DC2626','#0891B2','#D97706','#059669','#4F46E5','#BE185D','#94A3B8','#FB923C','#16A34A','#6366F1','#EC4899'];
+var fmtN = function(v){ return new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0}).format(v); };
+var fmtC = function(v){ return new Intl.NumberFormat('fr-FR',{notation:'compact'}).format(v); };
+</script>
+
+<script>
+// Track all chart instances for resize
+var _synthCharts = [];
+
+function initSynthCharts() {
+    // ── KPI Gauge (ECharts) ──
+    var taux = {{ taux_decaissement_global }};
+    var gaugeColor = taux < 30 ? '#DC2626' : taux < 60 ? '#F77F00' : '#009A44';
+    var gaugeEl = document.getElementById('kpiGauge');
+    if (gaugeEl) {
+        if (gaugeEl._ec) { try { gaugeEl._ec.dispose(); } catch(e){} }
+        var gc = echarts.init(gaugeEl);
+        gaugeEl._ec = gc;
+        gc.setOption({ series: [{ type:'gauge', startAngle:220, endAngle:-40, min:0, max:100, radius:'100%', center:['50%','55%'],
+            pointer:{show:false}, progress:{show:true, width:10, roundCap:true, itemStyle:{color:gaugeColor}},
+            axisLine:{lineStyle:{width:10, color:[[1,'#F1F5F9']]}}, axisTick:{show:false}, splitLine:{show:false}, axisLabel:{show:false},
+            detail:{fontSize:15, fontWeight:900, fontFamily:'Inter', color:'#0F172A', offsetCenter:[0,'25%'], formatter:'{value}%'},
+            data:[{value:taux}], animationDuration:1200, animationEasingUpdate:'cubicOut' }] });
+        _synthCharts.push(gc);
+    }
+
+    // ── Animated counter ──
+    document.querySelectorAll('.kpi-value[data-count]').forEach(function(el) {
+        var target = parseInt(el.getAttribute('data-count'), 10);
+        if (isNaN(target) || target <= 0) return;
+        var duration = 1200, startTime = null;
+        function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+        function step(ts) {
+            if (!startTime) startTime = ts;
+            var p = Math.min((ts - startTime) / duration, 1);
+            el.textContent = Math.round(easeOut(p) * target).toLocaleString('fr-FR');
+            if (p < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    });
+
+    // ── Synthesis: Bailleurs bar (ECharts) ──
+    var bData = DASH_DATA.bailleurs.filter(function(b){return b.engage>0;}).sort(function(a,b){return b.engage-a.engage;}).slice(0,10).reverse();
+    var el1 = document.getElementById('chartSynthBailleurs');
+    if (el1 && bData.length > 0) {
+        if (el1._ec) { try { el1._ec.dispose(); } catch(e){} }
+        var c1 = echarts.init(el1);
+        el1._ec = c1;
+        c1.setOption({
+            tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(p){return p[0].name+'<br/>'+p[0].marker+' '+fmtN(p[0].value)+' USD';}},
+            grid:{left:10,right:60,top:10,bottom:10,containLabel:true},
+            xAxis:{type:'value',axisLabel:{formatter:function(v){return fmtC(v);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+            yAxis:{type:'category',data:bData.map(function(b){return b.label;}),axisLabel:{fontSize:10,fontWeight:600,color:'#334155'}},
+            series:[{type:'bar',data:bData.map(function(b){return b.engage;}),barWidth:'60%',
+                itemStyle:{color:'#F77F00',borderRadius:[0,4,4,0]},
+                label:{show:true,position:'right',formatter:function(p){return fmtC(p.value);},fontSize:9,fontWeight:700,color:'#475569'}}],
+            animationDuration:800,animationEasing:'cubicOut'
+        });
+        _synthCharts.push(c1);
+    }
+
+    // ── Synthesis: Statut donut (ECharts) ──
+    var sColors = {'Identification':'#94A3B8','Préparation':'#F77F00','Négociation':'#FB923C',"En cours d'exécution":'#009A44','Suspendu':'#DC2626','Clôturé':'#64748B','Annulé':'#B91C1C'};
+    var sc = {}; DASH_DATA.projets.forEach(function(p){ sc[p.statut]=(sc[p.statut]||0)+1; });
+    var sL = Object.keys(sc);
+    var el2 = document.getElementById('chartSynthStatut');
+    if (el2 && sL.length > 0) {
+        if (el2._ec) { try { el2._ec.dispose(); } catch(e){} }
+        var c2 = echarts.init(el2);
+        el2._ec = c2;
+        c2.setOption({
+            tooltip:{trigger:'item',formatter:'{b}: {c} projet(s) ({d}%)'},
+            legend:{bottom:0,type:'scroll',textStyle:{fontSize:11,fontWeight:600}},
+            series:[{type:'pie',radius:['45%','70%'],center:['50%','45%'],avoidLabelOverlap:true,
+                label:{show:false},emphasis:{label:{show:true,fontSize:12,fontWeight:700}},
+                data:sL.map(function(s){return{value:sc[s],name:s,itemStyle:{color:sColors[s]||'#CBD5E1'}};}),
+                animationType:'scale',animationDuration:800}]
+        });
+        _synthCharts.push(c2);
+    }
+
+    // ── Synthesis: Secteurs treemap (ECharts) ──
+    var secData = {}; DASH_DATA.projets.forEach(function(p){ secData[p.secteur]=(secData[p.secteur]||0)+p.montant; });
+    var secEntries = Object.entries(secData).sort(function(a,b){return b[1]-a[1];});
+    var el3 = document.getElementById('chartSynthSecteurs');
+    if (el3 && secEntries.length > 0) {
+        if (el3._ec) { try { el3._ec.dispose(); } catch(e){} }
+        var c3 = echarts.init(el3);
+        el3._ec = c3;
+        c3.setOption({
+            tooltip:{formatter:function(p){return p.name+'<br/>'+fmtN(p.value)+' USD';}},
+            series:[{type:'treemap',roam:false,width:'100%',height:'100%',breadcrumb:{show:false},
+                label:{show:true,formatter:function(p){return p.name+'\n'+fmtC(p.value);},fontSize:10,fontWeight:700,color:'#fff'},
+                data:secEntries.map(function(e,i){return{name:e[0],value:Math.round(e[1]),itemStyle:{color:PALETTE[i%PALETTE.length]}};}),
+                animationDuration:600}]
+        });
+        _synthCharts.push(c3);
+    }
+
+    // ── Synthesis: Zones bar (ECharts) ──
+    var zData = {}; DASH_DATA.projets.forEach(function(p){ zData[p.zone]=(zData[p.zone]||0)+1; });
+    var zEntries = Object.entries(zData).sort(function(a,b){return b[1]-a[1];}).slice(0,12);
+    var el4 = document.getElementById('chartSynthZones');
+    if (el4 && zEntries.length > 0) {
+        if (el4._ec) { try { el4._ec.dispose(); } catch(e){} }
+        var c4 = echarts.init(el4);
+        el4._ec = c4;
+        c4.setOption({
+            tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(p){return p[0].name+': '+p[0].value+' projet(s)';}},
+            grid:{left:10,right:10,top:10,bottom:40,containLabel:true},
+            xAxis:{type:'category',data:zEntries.map(function(e){var n=e[0];return n.length>12?n.substring(0,11)+'…':n;}),
+                axisLabel:{rotate:45,fontSize:9,fontWeight:600,color:'#334155'}},
+            yAxis:{type:'value',axisLabel:{fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+            series:[{type:'bar',data:zEntries.map(function(e,i){return{value:e[1],itemStyle:{color:PALETTE[i%PALETTE.length],borderRadius:[4,4,0,0]}};}),
+                barWidth:'55%',label:{show:true,position:'top',fontSize:10,fontWeight:700,color:'#475569'}}],
+            animationDuration:600
+        });
+        _synthCharts.push(c4);
+    }
+}
+
+// Init on DOMContentLoaded, then force resize after Alpine has processed x-show
+document.addEventListener('DOMContentLoaded', function(){
+    // Slight delay to ensure Alpine has initialized and x-show elements are visible
+    setTimeout(function(){
+        initSynthCharts();
+        // Force resize after a beat to handle any remaining layout shifts
+        setTimeout(function(){ _synthCharts.forEach(function(c){ if(c && !c.isDisposed()) c.resize(); }); }, 300);
+    }, 100);
+});
+window.addEventListener('resize', function(){ _synthCharts.forEach(function(c){ if(c && !c.isDisposed()) c.resize(); }); });
+</script>
+
+<script>
+function dashboardApp() {
+    return {
+        activeTab: 'synthese',
+        analysisType: 'repartition',
+        varX: 'bailleur', varY: 'statut',
+        measure: 'montant', chartType: 'bar',
+        timeGroup: 'year',
+        chartTitle: '', chartSubtitle: '',
+        smartHint: '',
+        _echartsInstance: null,
+
+        allProjets: DASH_DATA.projets,
+        allBailleurs: DASH_DATA.bailleurs,
+        allFinancements: DASH_DATA.financements,
+        secteurs: DASH_DATA.secteurs,
+        statuts: DASH_DATA.statuts,
+        categories: DASH_DATA.categories,
+        zones: DASH_DATA.zones,
+        ciRegions: DASH_DATA.ciRegions,
+
+        selectedBailleurs: new Set(),
+        mapInstance: null, mapColorBy: 'nb_projets',
+        mapBailleurFilter: '', mapCatFilter: '', mapSecteurFilter: '',
+        mapZoneStats: [], mapSelectedZone: null, mapSelectedData: {},
+
+        get filteredProjets() {
+            if (this.selectedBailleurs.size === 0) return this.allProjets;
+            return this.allProjets.filter(p => p.bailleur_id && this.selectedBailleurs.has(p.bailleur_id));
+        },
+
+        // Smart chart type filtering
+        get crossOptions() {
+            const all = [{value:'statut',label:'Statut'},{value:'secteur',label:'Secteur'},{value:'bailleur',label:'Bailleur'},{value:'categorie',label:'Catégorie'},{value:'zone',label:'Zone'},{value:'devise',label:'Devise'}];
+            return all.filter(o => o.value !== this.varX);
+        },
+        get allowedChartTypes() {
+            const at = this.analysisType;
+            if (at === 'correlation') return [{value:'scatter',label:'Nuage de points'}];
+            if (at === 'evolution') return [{value:'line',label:'Ligne'},{value:'bar',label:'Barres'},{value:'area',label:'Aire'}];
+            if (at === 'comparaison') return [{value:'bar',label:'Barres empilées'},{value:'hbar',label:'Barres horizontales'},{value:'line',label:'Ligne'},{value:'radar',label:'Radar'}];
+            return [{value:'bar',label:'Barres verticales'},{value:'hbar',label:'Barres horizontales'},{value:'pie',label:'Camembert'},{value:'donut',label:'Anneau'},{value:'radar',label:'Radar'},{value:'treemap',label:'Treemap'}];
+        },
+
+        fmt(v) { return fmtN(v); },
+        fmtN(v) { return fmtN(v); },
+
+        init() { this.selectedBailleurs = new Set(this.allBailleurs.map(b => b.id)); },
+
+        onAnalysisTypeChange() {
+            const allowed = this.allowedChartTypes;
+            if (!allowed.find(c => c.value === this.chartType)) this.chartType = allowed[0].value;
+            if (this.analysisType === 'evolution') this.smartHint = "L'analyse temporelle utilise la date de signature. Les projets sans date seront exclus.";
+            else if (this.analysisType === 'correlation') this.smartHint = "La corrélation compare le taux d'avancement et le taux de décaissement.";
+            else this.smartHint = '';
+            this.validateAndRender();
+        },
+        validateAndRender() {
+            const allowed = this.allowedChartTypes;
+            if (!allowed.find(c => c.value === this.chartType)) this.chartType = allowed[0].value;
+            this.renderAnalysis();
+        },
+
+        selectAllBailleurs()   { this.selectedBailleurs = new Set(this.allBailleurs.map(b => b.id)); this.renderAnalysis(); },
+        deselectAllBailleurs() { this.selectedBailleurs = new Set(); this.renderAnalysis(); },
+        toggleBailleur(id) {
+            if (this.selectedBailleurs.has(id)) this.selectedBailleurs.delete(id);
+            else this.selectedBailleurs.add(id);
+            this.selectedBailleurs = new Set(this.selectedBailleurs);
+            this.renderAnalysis();
+        },
+        toggleCategory(cat) {
+            const ids = this.allBailleurs.filter(b => b.categorie_institutionnelle === cat).map(b => b.id);
+            const allIn = ids.every(id => this.selectedBailleurs.has(id));
+            ids.forEach(id => { if (allIn) this.selectedBailleurs.delete(id); else this.selectedBailleurs.add(id); });
+            this.selectedBailleurs = new Set(this.selectedBailleurs);
+            this.renderAnalysis();
+        },
+        isCatSelected(cat) {
+            const ids = this.allBailleurs.filter(b => b.categorie_institutionnelle === cat).map(b => b.id);
+            return ids.length > 0 && ids.every(id => this.selectedBailleurs.has(id));
+        },
+        countBailleursByCat(cat) { return this.allBailleurs.filter(b => b.categorie_institutionnelle === cat).length; },
+
+        measureLabel() { return {count:'Nombre de projets',montant:'Montant (USD)',taux_dec:'Taux décaissement moyen',taux_avanc:'Taux avancement moyen'}[this.measure]||''; },
+        varLabel(v) { return {bailleur:'Bailleur',secteur:'Secteur',statut:'Statut',zone:'Zone',categorie:'Catégorie',devise:'Devise'}[v]||v; },
+
+        downloadChart() {
+            if (this._echartsInstance) {
+                var url = this._echartsInstance.getDataURL({type:'png',pixelRatio:2,backgroundColor:'#fff'});
+                var a = document.createElement('a'); a.href = url; a.download = 'analyse.png'; a.click();
+            }
+        },
+
+        // ── Advanced analysis with ECharts ──
+        renderAnalysis() {
+            if (this.activeTab !== 'analyses') return;
+            const el = document.getElementById('analysisChart');
+            if (!el) { setTimeout(() => this.renderAnalysis(), 200); return; }
+            if (el.offsetWidth === 0) { setTimeout(() => this.renderAnalysis(), 200); return; }
+
+            try {
+                if (this._echartsInstance) { this._echartsInstance.dispose(); this._echartsInstance = null; }
+                const data = this.filteredProjets;
+                if (!data.length) { this.chartTitle = 'Aucune donnée'; this.chartSubtitle = ''; return; }
+
+                this._echartsInstance = echarts.init(el);
+                const self = this;
+                const isPct = this.measure === 'taux_dec' || this.measure === 'taux_avanc';
+
+                const getVal = (p, v) => {
+                    if (v === 'bailleur') return p.bailleur || 'Non défini';
+                    if (v === 'secteur') return p.secteur || 'Non défini';
+                    if (v === 'statut') return p.statut || 'Non défini';
+                    if (v === 'zone') return p.zone || 'Non précisé';
+                    if (v === 'categorie') return p.bailleur_categorie ? (self.categories.find(c=>c.code===p.bailleur_categorie)||{}).label||'Autre' : 'Autre';
+                    if (v === 'devise') return p.devise || 'USD';
+                    return 'N/A';
+                };
+                const agg = (items) => {
+                    if (!items || !items.length) return 0;
+                    if (self.measure === 'count') return items.length;
+                    if (self.measure === 'montant') return items.reduce((s,p) => s + (p.montant||0), 0);
+                    if (self.measure === 'taux_dec') return items.reduce((s,p) => s + (p.taux_decaissement||0), 0) / items.length;
+                    if (self.measure === 'taux_avanc') return items.reduce((s,p) => s + (p.taux_avancement||0), 0) / items.length;
+                    return items.length;
+                };
+                const r2 = (v) => Math.round(v * 100) / 100;
+                const fmtTV = (v) => { if (self.measure==='montant') return fmtN(v)+' USD'; if (isPct) return v.toFixed(1)+'%'; return fmtN(v); };
+                const trunc = (s, n) => typeof s==='string' && s.length > n ? s.substring(0, n-1)+'…' : s;
+
+                let option = {};
+
+                // ═══ REPARTITION ═══
+                if (this.analysisType === 'repartition') {
+                    const groups = {};
+                    data.forEach(p => { const k = getVal(p, this.varX); if(!groups[k]) groups[k]=[]; groups[k].push(p); });
+                    const sorted = Object.entries(groups).sort((a,b) => agg(b[1]) - agg(a[1]));
+                    const labels = sorted.map(e => e[0]);
+                    const values = sorted.map(e => r2(agg(e[1])));
+                    this.chartTitle = this.measureLabel() + ' par ' + this.varLabel(this.varX);
+                    this.chartSubtitle = data.length + ' projets';
+                    const ct = this.chartType;
+
+                    if (ct === 'pie' || ct === 'donut') {
+                        option = { tooltip:{trigger:'item',formatter:function(p){return p.name+': '+fmtTV(p.value)+' ('+p.percent.toFixed(1)+'%)';}},
+                            legend:{bottom:0,type:'scroll',textStyle:{fontSize:11}},
+                            series:[{type:'pie',radius:ct==='donut'?['40%','70%']:['0%','70%'],center:['50%','45%'],
+                                data:labels.map(function(l,i){return{value:values[i],name:l,itemStyle:{color:PALETTE[i%PALETTE.length]}};}),
+                                label:{show:labels.length<=8,fontSize:10,fontWeight:600},emphasis:{label:{show:true,fontSize:13,fontWeight:700}},
+                                animationType:'scale',animationDuration:700}]};
+                    } else if (ct === 'treemap') {
+                        option = { tooltip:{formatter:function(p){return p.name+'<br/>'+fmtTV(p.value);}},
+                            series:[{type:'treemap',roam:false,breadcrumb:{show:false},
+                                label:{show:true,formatter:function(p){return p.name+'\n'+fmtC(p.value);},fontSize:10,fontWeight:700,color:'#fff'},
+                                data:labels.map(function(l,i){return{name:l,value:values[i],itemStyle:{color:PALETTE[i%PALETTE.length]}};})}]};
+                    } else if (ct === 'radar') {
+                        var mx = Math.max.apply(null, values) || 1;
+                        option = { tooltip:{},
+                            radar:{indicator:labels.map(function(l){return{name:trunc(l,14),max:mx*1.1};}),radius:'65%'},
+                            series:[{type:'radar',data:[{value:values,name:self.measureLabel(),areaStyle:{opacity:0.2}}],
+                                symbol:'circle',symbolSize:6,lineStyle:{width:2},itemStyle:{color:'#F77F00'}}]};
+                    } else if (ct === 'hbar') {
+                        var hL = labels.slice().reverse(), hV = values.slice().reverse();
+                        option = { tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(p){return p[0].name+': '+fmtTV(p[0].value);}},
+                            grid:{left:10,right:50,top:10,bottom:10,containLabel:true},
+                            xAxis:{type:'value',axisLabel:{formatter:function(v){return isPct?v+'%':fmtC(v);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+                            yAxis:{type:'category',data:hL.map(function(l){return trunc(l,18);}),axisLabel:{fontSize:10,fontWeight:600,color:'#334155'}},
+                            series:[{type:'bar',data:hV.map(function(v,i){return{value:v,itemStyle:{color:PALETTE[i%PALETTE.length],borderRadius:[0,4,4,0]}};}),
+                                barWidth:'55%',label:{show:hL.length<=15,position:'right',formatter:function(p){return isPct?p.value.toFixed(0)+'%':fmtC(p.value);},fontSize:9,fontWeight:700,color:'#475569'}}],
+                            animationDuration:600};
+                    } else {
+                        option = { tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(p){return p[0].name+': '+fmtTV(p[0].value);}},
+                            grid:{left:10,right:10,top:10,bottom:40,containLabel:true},
+                            xAxis:{type:'category',data:labels.map(function(l){return trunc(l,14);}),axisLabel:{rotate:labels.length>5?45:0,fontSize:9,fontWeight:600,color:'#334155'}},
+                            yAxis:{type:'value',axisLabel:{formatter:function(v){return isPct?v+'%':fmtC(v);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+                            series:[{type:'bar',data:values.map(function(v,i){return{value:v,itemStyle:{color:PALETTE[i%PALETTE.length],borderRadius:[4,4,0,0]}};}),
+                                barWidth:'55%',label:{show:labels.length<=12,position:'top',formatter:function(p){return isPct?p.value.toFixed(0)+'%':fmtC(p.value);},fontSize:9,fontWeight:700,color:'#475569'}}],
+                            animationDuration:600};
+                    }
+
+                // ═══ COMPARAISON ═══
+                } else if (this.analysisType === 'comparaison') {
+                    const gx = {}; const allY = new Set();
+                    data.forEach(p => { const kx = getVal(p,this.varX), ky = getVal(p,this.varY); allY.add(ky);
+                        if(!gx[kx]) gx[kx]={}; if(!gx[kx][ky]) gx[kx][ky]=[]; gx[kx][ky].push(p); });
+                    const xKeys = Object.keys(gx).sort((a,b) => {
+                        const ta = Object.values(gx[a]).reduce((s,arr) => s+agg(arr),0);
+                        const tb = Object.values(gx[b]).reduce((s,arr) => s+agg(arr),0); return tb-ta; });
+                    const yLabels = [...allY].sort();
+                    this.chartTitle = this.measureLabel()+' : '+this.varLabel(this.varX)+' × '+this.varLabel(this.varY);
+                    this.chartSubtitle = data.length+' projets';
+                    const ct = this.chartType;
+
+                    if (ct === 'radar') {
+                        var maxRV = 0;
+                        var rd = yLabels.map(function(yl,yi){
+                            var vals = xKeys.map(function(xl){var v=r2(agg(gx[xl]&&gx[xl][yl]?gx[xl][yl]:[]));if(v>maxRV)maxRV=v;return v;});
+                            return{value:vals,name:yl,lineStyle:{width:2},areaStyle:{opacity:0.15},itemStyle:{color:PALETTE[yi%PALETTE.length]}};});
+                        option = { tooltip:{}, legend:{bottom:0,type:'scroll',textStyle:{fontSize:11}},
+                            radar:{indicator:xKeys.map(function(l){return{name:trunc(l,12),max:(maxRV||1)*1.1};}),radius:'60%'},
+                            series:[{type:'radar',data:rd,symbol:'circle',symbolSize:5}]};
+                    } else if (ct === 'hbar') {
+                        var hxK = xKeys.slice().reverse();
+                        option = { tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},legend:{bottom:0,type:'scroll',textStyle:{fontSize:11}},
+                            grid:{left:10,right:10,top:10,bottom:40,containLabel:true},
+                            xAxis:{type:'value',axisLabel:{formatter:function(v){return isPct?v+'%':fmtC(v);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+                            yAxis:{type:'category',data:hxK.map(function(l){return trunc(l,16);}),axisLabel:{fontSize:10,fontWeight:600,color:'#334155'}},
+                            series:yLabels.map(function(yl,yi){return{type:'bar',name:yl,stack:'total',
+                                data:hxK.map(function(xl){return r2(agg(gx[xl]&&gx[xl][yl]?gx[xl][yl]:[])); }),
+                                itemStyle:{color:PALETTE[yi%PALETTE.length]}};})};
+                    } else if (ct === 'line') {
+                        option = { tooltip:{trigger:'axis'},legend:{bottom:0,type:'scroll',textStyle:{fontSize:11}},
+                            grid:{left:10,right:10,top:10,bottom:40,containLabel:true},
+                            xAxis:{type:'category',data:xKeys.map(function(l){return trunc(l,14);}),axisLabel:{rotate:xKeys.length>5?45:0,fontSize:9,fontWeight:600,color:'#334155'}},
+                            yAxis:{type:'value',axisLabel:{formatter:function(v){return isPct?v+'%':fmtC(v);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+                            series:yLabels.map(function(yl,yi){return{type:'line',name:yl,smooth:true,symbolSize:6,
+                                data:xKeys.map(function(xl){return r2(agg(gx[xl]&&gx[xl][yl]?gx[xl][yl]:[])); }),
+                                lineStyle:{width:2.5},itemStyle:{color:PALETTE[yi%PALETTE.length]}};})};
+                    } else {
+                        option = { tooltip:{trigger:'axis',axisPointer:{type:'shadow'}},legend:{bottom:0,type:'scroll',textStyle:{fontSize:11}},
+                            grid:{left:10,right:10,top:10,bottom:40,containLabel:true},
+                            xAxis:{type:'category',data:xKeys.map(function(l){return trunc(l,14);}),axisLabel:{rotate:xKeys.length>5?45:0,fontSize:9,fontWeight:600,color:'#334155'}},
+                            yAxis:{type:'value',axisLabel:{formatter:function(v){return isPct?v+'%':fmtC(v);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+                            series:yLabels.map(function(yl,yi){return{type:'bar',name:yl,stack:'total',
+                                data:xKeys.map(function(xl){return r2(agg(gx[xl]&&gx[xl][yl]?gx[xl][yl]:[])); }),
+                                itemStyle:{color:PALETTE[yi%PALETTE.length],borderRadius:yi===yLabels.length-1?[4,4,0,0]:[0,0,0,0]}};})};
+                    }
+
+                // ═══ EVOLUTION TEMPORELLE ═══
+                } else if (this.analysisType === 'evolution') {
+                    const withDate = data.filter(p => p.date_signature);
+                    if (withDate.length === 0) {
+                        this.chartTitle = 'Aucune donnée temporelle';
+                        this.chartSubtitle = 'Projets sans date de signature';
+                        this._echartsInstance.dispose(); this._echartsInstance = null; return;
+                    }
+                    const tg = this.timeGroup, timeGroups = {};
+                    withDate.forEach(p => {
+                        const d = new Date(p.date_signature); let key;
+                        if (tg==='year') key = d.getFullYear().toString();
+                        else if (tg==='quarter') key = d.getFullYear()+'-T'+(Math.floor(d.getMonth()/3)+1);
+                        else key = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+                        if (!timeGroups[key]) timeGroups[key]=[]; timeGroups[key].push(p);
+                    });
+                    const timeSorted = Object.keys(timeGroups).sort();
+                    const timeVals = timeSorted.map(k => r2(agg(timeGroups[k])));
+                    this.chartTitle = this.measureLabel()+' — Évolution '+(tg==='year'?'annuelle':tg==='quarter'?'trimestrielle':'mensuelle');
+                    this.chartSubtitle = withDate.length+' projets avec date';
+                    const ct = this.chartType, isArea = ct==='area';
+                    option = { tooltip:{trigger:'axis',formatter:function(p){return p[0].name+': '+fmtTV(p[0].value);}},
+                        grid:{left:10,right:10,top:30,bottom:30,containLabel:true},
+                        xAxis:{type:'category',data:timeSorted,axisLabel:{fontSize:10,fontWeight:600,color:'#334155',rotate:timeSorted.length>10?45:0},boundaryGap:ct==='bar'},
+                        yAxis:{type:'value',axisLabel:{formatter:function(v){return isPct?v+'%':fmtC(v);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+                        dataZoom:timeSorted.length>12?[{type:'inside'},{type:'slider',height:20,bottom:5}]:[],
+                        series:[{type:ct==='bar'?'bar':'line',data:timeVals,smooth:true,symbolSize:6,lineStyle:{width:2.5},
+                            areaStyle:isArea?{opacity:0.25,color:'rgba(247,127,0,0.2)'}:undefined,
+                            itemStyle:{color:'#F77F00',borderRadius:ct==='bar'?[4,4,0,0]:0},barWidth:'55%',
+                            markLine:{silent:true,data:[{type:'average',label:{formatter:function(p){return 'Moy: '+fmtC(p.value);},fontSize:9,color:'#64748B'}}],
+                                lineStyle:{type:'dashed',color:'#94A3B8'}}}],
+                        animationDuration:700};
+
+                // ═══ CORRELATION ═══
+                } else if (this.analysisType === 'correlation') {
+                    this.chartTitle = 'Corrélation: Avancement vs Décaissement';
+                    this.chartSubtitle = data.length+' projets';
+                    option = { tooltip:{trigger:'item',formatter:function(p){var d=p.data;return '<strong>'+d[2]+'</strong><br/>Avancement: '+d[0]+'%<br/>Décaissement: '+d[1]+'%';}},
+                        grid:{left:50,right:20,top:20,bottom:50},
+                        xAxis:{type:'value',name:'Avancement (%)',nameLocation:'center',nameGap:30,min:0,max:100,
+                            axisLabel:{formatter:'{value}%',fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+                        yAxis:{type:'value',name:'Décaissement (%)',nameLocation:'center',nameGap:35,min:0,max:100,
+                            axisLabel:{formatter:'{value}%',fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+                        series:[{type:'scatter',symbolSize:12,
+                            data:data.map(p=>[p.taux_avancement||0,p.taux_decaissement||0,p.code||'',p.titre||'']),
+                            itemStyle:{color:'#F77F00',opacity:0.7,borderColor:'#fff',borderWidth:1},
+                            emphasis:{itemStyle:{opacity:1,shadowBlur:10,shadowColor:'rgba(247,127,0,0.5)'}}}],
+                        animationDuration:500};
+                }
+
+                this._echartsInstance.setOption(option);
+                var chart = this._echartsInstance;
+                window.addEventListener('resize', function(){ if(chart && !chart.isDisposed()) chart.resize(); });
+            } catch (err) {
+                console.error('renderAnalysis error:', err);
+                this.chartTitle = 'Erreur de rendu';
+                this.chartSubtitle = err.message;
+            }
+        },
+
+        // ── Zone→Region mapping ──
+        _zoneToRegion: {
+            'Abidjan': 'ABIDJAN', 'Yamoussoukro': 'YAMOUSSOUKRO', 'Bouaké': 'GBEKE',
+            'San-Pédro': 'SAN-PEDRO', 'Daloa': 'HAUT-SASSANDRA', 'Korhogo': 'PORO',
+            'Man': 'TONKPI', 'Gagnoa': 'GÔH', 'Bondoukou': 'GONTOUGO',
+            'Soubré': 'NAWA', 'Ferkessédougou': 'TCHOLOGO', 'Dimbokro': 'N\'ZI',
+            'Odienné': 'KABADOUGOU', 'Agboville': 'AGNEBY-TIASSA',
+            'Grand-Bassam': 'SUD-COMOE', 'Sassandra': 'GBOKLE',
+            'Séguéla': 'WORODOUGOU', 'Katiola': 'HAMBOL', 'Dabou': 'GRAND-PONTS',
+            'Divo': 'LÔH-DJIBOUA', 'Bouaflé': 'MARAHOUE', 'Issia': 'MARAHOUE',
+            'National': null
+        },
+        _geojsonData: null,
+        _geojsonLayer: null,
+        _labelLayer: null,
+        _borderLayer: null,
+        _mapByRegion: {},
+        _mapGetMetric: null,
+        _mapMaxVal: 1,
+
+        // ── Map — Better zoom for Côte d'Ivoire + features ──
+        initMap() {
+            if (this.mapInstance) { this.mapInstance.invalidateSize(); this.updateMap(); return; }
+            this.$nextTick(() => {
+                const mapEl = document.getElementById('mapContainer');
+                if (!mapEl) return;
+                this.mapInstance = L.map('mapContainer', {
+                    scrollWheelZoom: true, zoomControl: true, preferCanvas: true,
+                    doubleClickZoom: false, zoomSnap: 0.25, zoomDelta: 0.5,
+                    minZoom: 6, maxZoom: 12
+                }).setView([7.54, -5.55], 7.0);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+                    attribution: '&copy; <a href="https://carto.com/">CARTO</a>', maxZoom: 18, subdomains: 'abcd'
+                }).addTo(this.mapInstance);
+
+                // Zoom control position
+                this.mapInstance.zoomControl.setPosition('topright');
+
+                // Home button to reset view
+                var homeBtn = L.control({ position: 'topright' });
+                var mapRef = this.mapInstance;
+                homeBtn.onAdd = function() {
+                    var div = L.DomUtil.create('div', 'leaflet-bar');
+                    div.innerHTML = '<a href="#" title="Recentrer" style="display:flex;align-items:center;justify-content:center;width:30px;height:30px;font-size:16px;background:#fff;text-decoration:none;">⌂</a>';
+                    div.firstChild.onclick = function(e) { e.preventDefault(); mapRef.setView([7.54, -5.55], 7.0); };
+                    return div;
+                };
+                homeBtn.addTo(this.mapInstance);
+
+                // Scale bar
+                L.control.scale({ position: 'bottomleft', imperial: false, metric: true }).addTo(this.mapInstance);
+
+                setTimeout(() => this.mapInstance.invalidateSize(), 200);
+
+                const self = this;
+                this.mapInstance.on('zoomstart movestart', function() { self._clearLabels(); });
+                this.mapInstance.on('zoomend moveend', function() { self._redrawLabels(); });
+
+                fetch('{% url "dashboard:regions_geojson" %}')
+                    .then(r => r.json())
+                    .then(data => {
+                        self._geojsonData = data;
+                        // Fit to CI bounds for better zoom
+                        var bounds = L.geoJSON(data).getBounds();
+                        self.mapInstance.fitBounds(bounds.pad(0.05), { maxZoom: 7.5 });
+                        self.updateMap();
+                    })
+                    .catch(err => console.error('GeoJSON load error:', err));
+            });
+        },
+
+        selectMapZone(region) {
+            if (this.mapSelectedZone === region) { this.mapSelectedZone = null; this.mapSelectedData = {}; }
+            else { this.mapSelectedZone = region; }
+            this.updateMap();
+        },
+
+        _choroplethColor(ratio) {
+            if (ratio <= 0) return '#DCE1E8';
+            if (ratio < 0.15) return '#B0BEC5';
+            if (ratio < 0.35) return '#F59E0B';
+            if (ratio < 0.65) return '#F77F00';
+            return '#009A44';
+        },
+
+        _clearLabels() {
+            if (this._labelLayer) {
+                this._labelLayer.clearLayers();
+            }
+        },
+
+        _redrawLabels() {
+            if (!this.mapInstance || !this._geojsonLayer) return;
+            // Clear and recreate
+            if (this._labelLayer) { this._labelLayer.clearLayers(); }
+            else { this._labelLayer = L.layerGroup().addTo(this.mapInstance); }
+
+            const self = this;
+            const byRegion = this._mapByRegion;
+            const getMetric = this._mapGetMetric;
+            const maxVal = this._mapMaxVal;
+            if (!getMetric) return;
+
+            const zoom = this.mapInstance.getZoom();
+            const mapBounds = this.mapInstance.getBounds();
+            const fontSize = zoom >= 10 ? 11 : zoom >= 8 ? 9 : zoom >= 7 ? 8 : 7;
+
+            this._geojsonLayer.eachLayer(function(layer) {
+                if (!layer.feature) return;
+                const reg = layer.feature.properties.NomReg;
+                const rd = byRegion[reg];
+                const count = rd ? rd.projets.length : 0;
+                const bounds = layer.getBounds();
+
+                // Only show labels for regions visible in current viewport
+                if (!mapBounds.intersects(bounds)) return;
+
+                // At low zoom, only label regions with data; at high zoom, label all visible
+                if (zoom < 8 && count === 0) return;
+
+                const center = bounds.getCenter();
+                var labelHtml = '<div style="font-family:Inter,sans-serif;font-size:' + fontSize + 'px;font-weight:700;color:#1E293B;text-align:center;white-space:nowrap;'
+                    + 'text-shadow:1px 1px 2px #fff,-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff,0 0 4px #fff">'
+                    + reg;
+                if (count > 0) {
+                    labelHtml += '<br><span style="font-size:' + (fontSize + 2) + 'px;color:#F77F00;font-weight:800">' + count + '</span>';
+                }
+                labelHtml += '</div>';
+
+                L.marker(center, {
+                    icon: L.divIcon({
+                        className: 'region-label',
+                        html: labelHtml,
+                        iconSize: [120, 30], iconAnchor: [60, 15]
+                    }),
+                    interactive: false
+                }).addTo(self._labelLayer);
+            });
+        },
+
+        updateMap() {
+            if (!this.mapInstance || !this._geojsonData) return;
+
+            // Remove previous layers
+            if (this._geojsonLayer) { this.mapInstance.removeLayer(this._geojsonLayer); this._geojsonLayer = null; }
+            if (this._labelLayer) { this.mapInstance.removeLayer(this._labelLayer); this._labelLayer = null; }
+            if (this._borderLayer) { this.mapInstance.removeLayer(this._borderLayer); this._borderLayer = null; }
+
+            // Aggregate projects by REGION name
+            let projets = this.allProjets;
+            if (this.mapBailleurFilter) projets = projets.filter(p => p.bailleur_id == this.mapBailleurFilter);
+            if (this.mapCatFilter) projets = projets.filter(p => p.bailleur_categorie === this.mapCatFilter);
+            if (this.mapSecteurFilter) projets = projets.filter(p => p.secteur === this.mapSecteurFilter);
+
+            const byRegion = {};
+            const ztr = this._zoneToRegion;
+            projets.forEach(p => {
+                const zone = p.zone || 'Non précisé';
+                const reg = ztr[zone] || zone.toUpperCase();
+                if (!byRegion[reg]) byRegion[reg] = { projets: [], montant: 0, bailleurs: new Set(), tauxSum: 0 };
+                byRegion[reg].projets.push(p);
+                byRegion[reg].montant += p.montant;
+                byRegion[reg].tauxSum += p.taux_decaissement;
+                if (p.bailleur_id) byRegion[reg].bailleurs.add(p.bailleur_id);
+            });
+
+            const self = this;
+            const getMetric = (rd) => {
+                if (!rd) return 0;
+                if (self.mapColorBy === 'montant') return rd.montant;
+                if (self.mapColorBy === 'nb_bailleurs') return rd.bailleurs.size;
+                if (self.mapColorBy === 'taux_dec') return rd.projets.length ? rd.tauxSum / rd.projets.length : 0;
+                return rd.projets.length;
+            };
+            const vals = Object.values(byRegion).map(getMetric);
+            const maxVal = vals.length > 0 ? Math.max(...vals) : 1;
+
+            // Store for label redraw on zoom
+            this._mapByRegion = byRegion;
+            this._mapGetMetric = getMetric;
+            this._mapMaxVal = maxVal;
+
+            // Build region stats for sidebar
+            const allRegionNames = new Set(this._geojsonData.features.map(f => f.properties.NomReg));
+            this.mapZoneStats = [];
+            allRegionNames.forEach(reg => {
+                const rd = byRegion[reg];
+                const val = rd ? getMetric(rd) : 0;
+                const ratio = maxVal > 0 ? val / maxVal : 0;
+                this.mapZoneStats.push({
+                    region: reg,
+                    count: rd ? rd.projets.length : 0,
+                    montant: rd ? rd.montant : 0,
+                    nb_bailleurs: rd ? rd.bailleurs.size : 0,
+                    color: this._choroplethColor(ratio)
+                });
+            });
+            this.mapZoneStats.sort((a, b) => b.count - a.count);
+
+            // Update selected region data
+            if (this.mapSelectedZone && byRegion[this.mapSelectedZone]) {
+                const rd = byRegion[this.mapSelectedZone];
+                this.mapSelectedData = { count: rd.projets.length, montant: rd.montant, nb_bailleurs: rd.bailleurs.size, projets: rd.projets };
+            } else if (this.mapSelectedZone) {
+                this.mapSelectedData = { count: 0, montant: 0, nb_bailleurs: 0, projets: [] };
+            }
+
+            // Country outline border (rendered first, below choropleth)
+            this._borderLayer = L.geoJSON(this._geojsonData, {
+                style: { fill: false, weight: 2.5, color: '#1E293B', opacity: 0.7, dashArray: '' },
+                interactive: false, pane: 'overlayPane'
+            }).addTo(this.mapInstance);
+
+            // Render GeoJSON choropleth
+            this._geojsonLayer = L.geoJSON(this._geojsonData, {
+                style: function(feature) {
+                    const reg = feature.properties.NomReg;
+                    const rd = byRegion[reg];
+                    const val = rd ? getMetric(rd) : 0;
+                    const ratio = maxVal > 0 ? val / maxVal : 0;
+                    const isSelected = self.mapSelectedZone === reg;
+                    const hasData = ratio > 0;
+                    return {
+                        fillColor: isSelected ? '#F77F00' : self._choroplethColor(ratio),
+                        weight: isSelected ? 2.5 : 1,
+                        color: isSelected ? '#C2410C' : '#64748B',
+                        fillOpacity: isSelected ? 0.85 : (hasData ? 0.7 : 0.45),
+                        dashArray: ''
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    const reg = feature.properties.NomReg;
+                    const rd = byRegion[reg];
+
+                    // Metric label for tooltip based on current colorBy variable
+                    let metricText = '0 projets';
+                    if (rd) {
+                        if (self.mapColorBy === 'montant') metricText = fmtC(rd.montant) + ' USD';
+                        else if (self.mapColorBy === 'nb_bailleurs') metricText = rd.bailleurs.size + ' bailleur(s)';
+                        else if (self.mapColorBy === 'taux_dec') metricText = (rd.projets.length ? Math.round(rd.tauxSum / rd.projets.length) : 0) + '% décaissé';
+                        else metricText = rd.projets.length + ' projet(s)';
+                    }
+
+                    // Rich tooltip
+                    layer.bindTooltip(
+                        '<div style="text-align:center;min-width:80px"><strong style="font-size:12px">' + reg + '</strong><br>'
+                        + '<span style="color:#F77F00;font-weight:700;font-size:12px">' + metricText + '</span>'
+                        + (rd ? '<br><span style="color:#64748B;font-size:10px">' + fmtC(rd.montant) + ' USD · ' + rd.bailleurs.size + ' baill.</span>' : '')
+                        + '</div>',
+                        { sticky: true, className: 'leaflet-tooltip-custom', direction: 'top', opacity: 0.95 }
+                    );
+
+                    // Hover highlight
+                    layer.on('mouseover', function() {
+                        if (self.mapSelectedZone !== reg) {
+                            this.setStyle({ weight: 2.5, color: '#F77F00', fillOpacity: 0.85 });
+                            this.bringToFront();
+                        }
+                    });
+                    layer.on('mouseout', function() {
+                        if (self._geojsonLayer) self._geojsonLayer.resetStyle(this);
+                    });
+
+                    // Click
+                    layer.on('click', function() { self.selectMapZone(reg); });
+                }
+            }).addTo(this.mapInstance);
+
+            // Draw labels
+            this._labelLayer = L.layerGroup().addTo(this.mapInstance);
+            this._redrawLabels();
+        }
+    };
+}
+</script>
+{% endblock %}
