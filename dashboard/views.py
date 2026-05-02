@@ -22,7 +22,8 @@ def _decimal_default(obj):
 @login_required_custom
 def index(request):
     today = timezone.now().date()
-    one_month_ago = today - timezone.timedelta(days=30)
+    now = timezone.now()
+    one_month_ago = now - timezone.timedelta(days=30)
 
     # ── KPIs ──
     total_projets = Projet.objects.count()
@@ -99,6 +100,7 @@ def index(request):
             'zone': p.zone_geographique or 'Non précisé',
             'taux_avancement': float(p.taux_avancement),
             'taux_decaissement': float(p.taux_decaissement),
+            'date_signature': p.date_signature.isoformat() if p.date_signature else None,
             'date_debut': p.date_debut.isoformat() if p.date_debut else None,
             'date_fin_prevue': p.date_fin_prevue.isoformat() if p.date_fin_prevue else None,
             'en_retard': p.est_en_retard,
@@ -157,13 +159,6 @@ def index(request):
         statut='en_cours', date_fin_prevue__lt=today
     ).select_related('secteur', 'bailleur_principal').order_by('date_fin_prevue')[:5]
 
-    projets_faible_decaissement = []
-    for p in Projet.objects.filter(statut='en_cours').select_related('secteur', 'bailleur_principal'):
-        if p.taux_decaissement < 30 and p.montant_total > 0:
-            projets_faible_decaissement.append(p)
-        if len(projets_faible_decaissement) >= 5:
-            break
-
     # ── Regions of Côte d'Ivoire for map ──
     ci_regions = [
         {'nom': 'Abidjan', 'lat': 5.3600, 'lng': -4.0083},
@@ -209,7 +204,6 @@ def index(request):
         'plan_actif': plan_actif,
         'derniers_projets': derniers_projets,
         'projets_retard_list': projets_retard_list,
-        'projets_faible_decaissement': projets_faible_decaissement,
         # JSON datasets for analytics engine
         'projets_json': json.dumps(projets_list, default=_decimal_default),
         'bailleurs_json': json.dumps(bailleurs_list, default=_decimal_default),
@@ -302,19 +296,29 @@ def api_notifications(request):
             'time': f'{days_late}j',
         })
 
-    # Low disbursement projects
-    for p in Projet.objects.filter(statut='en_cours').select_related('bailleur_principal'):
-        if p.taux_decaissement < 20 and float(p.montant_total) > 0:
-            notifs.append({
-                'type': 'alert',
-                'icon': 'trending_down',
-                'title': f'{p.code} — décaissement faible',
-                'message': f'Taux de décaissement: {p.taux_decaissement}%',
-                'url': f'/projets/{p.pk}/',
-                'time': '',
-            })
+    # Low disbursement projects — use aggregation to avoid N+1
+    dec_by_project = {
+        row['financement__projet_id']: float(row['total'] or 0)
+        for row in Decaissement.objects.filter(
+            financement__projet__statut='en_cours'
+        ).values('financement__projet_id').annotate(total=Sum('montant'))
+    }
+    for p in Projet.objects.filter(statut='en_cours').only('id', 'code', 'montant_total'):
         if len(notifs) >= 10:
             break
+        total_dec = dec_by_project.get(p.id, 0)
+        mt = float(p.montant_total or 0)
+        if mt > 0:
+            taux = round(total_dec / mt * 100, 1)
+            if taux < 20:
+                notifs.append({
+                    'type': 'alert',
+                    'icon': 'trending_down',
+                    'title': f'{p.code} — décaissement faible',
+                    'message': f'Taux de décaissement: {taux}%',
+                    'url': f'/projets/{p.pk}/',
+                    'time': '',
+                })
 
     # Recent projects (last 7 days)
     recent = Projet.objects.filter(

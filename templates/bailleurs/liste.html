@@ -36,9 +36,11 @@
             <button type="submit" class="btn btn-primary">
                 <span class="material-symbols-outlined text-[16px]">filter_list</span> Filtrer
             </button>
+            {% if can_edit %}
             <a href="{% url 'bailleurs:creer' %}" class="btn btn-green whitespace-nowrap">
                 <span class="material-symbols-outlined text-[16px]">add</span> Nouveau bailleur
             </a>
+            {% endif %}
         </form>
     </div>
 </div>
@@ -67,10 +69,10 @@
                     <div class="w-7 h-7 rounded-lg bg-ci-dark-50 flex items-center justify-center group-hover:bg-ci-orange-50 transition-colors">
                         <span class="material-symbols-outlined text-ci-dark-400 group-hover:text-ci-orange-500 text-[14px] transition-colors">folder_open</span>
                     </div>
-                    <span class="text-[0.8125rem] text-ci-dark-600 font-bold">{{ bailleur.nombre_projets }} projet{{ bailleur.nombre_projets|pluralize:"s" }}</span>
+                    <span class="text-[0.8125rem] text-ci-dark-600 font-bold">{{ bailleur.nombre_projets_annot }} projet{{ bailleur.nombre_projets_annot|pluralize:"s" }}</span>
                 </div>
                 <div class="text-right">
-                    <span class="text-[0.875rem] font-black text-ci-orange-500">{{ bailleur.montant_total_engage|floatformat:0|intcomma }}</span>
+                    <span class="text-[0.875rem] font-black text-ci-orange-500">{{ bailleur.montant_total_engage_annot|floatformat:0|intcomma }}</span>
                     <span class="text-[0.625rem] text-ci-dark-400 font-semibold block">USD</span>
                 </div>
             </div>
@@ -83,9 +85,11 @@
         </div>
         <p class="text-[0.9375rem] font-bold text-ci-dark-500 mb-1">Aucun bailleur enregistré</p>
         <p class="text-[0.75rem] text-ci-dark-400 mb-4">Commencez par ajouter vos partenaires financiers</p>
+        {% if can_edit %}
         <a href="{% url 'bailleurs:creer' %}" class="btn btn-primary">
             <span class="material-symbols-outlined text-[16px]">add</span> Ajouter un bailleur
         </a>
+        {% endif %}
     </div>
     {% endfor %}
 </div>

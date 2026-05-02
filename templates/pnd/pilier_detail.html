@@ -80,15 +80,15 @@
     <div class="p-5">
         <div class="space-y-2.5">
             {% for so in pilier.sous_objectifs.all %}
-            <div class="flex items-start gap-3 p-3.5 rounded-xl {% if so.nombre_projets > 0 %}bg-ci-green-50 border border-ci-green-200/50{% else %}bg-ci-dark-50/50 border border-ci-dark-100{% endif %} hover:shadow-sm transition-all">
+            <div class="flex items-start gap-3 p-3.5 rounded-xl {% if so.nombre_projets_annot > 0 %}bg-ci-green-50 border border-ci-green-200/50{% else %}bg-ci-dark-50/50 border border-ci-dark-100{% endif %} hover:shadow-sm transition-all">
                 <div class="w-8 h-8 rounded-lg bg-ci-orange-500 flex items-center justify-center flex-shrink-0">
                     <span class="text-[0.625rem] font-mono font-bold text-white">{{ so.numero }}</span>
                 </div>
                 <div class="flex-1">
-                    <p class="text-[0.8125rem] font-bold {% if so.nombre_projets > 0 %}text-ci-dark-800{% else %}text-ci-dark-500{% endif %}">{{ so.nom }}</p>
+                    <p class="text-[0.8125rem] font-bold {% if so.nombre_projets_annot > 0 %}text-ci-dark-800{% else %}text-ci-dark-500{% endif %}">{{ so.nom }}</p>
                     <div class="flex items-center gap-2 mt-1.5">
-                        {% if so.nombre_projets > 0 %}
-                        <span class="text-[0.6875rem] text-ci-green-600 font-bold">{{ so.nombre_projets }} projet{{ so.nombre_projets|pluralize:"s" }}</span>
+                        {% if so.nombre_projets_annot > 0 %}
+                        <span class="text-[0.6875rem] text-ci-green-600 font-bold">{{ so.nombre_projets_annot }} projet{{ so.nombre_projets_annot|pluralize:"s" }}</span>
                         {% else %}
                         <span class="badge badge-orange text-[0.5625rem]">Non couvert</span>
                         {% endif %}

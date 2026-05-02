@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404
-from django.db.models import Count, Sum
+from django.db import models
+from django.db.models import Count, Sum, Prefetch
 from .models import PlanNational, Pilier, SousObjectif
 from projets.models import Projet
 from financements.models import Financement
@@ -39,7 +40,15 @@ def index(request):
 
 @login_required_custom
 def pilier_detail(request, pk):
-    pilier = get_object_or_404(Pilier.objects.select_related('plan').prefetch_related('sous_objectifs'), pk=pk)
+    pilier = get_object_or_404(
+        Pilier.objects.select_related('plan').prefetch_related(
+            Prefetch(
+                'sous_objectifs',
+                queryset=SousObjectif.objects.annotate(nombre_projets_annot=Count('projets', distinct=True))
+            )
+        ),
+        pk=pk
+    )
     projets = Projet.objects.filter(objectifs_pnd__pilier=pilier).distinct().select_related('secteur', 'bailleur_principal')
     montant = Financement.objects.filter(
         projet__objectifs_pnd__pilier=pilier

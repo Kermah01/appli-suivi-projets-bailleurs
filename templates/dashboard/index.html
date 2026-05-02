@@ -94,11 +94,13 @@
                 <p class="text-ci-dark-400 text-[0.75rem] font-medium mt-0.5">{{ total_projets }} projets &middot; {{ total_bailleurs }} bailleurs &middot; Dernière mise à jour : aujourd'hui</p>
             </div>
         </div>
+        {% if can_edit %}
         <div class="hidden md:flex items-center gap-2">
             <a href="{% url 'projets:creer' %}" class="btn btn-primary btn-sm">
                 <span class="material-symbols-outlined text-[14px]">add</span> Nouveau projet
             </a>
         </div>
+        {% endif %}
     </div>
 </div>
 
@@ -282,7 +284,7 @@
                     <p class="text-[0.75rem] font-semibold text-ci-dark-800 truncate group-hover:text-ci-orange-700 transition-colors">{{ projet.titre }}</p>
                     <p class="text-[0.625rem] text-ci-dark-400">{{ projet.code }} · {{ projet.bailleur_principal.sigle|default:"-" }}</p>
                 </div>
-                <span class="badge {{ projet.statut_badge_class }} whitespace-nowrap flex-shrink-0">{{ projet.get_statut_display }}</span>
+                <span class="{{ projet.statut_badge_class }} whitespace-nowrap flex-shrink-0">{{ projet.get_statut_display }}</span>
             </a>
             {% empty %}
             <div class="px-4 py-8 text-center text-ci-dark-300 text-[0.75rem]">

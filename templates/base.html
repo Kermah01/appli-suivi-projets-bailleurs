@@ -418,21 +418,20 @@
                 </a>
                 {% endif %}
 
+                {% if is_admin %}
                 <div class="my-5 mx-2 border-t border-ci-dark-100"></div>
                 <p x-show="sidebarOpen" x-transition class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Administration</p>
-
-                {% if is_admin %}
                 <a href="{% url 'accounts:user_management' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'accounts' %}active{% endif %}">
                     <span class="material-symbols-outlined">group</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Utilisateurs</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Utilisateurs</span>
                 </a>
-                {% endif %}
                 <a href="/admin/" class="sidebar-link group" target="_blank">
                     <span class="material-symbols-outlined">settings</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Admin Django</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Admin</span>
                 </a>
+                {% endif %}
             </nav>
 
             <!-- Sidebar footer with version -->

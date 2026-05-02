@@ -172,7 +172,7 @@
 {% else %}
 <div class="hint-banner mb-4" x-data="{ show: true }" x-show="show">
     <span class="material-symbols-outlined">lightbulb</span>
-    <span class="flex-1">Ce bailleur n'a pas encore de projet. <a href="{% url 'projets:creer' %}?bailleur={{ bailleur.pk }}" class="font-semibold underline">Créez un projet</a> directement lié à ce bailleur.</span>
+    <span class="flex-1">Ce bailleur n'a pas encore de projet.{% if can_edit %} <a href="{% url 'projets:creer' %}?bailleur={{ bailleur.pk }}" class="font-semibold underline">Créez un projet</a> directement lié à ce bailleur.{% endif %}</span>
     <button @click="show=false" class="text-ci-dark-400 hover:text-ci-dark-600"><span class="material-symbols-outlined text-[14px]">close</span></button>
 </div>
 {% endif %}
@@ -186,7 +186,7 @@
         </div>
         <div class="flex items-center gap-2">
             <span class="badge badge-gray">{{ projets.count }}</span>
-            <a href="{% url 'projets:creer' %}?bailleur={{ bailleur.pk }}" class="btn btn-sm btn-green"><span class="material-symbols-outlined text-[14px]">add</span> Projet</a>
+            {% if can_edit %}<a href="{% url 'projets:creer' %}?bailleur={{ bailleur.pk }}" class="btn btn-sm btn-green"><span class="material-symbols-outlined text-[14px]">add</span> Projet</a>{% endif %}
         </div>
     </div>
     <div class="overflow-x-auto">

@@ -2,7 +2,8 @@ import json
 from decimal import Decimal
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Count, FloatField
+from django.db.models.functions import Coalesce
 from .models import Bailleur
 from .forms import BailleurForm
 from accounts.decorators import login_required_custom, edit_permission_required
@@ -18,7 +19,10 @@ def _dec(obj):
 def liste(request):
     query = request.GET.get('q', '')
     type_filter = request.GET.get('type', '')
-    bailleurs = Bailleur.objects.all()
+    bailleurs = Bailleur.objects.annotate(
+        nombre_projets_annot=Count('financements__projet', distinct=True),
+        montant_total_engage_annot=Coalesce(Sum('financements__montant_engage'), 0.0, output_field=FloatField()),
+    ).all()
 
     if query:
         bailleurs = bailleurs.filter(Q(nom__icontains=query) | Q(sigle__icontains=query))
@@ -77,17 +81,30 @@ def detail(request, pk):
         t = f.get_type_financement_display()
         by_type[t] = by_type.get(t, 0) + float(f.montant_engage)
 
+    # Pre-aggregate disbursements per project to avoid N+1
+    from financements.models import Decaissement as Dec
+    projet_ids = [p.id for p in projets]
+    dec_by_projet = {
+        row['financement__projet_id']: row['total']
+        for row in Dec.objects.filter(financement__projet_id__in=projet_ids)
+            .values('financement__projet_id')
+            .annotate(total=Sum('montant'))
+    }
+
     # Project list for charts
     projets_json = []
     for p in projets:
+        dec = float(dec_by_projet.get(p.id) or 0)
+        mt = float(p.montant_total) if p.montant_total else 0
+        taux_dec = round((dec / mt * 100), 2) if mt > 0 else 0
         projets_json.append({
             'id': p.id, 'code': p.code, 'titre': p.titre[:50],
             'secteur': p.secteur.nom if p.secteur else 'Non défini',
             'statut': p.get_statut_display(),
             'zone': p.zone_geographique or 'Non précisé',
-            'montant': float(p.montant_total),
+            'montant': mt,
             'taux_avancement': float(p.taux_avancement),
-            'taux_decaissement': float(p.taux_decaissement),
+            'taux_decaissement': taux_dec,
         })
 
     # CI regions for map

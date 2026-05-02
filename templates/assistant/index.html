@@ -59,6 +59,16 @@
 {% endblock %}
 
 {% block content %}
+{% if not gemini_enabled %}
+<div class="mb-4 flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-[0.8125rem] text-amber-800 animate-in">
+    <span class="material-symbols-outlined text-amber-500 text-[20px] flex-shrink-0">warning</span>
+    <div>
+        <span class="font-bold">Assistant IA non configuré.</span>
+        La variable d'environnement <code class="bg-amber-100 px-1 rounded font-mono text-[0.75rem]">GEMINI_API_KEY</code> est manquante.
+        L'interface est visible mais les requêtes échoueront jusqu'à ce qu'une clé API soit ajoutée.
+    </div>
+</div>
+{% endif %}
 <div x-data="assistantChat()" x-init="init()" class="assistant-wrapper">
 
     <!-- ═══ History Sidebar ═══ -->

@@ -5,7 +5,7 @@
 {% block page_title %}{{ titre }}{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl" x-data="projetForm()">
+<div class="max-w-3xl" x-data="projetForm()" x-init="init()">
     <a href="{% url 'projets:liste' %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors mb-5 animate-in">
         <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour à la liste
     </a>
@@ -44,7 +44,7 @@
                     <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">currency_exchange</span>
                     <span class="text-[0.75rem] font-semibold text-ci-orange-700">Conversion FCFA</span>
                 </div>
-                <span class="text-[0.75rem] text-ci-dark-500" x-text="fcfaDisplay"></span>
+                <span class="text-[0.75rem] text-ci-dark-500" x-text="'1 ' + devise + ' = ' + new Intl.NumberFormat('fr-FR').format(rates[devise] || 1) + ' FCFA'"></span>
             </div>
             <div class="p-4 text-[0.75rem] text-ci-dark-500">
                 <div class="flex items-center justify-between">
@@ -151,26 +151,18 @@ function projetForm() {
         financements: [],
         bailleursOptions: bailleursData,
         typeOptions: typeData,
+        devise: 'USD',
+        montant: 0,
         get fcfaAmount() {
-            var deviseEl = document.getElementById('id_devise');
-            var montantEl = document.getElementById('id_montant_total');
-            if (!deviseEl || !montantEl) return '\u2014';
-            var devise = deviseEl.value || 'USD';
-            var montant = parseFloat(montantEl.value) || 0;
-            var fcfa = montant * (rates[devise] || 1);
+            var fcfa = (parseFloat(this.montant) || 0) * (rates[this.devise] || 1);
             return new Intl.NumberFormat('fr-FR').format(Math.round(fcfa)) + ' FCFA';
-        },
-        get fcfaDisplay() {
-            var deviseEl = document.getElementById('id_devise');
-            var devise = deviseEl ? deviseEl.value : 'USD';
-            return '1 ' + devise + ' = ' + new Intl.NumberFormat('fr-FR').format(rates[devise] || 1) + ' FCFA';
         },
         addFinancement() {
             this.financements.push({
                 bailleur_id: '',
                 type_financement: 'don',
                 montant: null,
-                devise: document.getElementById('id_devise') ? document.getElementById('id_devise').value : 'USD',
+                devise: this.devise,
             });
         },
         totalFinancements() {
@@ -185,11 +177,17 @@ function projetForm() {
             }
         },
         init() {
+            var self = this;
             var deviseEl = document.getElementById('id_devise');
             var montantEl = document.getElementById('id_montant_total');
-            var self = this;
-            if (deviseEl) deviseEl.addEventListener('change', function() { self.$nextTick(function(){}); });
-            if (montantEl) montantEl.addEventListener('input', function() { self.$nextTick(function(){}); });
+            if (deviseEl) {
+                self.devise = deviseEl.value || 'USD';
+                deviseEl.addEventListener('change', function() { self.devise = this.value; });
+            }
+            if (montantEl) {
+                self.montant = parseFloat(montantEl.value) || 0;
+                montantEl.addEventListener('input', function() { self.montant = parseFloat(this.value) || 0; });
+            }
         }
     }
 }

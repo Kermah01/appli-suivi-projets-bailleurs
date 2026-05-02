@@ -119,11 +119,17 @@ def modifier(request, pk):
         form = ProjetForm(request.POST, instance=projet)
         if form.is_valid():
             form.save()
+            fin_json = form.cleaned_data.get('financements_json')
+            if fin_json:
+                _create_financements_from_json(projet, fin_json)
             messages.success(request, f'Projet "{projet.titre}" modifié avec succès.')
             return redirect('projets:detail', pk=projet.pk)
     else:
         form = ProjetForm(instance=projet)
-    return render(request, 'projets/form.html', {'form': form, 'titre': f'Modifier le projet', 'projet': projet})
+    return render(request, 'projets/form.html', {
+        'form': form, 'titre': 'Modifier le projet',
+        'projet': projet, 'is_creation': False,
+    })
 
 
 @edit_permission_required
