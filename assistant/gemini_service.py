@@ -20,12 +20,25 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(o)
 
 
-def _build_db_context():
-    """Construit un résumé complet des données pour le prompt Gemini."""
-    bailleurs = Bailleur.objects.all()
-    projets = Projet.objects.select_related('bailleur_principal', 'secteur').all()
-    financements = Financement.objects.select_related('projet', 'bailleur').all()
-    decaissements = Decaissement.objects.select_related('financement__projet', 'financement__bailleur').all()
+def _build_db_context(user=None):
+    """Construit un résumé des données filtré par bailleurs autorisés de l'utilisateur."""
+    from dashboard.views import _get_user_bailleur_ids
+    bailleur_ids = _get_user_bailleur_ids(user) if user else None
+
+    if bailleur_ids is None:
+        bailleurs = Bailleur.objects.all()
+        projets = Projet.objects.select_related('bailleur_principal', 'secteur').all()
+        financements = Financement.objects.select_related('projet', 'bailleur').all()
+        decaissements = Decaissement.objects.select_related('financement__projet', 'financement__bailleur').all()
+    else:
+        bailleurs = Bailleur.objects.filter(pk__in=bailleur_ids)
+        projets = Projet.objects.filter(
+            Q(bailleur_principal_id__in=bailleur_ids) | Q(financements__bailleur_id__in=bailleur_ids)
+        ).distinct().select_related('bailleur_principal', 'secteur')
+        financements = Financement.objects.filter(bailleur_id__in=bailleur_ids).select_related('projet', 'bailleur')
+        decaissements = Decaissement.objects.filter(
+            financement__bailleur_id__in=bailleur_ids
+        ).select_related('financement__projet', 'financement__bailleur')
     secteurs = Secteur.objects.all()
 
     # ── Statistiques globales ──
@@ -168,16 +181,16 @@ MODELS_TO_TRY = [
 ]
 
 
-def ask_gemini(question, conversation_history=None):
+def ask_gemini(question, conversation_history=None, user=None):
     """
-    Envoie une question à Gemini avec le contexte DB.
+    Envoie une question à Gemini avec le contexte DB filtré par l'utilisateur.
     Retourne un dict {text, chart, table}.
     Essaie plusieurs modèles en cas de quota dépassé.
     """
     import time
     genai.configure(api_key=settings.GEMINI_API_KEY)
 
-    db_context = _build_db_context()
+    db_context = _build_db_context(user=user)
 
     # Build messages
     history_msgs = []

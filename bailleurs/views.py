@@ -17,9 +17,12 @@ def _dec(obj):
 
 @login_required_custom
 def liste(request):
+    from dashboard.views import _get_user_bailleur_ids
     query = request.GET.get('q', '')
     type_filter = request.GET.get('type', '')
-    bailleurs = Bailleur.objects.annotate(
+    bailleur_ids = _get_user_bailleur_ids(request.user)
+    base_qs = Bailleur.objects.filter(pk__in=bailleur_ids) if bailleur_ids is not None else Bailleur.objects.all()
+    bailleurs = base_qs.annotate(
         nombre_projets_annot=Count('financements__projet', distinct=True),
         montant_total_engage_annot=Coalesce(Sum('financements__montant_engage'), 0.0, output_field=FloatField()),
     ).all()

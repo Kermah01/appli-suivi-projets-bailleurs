@@ -15,13 +15,17 @@ class UserProfile(models.Model):
     FONCTION_CHOICES = [
         ('ministre', 'Ministre'),
         ('dircab', 'Directeur de Cabinet'),
-        ('dca', 'Directeur de la Coopération et de l\'Aide'),
+        ('dircab_adjoint', 'Directeur de Cabinet Adjoint'),
+        ('chef_cabinet', 'Chef de Cabinet'),
         ('conseiller', 'Conseiller Technique'),
-        ('chef_service', 'Chef de Service'),
-        ('charge_suivi', 'Chargé de Suivi'),
+        ('dg', 'Directeur Général'),
+        ('charge_etudes', "Chargé d'Etudes"),
         ('point_focal', 'Point Focal Bailleur'),
         ('autre', 'Autre'),
     ]
+
+    UNIQUE_FONCTIONS = ['ministre', 'dircab', 'dircab_adjoint', 'chef_cabinet']
+    FONCTIONS_SANS_BAILLEUR = ['ministre', 'dircab', 'dircab_adjoint', 'chef_cabinet']
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='point_focal', verbose_name="Rôle")
@@ -86,3 +90,43 @@ class UserProfile(models.Model):
         if self.role == 'point_focal' and self.is_approved:
             return self.bailleurs.filter(pk=financement.bailleur.pk).exists()
         return False
+
+    def get_visible_bailleur_ids(self):
+        """Retourne la liste des IDs de bailleurs visibles, ou None pour tout voir."""
+        if self.user.is_superuser or self.is_directeur:
+            return None
+        if self.is_approved:
+            return list(self.bailleurs.values_list('id', flat=True))
+        return []
+
+
+class ActivityLog(models.Model):
+    ACTION_CHOICES = [
+        ('create', 'Création'),
+        ('update', 'Modification'),
+        ('delete', 'Suppression'),
+        ('approve', 'Approbation'),
+        ('login', 'Connexion'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='activity_logs')
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    model_name = models.CharField(max_length=50, verbose_name="Objet")
+    object_repr = models.CharField(max_length=200, verbose_name="Description")
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    details = models.TextField(blank=True, verbose_name="Détails")
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="Date")
+
+    class Meta:
+        verbose_name = "Journal d'activité"
+        verbose_name_plural = "Journal d'activité"
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user} — {self.get_action_display()} {self.model_name} ({self.timestamp:%d/%m/%Y %H:%M})"
+
+    @classmethod
+    def log(cls, user, action, model_name, object_repr, object_id=None, details=''):
+        cls.objects.create(
+            user=user, action=action, model_name=model_name,
+            object_repr=str(object_repr)[:200], object_id=object_id, details=details
+        )

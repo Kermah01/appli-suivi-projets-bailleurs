@@ -34,7 +34,7 @@ def assistant_ask(request):
         if not question:
             return JsonResponse({'error': 'Veuillez poser une question.'}, status=400)
 
-        result = ask_gemini(question, conversation_history=history)
+        result = ask_gemini(question, conversation_history=history, user=request.user)
         return JsonResponse(result)
 
     except Exception as e:

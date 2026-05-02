@@ -410,21 +410,24 @@
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Assistant IA</span>
                 </a>
 
-                {% if is_admin %}
                 <a href="{% url 'imports:index' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'imports' %}active{% endif %}">
                     <span class="material-symbols-outlined">upload_file</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Import Excel</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Import Excel</span>
                 </a>
-                {% endif %}
 
                 {% if is_admin %}
                 <div class="my-5 mx-2 border-t border-ci-dark-100"></div>
                 <p x-show="sidebarOpen" x-transition class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Administration</p>
-                <a href="{% url 'accounts:user_management' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'accounts' %}active{% endif %}">
+                <a href="{% url 'accounts:user_management' %}" class="sidebar-link group {% if 'utilisateurs' in request.path and 'modifier' not in request.path %}active{% endif %}">
                     <span class="material-symbols-outlined">group</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Utilisateurs</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Utilisateurs</span>
+                </a>
+                <a href="{% url 'accounts:audit_log' %}" class="sidebar-link group {% if 'journal' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">history</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Journal d'activité</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Journal</span>
                 </a>
                 <a href="/admin/" class="sidebar-link group" target="_blank">
                     <span class="material-symbols-outlined">settings</span>

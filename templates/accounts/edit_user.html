@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Modifier {{ profile.user.get_full_name }} - Admin{% endblock %}
+{% block page_title %}Modifier l'utilisateur{% endblock %}
+{% block page_subtitle %}{{ profile.user.get_full_name|default:profile.user.username }} — Administration{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="mb-5 animate-in">
+        <a href="{% url 'accounts:user_management' %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors">
+            <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour à la gestion des utilisateurs
+        </a>
+    </div>
+
+    <form method="post" class="space-y-5">
+        {% csrf_token %}
+
+        <!-- Identity -->
+        <div class="card animate-in stagger-1">
+            <div class="card-header flex items-center gap-2">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">badge</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Identité</h3>
+            </div>
+            <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Prénom</label>
+                    <input type="text" name="first_name" value="{{ profile.user.first_name }}" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Nom</label>
+                    <input type="text" name="last_name" value="{{ profile.user.last_name }}" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Email</label>
+                    <input type="email" name="email" value="{{ profile.user.email }}" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Nouveau mot de passe <span class="font-normal text-ci-dark-400">(laisser vide pour conserver)</span></label>
+                    <input type="password" name="password" class="form-input" placeholder="Nouveau mot de passe">
+                </div>
+                <div>
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Téléphone</label>
+                    <input type="text" name="telephone" value="{{ profile.telephone }}" class="form-input">
+                </div>
+                <div>
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Titre du poste</label>
+                    <input type="text" name="titre_poste" value="{{ profile.titre_poste }}" class="form-input">
+                </div>
+            </div>
+        </div>
+
+        <!-- Role & Fonction -->
+        <div class="card animate-in stagger-2">
+            <div class="card-header flex items-center gap-2">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">work</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Rôle & Fonction</h3>
+            </div>
+            <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Rôle</label>
+                    <select name="role" class="form-input">
+                        {% for value, label in role_choices %}
+                        <option value="{{ value }}" {% if profile.role == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Fonction</label>
+                    <select name="fonction" class="form-input">
+                        {% for value, label in fonction_choices %}
+                        <option value="{{ value }}" {% if profile.fonction == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Statut du compte</label>
+                    <select name="is_approved" class="form-input">
+                        <option value="1" {% if profile.is_approved %}selected{% endif %}>✓ Approuvé — accès actif</option>
+                        <option value="0" {% if not profile.is_approved %}selected{% endif %}>⏳ En attente — accès bloqué</option>
+                    </select>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Notes administrateur</label>
+                    <textarea name="notes_admin" class="form-input" rows="2" placeholder="Notes internes...">{{ profile.notes_admin }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bailleurs -->
+        <div class="card animate-in stagger-3">
+            <div class="card-header flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">account_balance</span>
+                    <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Bailleurs assignés</h3>
+                </div>
+                <span class="badge badge-blue text-[0.5625rem]">{{ profile.bailleurs.count }} sélectionné(s)</span>
+            </div>
+            <div class="p-5" x-data="{ selectAll: false }">
+                <div class="flex items-center gap-2 mb-3">
+                    <button type="button" @click="selectAll = !selectAll; document.querySelectorAll('.bailleur-cb').forEach(cb => cb.checked = selectAll)"
+                            class="btn btn-outline btn-sm text-[0.6875rem]">
+                        <span class="material-symbols-outlined text-[14px]">select_all</span>
+                        <span x-text="selectAll ? 'Tout désélectionner' : 'Tout sélectionner'"></span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[280px] overflow-y-auto pr-1">
+                    {% for bailleur in all_bailleurs %}
+                    <label class="flex items-center gap-2.5 p-2.5 rounded-lg border border-ci-dark-100 hover:border-ci-orange-300 hover:bg-ci-orange-50/50 cursor-pointer transition-all group">
+                        <input type="checkbox" name="bailleurs" value="{{ bailleur.pk }}" class="bailleur-cb accent-ci-orange-500 w-4 h-4"
+                               {% if bailleur in profile.bailleurs.all %}checked{% endif %}>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[0.75rem] font-bold text-ci-dark-800 truncate group-hover:text-ci-orange-700">{{ bailleur.sigle|default:bailleur.nom }}</p>
+                            {% if bailleur.sigle %}<p class="text-[0.5625rem] text-ci-dark-400 truncate">{{ bailleur.nom }}</p>{% endif %}
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 animate-in stagger-4">
+            <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-outlined text-[16px]">save</span> Enregistrer les modifications
+            </button>
+            <a href="{% url 'accounts:user_management' %}" class="btn btn-outline">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

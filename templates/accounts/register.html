@@ -165,11 +165,16 @@
                     <div class="p-6 space-y-4">
                         <div>
                             <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Fonction *</label>
-                            <select name="fonction" class="auth-input">
+                            <select name="fonction" class="auth-input" x-model="selectedFonction">
                                 {% for value, label in form.fonction.field.choices %}
+                                {% if value in fonctions_taken %}
+                                <option value="{{ value }}" disabled class="text-ci-dark-300" title="Cette fonction est déjà pourvue">{{ label }} — déjà attribuée</option>
+                                {% else %}
                                 <option value="{{ value }}" {% if form.fonction.value == value %}selected{% endif %}>{{ label }}</option>
+                                {% endif %}
                                 {% endfor %}
                             </select>
+                            {% if form.fonction.errors %}<p class="text-red-500 text-[0.6875rem] mt-1">{{ form.fonction.errors.0 }}</p>{% endif %}
                         </div>
                         <div>
                             <label class="block text-[0.6875rem] font-bold text-ci-dark-600 uppercase tracking-wider mb-1">Titre du poste</label>
@@ -187,34 +192,59 @@
                     <div class="px-6 py-4 border-b border-ci-dark-100 bg-ci-dark-50/50">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">account_balance</span>
-                            <h3 class="text-[0.9375rem] font-bold text-ci-dark-800">Bailleurs — Point focal</h3>
+                            <h3 class="text-[0.9375rem] font-bold text-ci-dark-800">Bailleurs suivis</h3>
                         </div>
-                        <p class="text-[0.75rem] text-ci-dark-400 mt-0.5 ml-7">Sélectionnez les bailleurs dont vous êtes point focal (optionnel)</p>
+                        <p class="text-[0.75rem] text-ci-dark-400 mt-0.5 ml-7" x-show="!isSansBailleur">Sélectionnez les bailleurs que vous suivez <span class="text-red-500">*</span></p>
+                        <p class="text-[0.75rem] text-ci-dark-400 mt-0.5 ml-7" x-show="isSansBailleur">Votre fonction vous donne accès à tous les projets</p>
                     </div>
                     <div class="p-6">
-                        <div class="bg-ci-orange-50 border border-ci-orange-200 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
-                            <span class="material-symbols-outlined text-ci-orange-500 text-[16px] mt-0.5">info</span>
-                            <p class="text-[0.75rem] text-ci-orange-700 font-medium">
-                                En tant que point focal, vous pourrez modifier les projets et financements liés à vos bailleurs assignés.
-                                Votre compte devra être validé par un administrateur avant activation.
-                            </p>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-1">
-                            {% for bailleur in form.bailleurs.field.queryset %}
-                            <label class="bailleur-card" x-data="{ checked: false }" :class="checked && 'selected'">
-                                <input type="checkbox" name="bailleurs" value="{{ bailleur.pk }}" @change="checked = $el.checked"
-                                    {% if bailleur.pk|stringformat:"s" in form.bailleurs.value %}checked x-init="checked = true"{% endif %}>
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-[0.8125rem] font-bold text-ci-dark-800 truncate">{{ bailleur.sigle|default:bailleur.nom }}</p>
-                                    {% if bailleur.sigle %}<p class="text-[0.625rem] text-ci-dark-400 truncate">{{ bailleur.nom }}</p>{% endif %}
-                                </div>
-                            </label>
-                            {% empty %}
-                            <div class="col-span-2 text-center py-6 text-ci-dark-300 text-[0.8125rem]">
-                                <span class="material-symbols-outlined text-[28px] block mb-2">account_balance</span>
-                                Aucun bailleur enregistré pour le moment
+                        <!-- Message haute fonction -->
+                        <div x-show="isSansBailleur" class="bg-ci-green-50 border border-ci-green-200 rounded-xl px-4 py-4 flex items-start gap-3">
+                            <span class="material-symbols-outlined text-ci-green-500 text-[20px] mt-0.5">verified_user</span>
+                            <div>
+                                <p class="text-[0.8125rem] font-bold text-ci-green-700">Accès global</p>
+                                <p class="text-[0.75rem] text-ci-green-600 mt-0.5">Votre fonction (Ministre, Directeur de Cabinet, etc.) vous donnera automatiquement accès à l'ensemble des données de tous les bailleurs.</p>
                             </div>
-                            {% endfor %}
+                        </div>
+                        <!-- Sélection bailleurs -->
+                        <div x-show="!isSansBailleur">
+                            {% if form.bailleurs.errors %}
+                            <div class="mb-3 px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[0.75rem] font-medium flex items-center gap-2">
+                                <span class="material-symbols-outlined text-[14px]">error</span>{{ form.bailleurs.errors.0 }}
+                            </div>
+                            {% endif %}
+                            <div class="bg-ci-orange-50 border border-ci-orange-200 rounded-xl px-4 py-3 mb-4 flex items-start gap-2">
+                                <span class="material-symbols-outlined text-ci-orange-500 text-[16px] mt-0.5">info</span>
+                                <p class="text-[0.75rem] text-ci-orange-700 font-medium">
+                                    Vous ne verrez que les données des bailleurs que vous sélectionnez. Votre compte devra être validé par un administrateur.
+                                </p>
+                            </div>
+                            <!-- Select all button -->
+                            <div class="flex items-center gap-2 mb-3" x-data="{ allChecked: false }">
+                                <button type="button" @click="allChecked = !allChecked; $el.closest('.p-6').querySelectorAll('.bailleur-cb').forEach(cb => { cb.checked = allChecked; cb.dispatchEvent(new Event('change')); })"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[0.75rem] font-semibold border border-ci-dark-200 text-ci-dark-600 hover:border-ci-orange-400 hover:text-ci-orange-600 hover:bg-ci-orange-50 transition-all">
+                                    <span class="material-symbols-outlined text-[14px]">select_all</span>
+                                    <span x-text="allChecked ? 'Tout désélectionner' : 'Tout sélectionner'">Tout sélectionner</span>
+                                </button>
+                                <span class="text-[0.6875rem] text-ci-dark-400">{{ form.bailleurs.field.queryset.count }} bailleur(s) disponible(s)</span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-1">
+                                {% for bailleur in form.bailleurs.field.queryset %}
+                                <label class="bailleur-card" x-data="{ checked: false }" :class="checked && 'selected'">
+                                    <input type="checkbox" name="bailleurs" value="{{ bailleur.pk }}" class="bailleur-cb" @change="checked = $el.checked"
+                                        {% if bailleur.pk|stringformat:"s" in form.bailleurs.value %}checked x-init="checked = true"{% endif %}>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-[0.8125rem] font-bold text-ci-dark-800 truncate">{{ bailleur.sigle|default:bailleur.nom }}</p>
+                                        {% if bailleur.sigle %}<p class="text-[0.625rem] text-ci-dark-400 truncate">{{ bailleur.nom }}</p>{% endif %}
+                                    </div>
+                                </label>
+                                {% empty %}
+                                <div class="col-span-2 text-center py-6 text-ci-dark-300 text-[0.8125rem]">
+                                    <span class="material-symbols-outlined text-[28px] block mb-2">account_balance</span>
+                                    Aucun bailleur enregistré pour le moment
+                                </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -256,8 +286,15 @@
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
+        const FONCTIONS_SANS_BAILLEUR = {{ fonctions_sans_bailleur|safe }};
         function registerWizard() {
-            return { step: {% if form.errors %}{% if form.bailleurs.errors %}3{% elif form.fonction.errors or form.titre_poste.errors or form.telephone.errors %}2{% else %}1{% endif %}{% else %}1{% endif %} };
+            return {
+                step: {% if form.errors %}{% if form.bailleurs.errors %}3{% elif form.fonction.errors or form.titre_poste.errors or form.telephone.errors %}2{% else %}1{% endif %}{% else %}1{% endif %},
+                selectedFonction: '{{ form.fonction.value|default:"point_focal" }}',
+                get isSansBailleur() {
+                    return FONCTIONS_SANS_BAILLEUR.includes(this.selectedFonction);
+                }
+            };
         }
     </script>
 </body>

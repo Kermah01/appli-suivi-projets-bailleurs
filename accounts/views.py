@@ -1,10 +1,12 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.utils import timezone
+from bailleurs.models import Bailleur
 from .forms import LoginForm, RegisterForm
-from .models import UserProfile
+from .models import UserProfile, ActivityLog
 from .decorators import login_required_custom, admin_required
 
 
@@ -33,6 +35,12 @@ def login_view(request):
 def register_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard:index')
+    # Fonctions déjà prises (approuvées, donc grisées)
+    fonctions_taken = list(
+        UserProfile.objects.filter(is_approved=True)
+        .values_list('fonction', flat=True)
+    )
+    fonctions_sans_bailleur = json.dumps(UserProfile.FONCTIONS_SANS_BAILLEUR)
     if request.method == 'POST':
         form = RegisterForm(request.POST)
         if form.is_valid():
@@ -41,7 +49,11 @@ def register_view(request):
             return redirect('accounts:login')
     else:
         form = RegisterForm()
-    return render(request, 'accounts/register.html', {'form': form})
+    return render(request, 'accounts/register.html', {
+        'form': form,
+        'fonctions_taken': fonctions_taken,
+        'fonctions_sans_bailleur': fonctions_sans_bailleur,
+    })
 
 
 def logout_view(request):
@@ -92,16 +104,20 @@ def approve_user(request, pk):
     profile.approved_by = request.user
     profile.date_approbation = timezone.now()
     profile.save()
-    messages.success(request, f'Le compte de {profile.user.get_full_name() or profile.user.username} a été approuvé.')
+    name = profile.user.get_full_name() or profile.user.username
+    ActivityLog.log(request.user, 'approve', 'Utilisateur', name, profile.pk,
+                    f'Fonction: {profile.get_fonction_display()}')
+    messages.success(request, f'Le compte de {name} a été approuvé.')
     return redirect('accounts:user_management')
 
 
 @admin_required
 def reject_user(request, pk):
     profile = get_object_or_404(UserProfile, pk=pk)
-    username = profile.user.get_full_name() or profile.user.username
+    name = profile.user.get_full_name() or profile.user.username
+    ActivityLog.log(request.user, 'delete', 'Utilisateur', name, profile.pk, 'Compte rejeté et supprimé')
     profile.user.delete()
-    messages.success(request, f'Le compte de {username} a été rejeté et supprimé.')
+    messages.success(request, f'Le compte de {name} a été rejeté et supprimé.')
     return redirect('accounts:user_management')
 
 
@@ -111,9 +127,13 @@ def change_role(request, pk):
     if request.method == 'POST':
         new_role = request.POST.get('role')
         if new_role in dict(UserProfile.ROLE_CHOICES):
+            old_role = profile.get_role_display()
             profile.role = new_role
             profile.save()
-            messages.success(request, f'Rôle de {profile.user.get_full_name() or profile.user.username} changé en "{profile.get_role_display()}".')
+            name = profile.user.get_full_name() or profile.user.username
+            ActivityLog.log(request.user, 'update', 'Utilisateur', name, profile.pk,
+                            f'Rôle: {old_role} → {profile.get_role_display()}')
+            messages.success(request, f'Rôle de {name} changé en "{profile.get_role_display()}".')
     return redirect('accounts:user_management')
 
 
@@ -125,5 +145,54 @@ def toggle_active(request, pk):
         profile.is_approved = not profile.is_approved
         profile.save()
         status = "approuvé" if profile.is_approved else "suspendu"
-        messages.success(request, f'Compte de {user.get_full_name() or user.username} {status}.')
+        name = user.get_full_name() or user.username
+        ActivityLog.log(request.user, 'update', 'Utilisateur', name, profile.pk, f'Compte {status}')
+        messages.success(request, f'Compte de {name} {status}.')
     return redirect('accounts:user_management')
+
+
+@admin_required
+def edit_user(request, pk):
+    profile = get_object_or_404(UserProfile.objects.select_related('user').prefetch_related('bailleurs'), pk=pk)
+    user = profile.user
+    if request.method == 'POST':
+        # Update User fields
+        user.first_name = request.POST.get('first_name', user.first_name)
+        user.last_name = request.POST.get('last_name', user.last_name)
+        user.email = request.POST.get('email', user.email)
+        new_pw = request.POST.get('password', '').strip()
+        if new_pw:
+            user.set_password(new_pw)
+        user.save()
+        # Update Profile fields
+        new_role = request.POST.get('role', profile.role)
+        if new_role in dict(UserProfile.ROLE_CHOICES):
+            profile.role = new_role
+        new_fonction = request.POST.get('fonction', profile.fonction)
+        if new_fonction in dict(UserProfile.FONCTION_CHOICES):
+            profile.fonction = new_fonction
+        profile.titre_poste = request.POST.get('titre_poste', profile.titre_poste)
+        profile.telephone = request.POST.get('telephone', profile.telephone)
+        is_approved = request.POST.get('is_approved') == '1'
+        profile.is_approved = is_approved
+        profile.notes_admin = request.POST.get('notes_admin', profile.notes_admin)
+        profile.save()
+        # Update bailleurs
+        bailleur_ids = request.POST.getlist('bailleurs')
+        profile.bailleurs.set(Bailleur.objects.filter(pk__in=bailleur_ids))
+        ActivityLog.log(request.user, 'update', 'Utilisateur',
+                        user.get_full_name() or user.username, profile.pk, 'Profil modifié par admin')
+        messages.success(request, f'Profil de {user.get_full_name() or user.username} mis à jour.')
+        return redirect('accounts:user_management')
+    return render(request, 'accounts/edit_user.html', {
+        'profile': profile,
+        'all_bailleurs': Bailleur.objects.all(),
+        'role_choices': UserProfile.ROLE_CHOICES,
+        'fonction_choices': UserProfile.FONCTION_CHOICES,
+    })
+
+
+@admin_required
+def audit_log_view(request):
+    logs = ActivityLog.objects.select_related('user').all()[:200]
+    return render(request, 'accounts/audit_log.html', {'logs': logs})

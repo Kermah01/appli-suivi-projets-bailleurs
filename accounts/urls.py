@@ -13,4 +13,6 @@ urlpatterns = [
     path('utilisateurs/<int:pk>/rejeter/', views.reject_user, name='reject_user'),
     path('utilisateurs/<int:pk>/role/', views.change_role, name='change_role'),
     path('utilisateurs/<int:pk>/toggle/', views.toggle_active, name='toggle_active'),
+    path('utilisateurs/<int:pk>/modifier/', views.edit_user, name='edit_user'),
+    path('journal/', views.audit_log_view, name='audit_log'),
 ]

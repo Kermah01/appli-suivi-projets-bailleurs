@@ -143,6 +143,11 @@
                                 <span class="material-symbols-outlined text-[14px]">block</span>
                             </a>
                             {% endif %}
+                            <a href="{% url 'accounts:edit_user' profile.pk %}"
+                               class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-ci-orange-50 text-ci-orange-600 text-[0.6875rem] font-bold hover:bg-ci-orange-100 transition-all"
+                               title="Modifier">
+                                <span class="material-symbols-outlined text-[14px]">edit</span>
+                            </a>
                             <button @click="confirmDelete = {{ profile.pk }}"
                                     class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 text-[0.6875rem] font-bold hover:bg-red-100 transition-all"
                                     title="Supprimer">

@@ -8,9 +8,15 @@ from accounts.decorators import login_required_custom, edit_permission_required
 
 @login_required_custom
 def liste(request):
+    from dashboard.views import _get_user_bailleur_ids
     query = request.GET.get('q', '')
     type_filter = request.GET.get('type', '')
-    financements = Financement.objects.select_related('projet', 'bailleur').all()
+    bailleur_ids = _get_user_bailleur_ids(request.user)
+    if bailleur_ids is None:
+        financements = Financement.objects.all()
+    else:
+        financements = Financement.objects.filter(bailleur_id__in=bailleur_ids)
+    financements = financements.select_related('projet', 'bailleur')
 
     if query:
         financements = financements.filter(

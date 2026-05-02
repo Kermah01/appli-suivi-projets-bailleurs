@@ -76,6 +76,9 @@
 
     /* ── Analysis smart hint ── */
     .smart-hint { background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 0.5rem; padding: 0.5rem 0.75rem; font-size: 0.6875rem; color: #92400E; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* ── Currency Toggle ── */
+    .currency-btn-active { background: #fff; color: #F77F00 !important; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
 </style>
 {% endblock %}
 
@@ -94,13 +97,18 @@
                 <p class="text-ci-dark-400 text-[0.75rem] font-medium mt-0.5">{{ total_projets }} projets &middot; {{ total_bailleurs }} bailleurs &middot; Dernière mise à jour : aujourd'hui</p>
             </div>
         </div>
-        {% if can_edit %}
-        <div class="hidden md:flex items-center gap-2">
+        <div class="hidden md:flex items-center gap-3">
+            <!-- Toggle USD/FCFA -->
+            <div id="currencyToggle" class="flex items-center gap-0 bg-white/10 rounded-xl p-0.5 border border-white/20">
+                <button id="btnUSD" onclick="setCurrency('USD')" class="px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold transition-all currency-btn currency-btn-active">USD</button>
+                <button id="btnFCFA" onclick="setCurrency('FCFA')" class="px-3 py-1.5 rounded-lg text-[0.6875rem] font-bold transition-all currency-btn text-white/60 hover:text-white">FCFA</button>
+            </div>
+            {% if can_edit %}
             <a href="{% url 'projets:creer' %}" class="btn btn-primary btn-sm">
                 <span class="material-symbols-outlined text-[14px]">add</span> Nouveau projet
             </a>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 </div>
 
@@ -145,8 +153,8 @@
             {% elif var_engage < 0 %}<span class="kpi-var down"><span class="material-symbols-outlined text-[10px]">trending_down</span>-</span>
             {% else %}<span class="kpi-var neutral">=</span>{% endif %}
         </div>
-        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Engagé (USD)</p>
-        <p class="text-xl font-black text-ci-dark-900 kpi-value leading-none">{{ total_engage|floatformat:0|intcomma }}</p>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Engagé <span class="kpi-currency-unit">(USD)</span></p>
+        <p class="text-xl font-black text-ci-dark-900 kpi-value leading-none currency-amount" data-usd-value="{{ total_engage }}">{{ total_engage|floatformat:0|intcomma }}</p>
     </div>
     <!-- Décaissement — radialBar rendered by ApexCharts -->
     <div class="kpi-card animate-in stagger-4" style="--kpi-color: #7C3AED; --kpi-color-light: #A78BFA;">
@@ -154,9 +162,9 @@
         <div class="flex items-center gap-3">
             <div id="kpiGauge" style="width:90px;height:90px;"></div>
             <div class="flex-1 min-w-0">
-                <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Décaissé</p>
-                <p class="text-base font-black text-ci-dark-900 leading-none">{{ total_decaisse|floatformat:0|intcomma }}</p>
-                <p class="text-[0.5625rem] text-ci-dark-300 mt-0.5">sur {{ total_engage|floatformat:0|intcomma }}</p>
+                <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Décaissé <span class="kpi-currency-unit">(USD)</span></p>
+                <p class="text-base font-black text-ci-dark-900 leading-none currency-amount" data-usd-value="{{ total_decaisse }}">{{ total_decaisse|floatformat:0|intcomma }}</p>
+                <p class="text-[0.5625rem] text-ci-dark-300 mt-0.5">sur <span class="currency-amount" data-usd-value="{{ total_engage }}">{{ total_engage|floatformat:0|intcomma }}</span></p>
                 {% if var_decaisse > 0 %}<span class="kpi-var up mt-1.5"><span class="material-symbols-outlined text-[10px]">trending_up</span>+</span>
                 {% elif var_decaisse < 0 %}<span class="kpi-var down mt-1.5"><span class="material-symbols-outlined text-[10px]">trending_down</span>-</span>
                 {% else %}<span class="kpi-var neutral mt-1.5">=</span>{% endif %}
@@ -164,7 +172,7 @@
         </div>
     </div>
     <!-- En retard — clickable -->
-    <a href="#section-retards" class="kpi-card kpi-clickable animate-in stagger-5 {% if projets_en_retard > 0 %}border-red-200{% endif %}" id="kpiRetard" style="--kpi-color: {% if projets_en_retard > 0 %}#DC2626{% else %}#009A44{% endif %}; --kpi-color-light: {% if projets_en_retard > 0 %}#F87171{% else %}#4ADE80{% endif %};">
+    <a href="{% url 'projets:liste' %}?en_retard=1" class="kpi-card kpi-clickable animate-in stagger-5 {% if projets_en_retard > 0 %}border-red-200{% endif %}" id="kpiRetard" style="--kpi-color: {% if projets_en_retard > 0 %}#DC2626{% else %}#009A44{% endif %}; --kpi-color-light: {% if projets_en_retard > 0 %}#F87171{% else %}#4ADE80{% endif %};">
         <div class="kpi-bg-pattern"></div>
         <div class="flex items-center justify-between mb-3">
             <div class="kpi-icon {% if projets_en_retard > 0 %}bg-red-50{% else %}bg-ci-green-50{% endif %}">
@@ -225,12 +233,28 @@
             </div>
             <div class="p-4 chart-panel"><div id="chartSynthSecteurs" style="width:100%;height:300px;"></div></div>
         </div>
-        <div class="card card-resizable animate-in stagger-4">
-            <div class="card-header flex items-center gap-2">
-                <span class="material-symbols-outlined text-purple-500 text-[16px]">location_on</span>
-                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Projets par zone géographique</h3>
+        <div class="card animate-in stagger-4 flex flex-col" x-data>
+            <div class="card-header flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-purple-500 text-[16px]">location_on</span>
+                    <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition géographique</h3>
+                </div>
+                <button @click="$dispatch('set-tab', 'carte')"
+                        class="inline-flex items-center gap-1.5 text-[0.6875rem] font-semibold text-ci-orange-500 hover:text-ci-orange-600 hover:underline transition-all">
+                    <span class="material-symbols-outlined text-[14px]">map</span>Voir la carte
+                </button>
             </div>
-            <div class="p-4 chart-panel"><div id="chartSynthZones" style="width:100%;height:300px;"></div></div>
+            <div class="p-4 flex-1 flex flex-col gap-2 overflow-auto" style="max-height:300px;">
+                <template x-if="$store && false"><!-- Alpine placeholder --></template>
+                <div id="zoneStatsList" class="space-y-1.5"></div>
+                <div class="mt-auto pt-3">
+                    <button @click="$dispatch('set-tab', 'carte')"
+                            class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-ci-orange-500 to-ci-orange-600 text-white text-[0.75rem] font-bold shadow-sm shadow-ci-orange-500/30 hover:shadow-md hover:shadow-ci-orange-500/40 transition-all">
+                        <span class="material-symbols-outlined text-[16px]">travel_explore</span>
+                        Ouvrir la carte interactive complète
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -299,7 +323,10 @@
                     <span class="material-symbols-outlined {% if projets_retard_list %}text-red-500{% else %}text-ci-dark-400{% endif %} text-[16px]">{% if projets_retard_list %}warning{% else %}verified{% endif %}</span>
                     <h3 class="text-[0.8125rem] font-bold {% if projets_retard_list %}text-red-700{% else %}text-ci-dark-800{% endif %}">Alertes & retards</h3>
                 </div>
-                {% if projets_retard_list %}<span class="badge badge-red text-[0.5625rem]">{{ projets_retard_list|length }}</span>{% endif %}
+                <div class="flex items-center gap-2">
+                    {% if projets_retard_list %}<span class="badge badge-red text-[0.5625rem]">{{ projets_en_retard }} au total</span>{% endif %}
+                    {% if projets_en_retard > 0 %}<a href="{% url 'projets:liste' %}?en_retard=1" class="text-[0.6875rem] text-red-600 hover:text-red-800 font-semibold flex items-center gap-0.5 transition-colors"><span class="material-symbols-outlined text-[12px]">open_in_new</span>Voir tout</a>{% endif %}
+                </div>
             </div>
             {% for projet in projets_retard_list %}
             <a href="{% url 'projets:detail' projet.pk %}" class="flex items-center gap-3 px-4 py-3 border-b border-red-100 last:border-b-0 hover:bg-red-50/50 transition-all group">
@@ -721,26 +748,6 @@ function initSynthCharts() {
         _synthCharts.push(c3);
     }
 
-    // ── Synthesis: Zones bar (ECharts) ──
-    var zData = {}; DASH_DATA.projets.forEach(function(p){ zData[p.zone]=(zData[p.zone]||0)+1; });
-    var zEntries = Object.entries(zData).sort(function(a,b){return b[1]-a[1];}).slice(0,12);
-    var el4 = document.getElementById('chartSynthZones');
-    if (el4 && zEntries.length > 0) {
-        if (el4._ec) { try { el4._ec.dispose(); } catch(e){} }
-        var c4 = echarts.init(el4);
-        el4._ec = c4;
-        c4.setOption({
-            tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(p){return p[0].name+': '+p[0].value+' projet(s)';}},
-            grid:{left:10,right:10,top:10,bottom:40,containLabel:true},
-            xAxis:{type:'category',data:zEntries.map(function(e){var n=e[0];return n.length>12?n.substring(0,11)+'…':n;}),
-                axisLabel:{rotate:45,fontSize:9,fontWeight:600,color:'#334155'}},
-            yAxis:{type:'value',axisLabel:{fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
-            series:[{type:'bar',data:zEntries.map(function(e,i){return{value:e[1],itemStyle:{color:PALETTE[i%PALETTE.length],borderRadius:[4,4,0,0]}};}),
-                barWidth:'55%',label:{show:true,position:'top',fontSize:10,fontWeight:700,color:'#475569'}}],
-            animationDuration:600
-        });
-        _synthCharts.push(c4);
-    }
 }
 
 // Init on DOMContentLoaded, then force resize after Alpine has processed x-show
@@ -759,6 +766,7 @@ window.addEventListener('resize', function(){ _synthCharts.forEach(function(c){ 
 function dashboardApp() {
     return {
         activeTab: 'synthese',
+        _tabListener: null,
         analysisType: 'repartition',
         varX: 'bailleur', varY: 'statut',
         measure: 'montant', chartType: 'bar',
@@ -802,7 +810,48 @@ function dashboardApp() {
         fmt(v) { return fmtN(v); },
         fmtN(v) { return fmtN(v); },
 
-        init() { this.selectedBailleurs = new Set(this.allBailleurs.map(b => b.id)); },
+        init() {
+            this.selectedBailleurs = new Set(this.allBailleurs.map(b => b.id));
+            // Listen for set-tab events dispatched from inner elements
+            const self = this;
+            window.addEventListener('set-tab', function(e) {
+                self.activeTab = e.detail;
+                if (e.detail === 'carte') self.$nextTick(() => self.initMap());
+                if (e.detail === 'analyses') self.$nextTick(() => self.renderAnalysis());
+            });
+            // Render top zones mini list
+            this._renderZonesList();
+        },
+
+        _renderZonesList() {
+            var el = document.getElementById('zoneStatsList');
+            if (!el) return;
+            var zData = {};
+            this.allProjets.forEach(function(p) {
+                var z = p.zone || 'Non précisé';
+                if (!zData[z]) zData[z] = { count: 0, montant: 0 };
+                zData[z].count++;
+                zData[z].montant += (p.montant || 0);
+            });
+            var entries = Object.entries(zData).sort(function(a,b){ return b[1].count - a[1].count; }).slice(0, 8);
+            var total = this.allProjets.length || 1;
+            var colors = ['#F77F00','#009A44','#2563EB','#7C3AED','#DC2626','#0891B2','#D97706','#059669'];
+            el.innerHTML = entries.map(function(entry, i) {
+                var pct = Math.round(entry[1].count / total * 100);
+                return '<div class="flex items-center gap-2 py-1">'
+                    + '<div class="w-2 h-2 rounded-full flex-shrink-0" style="background:' + (colors[i] || '#94A3B8') + '"></div>'
+                    + '<div class="flex-1 min-w-0">'
+                    + '<div class="flex items-center justify-between mb-0.5">'
+                    + '<span class="text-[0.6875rem] font-semibold text-ci-dark-700 truncate">' + entry[0] + '</span>'
+                    + '<span class="text-[0.5625rem] font-bold text-ci-dark-400 ml-2 flex-shrink-0">' + entry[1].count + ' proj.</span>'
+                    + '</div>'
+                    + '<div class="w-full h-1 bg-ci-dark-100 rounded-full overflow-hidden">'
+                    + '<div class="h-full rounded-full transition-all" style="width:' + pct + '%;background:' + (colors[i] || '#94A3B8') + '"></div>'
+                    + '</div>'
+                    + '</div>'
+                    + '</div>';
+            }).join('');
+        },
 
         onAnalysisTypeChange() {
             const allowed = this.allowedChartTypes;
@@ -1318,5 +1367,51 @@ function dashboardApp() {
         }
     };
 }
+
+/* ═══════════════════════════════════════
+   CURRENCY TOGGLE — USD / FCFA
+   Taux : 1 USD = 655.957 XOF (FCFA)
+═══════════════════════════════════════ */
+const FCFA_RATE = 655.957;
+
+function fmtCurrencyAmt(usdValue, currency) {
+    const val = currency === 'FCFA' ? usdValue * FCFA_RATE : usdValue;
+    if (val >= 1e9) return (val / 1e9).toFixed(1).replace('.', ',') + ' Md';
+    if (val >= 1e6) return (val / 1e6).toFixed(1).replace('.', ',') + ' M';
+    if (val >= 1e3) return (val / 1e3).toFixed(0) + ' k';
+    return Math.round(val).toLocaleString('fr-FR');
+}
+
+function setCurrency(currency) {
+    localStorage.setItem('dashboardCurrency', currency);
+    const isUSD = currency === 'USD';
+
+    // Toggle button styles
+    document.getElementById('btnUSD').classList.toggle('currency-btn-active', isUSD);
+    document.getElementById('btnUSD').classList.toggle('text-white/60', !isUSD);
+    document.getElementById('btnFCFA').classList.toggle('currency-btn-active', !isUSD);
+    document.getElementById('btnFCFA').classList.toggle('text-white/60', isUSD);
+
+    // Update KPI monetary amounts
+    document.querySelectorAll('.currency-amount').forEach(el => {
+        const usdVal = parseFloat(el.dataset.usdValue || '0');
+        el.textContent = fmtCurrencyAmt(usdVal, currency);
+    });
+
+    // Update unit labels
+    const unit = isUSD ? '(USD)' : '(FCFA)';
+    document.querySelectorAll('.kpi-currency-unit').forEach(el => el.textContent = unit);
+
+    // Notify Alpine dashboard to update charts with new multiplier
+    window.dashboardCurrencyMultiplier = isUSD ? 1 : FCFA_RATE;
+    window.dashboardCurrencyLabel = currency;
+    window.dispatchEvent(new CustomEvent('currencyChanged', { detail: { currency, rate: isUSD ? 1 : FCFA_RATE } }));
+}
+
+// Restore preference on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const saved = localStorage.getItem('dashboardCurrency') || 'USD';
+    setCurrency(saved);
+});
 </script>
 {% endblock %}

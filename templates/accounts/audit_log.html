@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Journal d'activité - Admin{% endblock %}
+{% block page_title %}Journal d'activité{% endblock %}
+{% block page_subtitle %}Suivi des modifications — 200 dernières entrées{% endblock %}
+
+{% block content %}
+<div class="card animate-in">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">history</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Historique des actions</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Utilisateur</th>
+                    <th>Action</th>
+                    <th>Objet</th>
+                    <th>Description</th>
+                    <th>Détails</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="whitespace-nowrap text-ci-dark-400 text-[0.6875rem]">{{ log.timestamp|date:"d/m/Y H:i" }}</td>
+                    <td class="font-semibold text-ci-dark-700">{{ log.user.get_full_name|default:log.user.username|default:"—" }}</td>
+                    <td>
+                        {% if log.action == 'create' %}<span class="badge badge-green text-[0.5625rem]">Création</span>
+                        {% elif log.action == 'update' %}<span class="badge badge-blue text-[0.5625rem]">Modification</span>
+                        {% elif log.action == 'delete' %}<span class="badge badge-red text-[0.5625rem]">Suppression</span>
+                        {% elif log.action == 'approve' %}<span class="badge badge-purple text-[0.5625rem]">Approbation</span>
+                        {% else %}<span class="badge text-[0.5625rem]">{{ log.get_action_display }}</span>{% endif %}
+                    </td>
+                    <td class="text-ci-dark-500 font-medium">{{ log.model_name }}</td>
+                    <td class="text-ci-dark-800 font-semibold">{{ log.object_repr }}</td>
+                    <td class="text-ci-dark-400 text-[0.6875rem]">{{ log.details|default:"—" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="6" class="!py-12 text-center text-ci-dark-300 font-medium">Aucune activité enregistrée</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

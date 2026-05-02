@@ -19,68 +19,90 @@ def _decimal_default(obj):
     raise TypeError
 
 
+def _get_user_bailleur_ids(user):
+    """Retourne la liste des IDs bailleurs visibles, ou None pour tout voir."""
+    if user.is_superuser:
+        return None
+    profile = getattr(user, 'profile', None)
+    if not profile:
+        return []
+    return profile.get_visible_bailleur_ids()
+
+
 @login_required_custom
 def index(request):
     today = timezone.now().date()
     now = timezone.now()
     one_month_ago = now - timezone.timedelta(days=30)
 
+    # ── Filtrage par bailleurs autorisés ──
+    bailleur_ids = _get_user_bailleur_ids(request.user)
+
+    if bailleur_ids is None:
+        projets_qs = Projet.objects.all()
+        bailleurs_qs = Bailleur.objects.all()
+        financements_qs = Financement.objects.all()
+        decaissements_qs = Decaissement.objects.all()
+    else:
+        bailleurs_qs = Bailleur.objects.filter(pk__in=bailleur_ids)
+        projets_qs = Projet.objects.filter(
+            Q(bailleur_principal_id__in=bailleur_ids) |
+            Q(financements__bailleur_id__in=bailleur_ids)
+        ).distinct()
+        financements_qs = Financement.objects.filter(bailleur_id__in=bailleur_ids)
+        decaissements_qs = Decaissement.objects.filter(financement__bailleur_id__in=bailleur_ids)
+
     # ── KPIs ──
-    total_projets = Projet.objects.count()
-    projets_en_cours = Projet.objects.filter(statut='en_cours').count()
-    projets_en_retard = Projet.objects.filter(
+    total_projets = projets_qs.count()
+    projets_en_cours = projets_qs.filter(statut='en_cours').count()
+    projets_en_retard = projets_qs.filter(
         statut='en_cours', date_fin_prevue__lt=today
     ).count()
-    total_bailleurs = Bailleur.objects.count()
+    total_bailleurs = bailleurs_qs.count()
 
-    total_engage = Financement.objects.aggregate(
-        total=Sum('montant_engage')
-    )['total'] or 0
-    total_decaisse = Decaissement.objects.aggregate(
-        total=Sum('montant')
-    )['total'] or 0
+    total_engage = financements_qs.aggregate(total=Sum('montant_engage'))['total'] or 0
+    total_decaisse = decaissements_qs.aggregate(total=Sum('montant'))['total'] or 0
     taux_decaissement_global = round(
         (float(total_decaisse) / float(total_engage) * 100), 1
     ) if total_engage > 0 else 0
 
     # ── Variation vs last month ──
-    projets_prev = Projet.objects.filter(date_creation__lt=one_month_ago).count()
+    projets_prev = projets_qs.filter(date_creation__lt=one_month_ago).count()
     var_projets = total_projets - projets_prev
 
-    engage_prev = float(Financement.objects.filter(
+    engage_prev = float(financements_qs.filter(
         date_creation__lt=one_month_ago
     ).aggregate(t=Sum('montant_engage'))['t'] or 0)
     var_engage = float(total_engage) - engage_prev
 
-    decaisse_prev = float(Decaissement.objects.filter(
+    decaisse_prev = float(decaissements_qs.filter(
         date_decaissement__lt=one_month_ago
     ).aggregate(t=Sum('montant'))['t'] or 0)
     var_decaisse = float(total_decaisse) - decaisse_prev
 
-    retard_prev = Projet.objects.filter(
+    retard_prev = projets_qs.filter(
         statut='en_cours', date_fin_prevue__lt=one_month_ago
     ).count()
     var_retard = projets_en_retard - retard_prev
 
     # ── Raw datasets for client-side analytics engine ──
 
-    # All bailleurs with category info
+    # Bailleurs with category info
     bailleurs_list = list(
-        Bailleur.objects.values('id', 'nom', 'sigle', 'type_bailleur', 'categorie_institutionnelle', 'pays_siege')
+        bailleurs_qs.values('id', 'nom', 'sigle', 'type_bailleur', 'categorie_institutionnelle', 'pays_siege')
     )
     # Enrich with financials
     for b in bailleurs_list:
         b['label'] = b['sigle'] or b['nom'][:20]
-        b['engage'] = float(Financement.objects.filter(bailleur_id=b['id']).aggregate(t=Sum('montant_engage'))['t'] or 0)
-        b['decaisse'] = float(Decaissement.objects.filter(financement__bailleur_id=b['id']).aggregate(t=Sum('montant'))['t'] or 0)
-        b['nb_projets'] = Financement.objects.filter(bailleur_id=b['id']).values('projet').distinct().count()
-        # Category display
+        b['engage'] = float(financements_qs.filter(bailleur_id=b['id']).aggregate(t=Sum('montant_engage'))['t'] or 0)
+        b['decaisse'] = float(decaissements_qs.filter(financement__bailleur_id=b['id']).aggregate(t=Sum('montant'))['t'] or 0)
+        b['nb_projets'] = financements_qs.filter(bailleur_id=b['id']).values('projet').distinct().count()
         cat_map = dict(Bailleur.CATEGORIE_CHOICES)
         b['categorie_label'] = cat_map.get(b['categorie_institutionnelle'], 'Autre')
 
     # All projects with denormalized fields for analytics
     projets_list = []
-    for p in Projet.objects.select_related('secteur', 'bailleur_principal').all():
+    for p in projets_qs.select_related('secteur', 'bailleur_principal').all():
         projets_list.append({
             'id': p.id,
             'code': p.code,
@@ -106,9 +128,9 @@ def index(request):
             'en_retard': p.est_en_retard,
         })
 
-    # All financements
+    # Financements (filtered)
     financements_list = list(
-        Financement.objects.select_related('projet', 'bailleur').values(
+        financements_qs.select_related('projet', 'bailleur').values(
             'id', 'projet__code', 'projet__titre',
             'bailleur__sigle', 'bailleur__nom', 'bailleur__categorie_institutionnelle',
             'bailleur_id',
@@ -151,11 +173,11 @@ def index(request):
             })
 
     # ── Lists for tables ──
-    derniers_projets = Projet.objects.select_related(
+    derniers_projets = projets_qs.select_related(
         'secteur', 'bailleur_principal'
     ).order_by('-date_creation')[:5]
 
-    projets_retard_list = Projet.objects.filter(
+    projets_retard_list = projets_qs.filter(
         statut='en_cours', date_fin_prevue__lt=today
     ).select_related('secteur', 'bailleur_principal').order_by('date_fin_prevue')[:5]
 
@@ -277,12 +299,23 @@ def api_search(request):
 
 @login_required_custom
 def api_notifications(request):
-    """Return actionable notifications/alerts."""
+    """Return actionable notifications/alerts filtered by user's bailleurs."""
     today = timezone.now().date()
     notifs = []
 
+    bailleur_ids = _get_user_bailleur_ids(request.user)
+    if bailleur_ids is None:
+        projets_qs = Projet.objects.all()
+    elif not bailleur_ids:
+        return JsonResponse({'notifications': [], 'count': 0})
+    else:
+        projets_qs = Projet.objects.filter(
+            Q(bailleur_principal_id__in=bailleur_ids) |
+            Q(financements__bailleur_id__in=bailleur_ids)
+        ).distinct()
+
     # Projects en retard
-    retards = Projet.objects.filter(
+    retards = projets_qs.filter(
         statut='en_cours', date_fin_prevue__lt=today
     ).select_related('bailleur_principal').order_by('date_fin_prevue')[:5]
     for p in retards:
@@ -296,14 +329,15 @@ def api_notifications(request):
             'time': f'{days_late}j',
         })
 
-    # Low disbursement projects — use aggregation to avoid N+1
+    # Low disbursement projects
+    proj_ids = list(projets_qs.filter(statut='en_cours').values_list('id', flat=True))
     dec_by_project = {
         row['financement__projet_id']: float(row['total'] or 0)
         for row in Decaissement.objects.filter(
-            financement__projet__statut='en_cours'
+            financement__projet_id__in=proj_ids
         ).values('financement__projet_id').annotate(total=Sum('montant'))
     }
-    for p in Projet.objects.filter(statut='en_cours').only('id', 'code', 'montant_total'):
+    for p in projets_qs.filter(statut='en_cours').only('id', 'code', 'montant_total'):
         if len(notifs) >= 10:
             break
         total_dec = dec_by_project.get(p.id, 0)
@@ -320,19 +354,20 @@ def api_notifications(request):
                     'time': '',
                 })
 
-    # Recent projects (last 7 days)
-    recent = Projet.objects.filter(
-        date_creation__gte=timezone.now() - timezone.timedelta(days=7)
-    ).order_by('-date_creation')[:3]
-    for p in recent:
-        days_ago = (today - p.date_creation.date()).days
+    # Recent modifications from ActivityLog
+    from accounts.models import ActivityLog
+    recent_logs = ActivityLog.objects.filter(
+        action__in=['create', 'update'],
+        timestamp__gte=timezone.now() - timezone.timedelta(days=7)
+    ).select_related('user').order_by('-timestamp')[:3]
+    for log in recent_logs:
         notifs.append({
             'type': 'info',
-            'icon': 'add_circle',
-            'title': f'Nouveau projet: {p.code}',
-            'message': p.titre[:50],
-            'url': f'/projets/{p.pk}/',
-            'time': f'{days_ago}j' if days_ago > 0 else "Aujourd'hui",
+            'icon': 'edit_note',
+            'title': f'{log.get_action_display()} — {log.model_name}',
+            'message': f'{log.object_repr[:50]} par {log.user.get_full_name() or log.user.username if log.user else "?"}',
+            'url': '#',
+            'time': f'{(today - log.timestamp.date()).days}j' if (today - log.timestamp.date()).days > 0 else "Aujourd'hui",
         })
 
     return JsonResponse({'notifications': notifs[:10], 'count': len(notifs)})

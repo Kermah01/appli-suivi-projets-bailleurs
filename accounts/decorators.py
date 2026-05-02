@@ -6,7 +6,7 @@ from django.http import HttpResponseForbidden
 
 
 def login_required_custom(view_func):
-    """Redirige vers la page de connexion si non authentifié."""
+    """Redirige vers la page de connexion si non authentifié, et vers pending si non approuvé."""
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
@@ -14,6 +14,10 @@ def login_required_custom(view_func):
             login_url = '/comptes/connexion/'
             next_url = request.get_full_path()
             return redirect(f'{login_url}?{urlencode({"next": next_url})}')
+        if not request.user.is_superuser:
+            profile = getattr(request.user, 'profile', None)
+            if not profile or not profile.is_approved:
+                return redirect('accounts:pending')
         return view_func(request, *args, **kwargs)
     return wrapper
 

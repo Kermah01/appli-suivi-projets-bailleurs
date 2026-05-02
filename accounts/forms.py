@@ -60,11 +60,11 @@ class RegisterForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'auth-input', 'placeholder': '+225 XX XX XX XX XX'})
     )
     bailleurs = forms.ModelMultipleChoiceField(
-        label="Bailleurs dont vous êtes point focal",
+        label="Bailleurs suivis",
         queryset=Bailleur.objects.all(),
         required=False,
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'bailleur-checkbox'}),
-        help_text="Sélectionnez un ou plusieurs bailleurs si vous êtes point focal."
+        help_text="Sélectionnez les bailleurs que vous suivez."
     )
 
     def clean_username(self):
@@ -85,10 +85,29 @@ class RegisterForm(forms.Form):
         pw2 = cleaned.get('password_confirm')
         if pw and pw2 and pw != pw2:
             self.add_error('password_confirm', 'Les mots de passe ne correspondent pas.')
+        # Unicité des fonctions de direction
+        fonction = cleaned.get('fonction')
+        if fonction in UserProfile.UNIQUE_FONCTIONS:
+            exists = UserProfile.objects.filter(
+                fonction=fonction, is_approved=True
+            ).exists()
+            if exists:
+                label = dict(UserProfile.FONCTION_CHOICES).get(fonction, fonction)
+                self.add_error('fonction', f'Un compte "{label}" approuvé existe déjà. Cette fonction est unique.')
+        # Bailleurs obligatoires pour certaines fonctions
+        if fonction and fonction not in UserProfile.FONCTIONS_SANS_BAILLEUR:
+            if not cleaned.get('bailleurs'):
+                self.add_error('bailleurs', 'Veuillez sélectionner au moins un bailleur pour votre fonction.')
         return cleaned
 
     def save(self):
         data = self.cleaned_data
+        fonction = data['fonction']
+        # Attribuer rôle selon fonction
+        if fonction in ('ministre', 'dircab', 'dircab_adjoint', 'chef_cabinet', 'dg'):
+            role = 'directeur'
+        else:
+            role = 'point_focal'
         user = User.objects.create_user(
             username=data['username'],
             email=data['email'],
@@ -99,12 +118,12 @@ class RegisterForm(forms.Form):
         )
         profile = UserProfile.objects.create(
             user=user,
-            role='point_focal',
-            fonction=data['fonction'],
+            role=role,
+            fonction=fonction,
             titre_poste=data.get('titre_poste', ''),
             telephone=data.get('telephone', ''),
             is_approved=False,
         )
-        if data.get('bailleurs'):
+        if data.get('bailleurs') and fonction not in UserProfile.FONCTIONS_SANS_BAILLEUR:
             profile.bailleurs.set(data['bailleurs'])
         return user
