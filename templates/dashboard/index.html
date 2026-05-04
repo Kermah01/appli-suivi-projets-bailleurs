@@ -79,6 +79,59 @@
 
     /* ── Currency Toggle ── */
     .currency-btn-active { background: #fff; color: #F77F00 !important; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+
+    /* ── Dashboard Builder ── */
+    .builder-layout { display: flex; gap: 0; height: calc(100vh - 220px); min-height: 560px; border: 1px solid #E2E8F0; border-radius: 0.875rem; overflow: hidden; background: #F8FAFC; }
+    .builder-sidebar { width: 230px; min-width: 180px; border-right: 1px solid #E2E8F0; background: #fff; display: flex; flex-direction: column; flex-shrink: 0; transition: width 0.2s; }
+    .builder-sidebar.collapsed { width: 0; min-width: 0; overflow: hidden; }
+    .builder-sidebar-header { padding: 12px 14px 8px; border-bottom: 1px solid #F1F5F9; }
+    .builder-sidebar-header h3 { font-size: 0.6875rem; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px; display: flex; align-items: center; gap: 6px; }
+    .builder-search { width: 100%; padding: 5px 10px; border: 1.5px solid #E2E8F0; border-radius: 8px; font-size: 0.6875rem; outline: none; font-family: Inter, sans-serif; }
+    .builder-search:focus { border-color: #F77F00; }
+    .builder-var-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+    .builder-var-item { display: flex; align-items: center; gap: 8px; padding: 7px 14px; cursor: pointer; transition: background 0.15s; }
+    .builder-var-item:hover { background: #FFF7ED; }
+    .builder-var-item .material-symbols-outlined { font-size: 16px; color: #F77F00; flex-shrink: 0; }
+    .builder-var-label { font-size: 0.6875rem; font-weight: 600; color: #334155; }
+    .builder-var-type { font-size: 0.5625rem; color: #94A3B8; margin-top: 1px; }
+    .builder-var-item.selected { background: #FFF7ED; border-left: 2px solid #F77F00; }
+    .builder-sidebar-footer { padding: 10px 14px; border-top: 1px solid #F1F5F9; display: flex; gap: 6px; }
+    .builder-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+    .builder-toolbar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid #E2E8F0; background: #fff; flex-shrink: 0; }
+    .builder-toolbar h2 { font-size: 0.8125rem; font-weight: 800; color: #0F172A; display: flex; align-items: center; gap: 6px; }
+    .builder-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 8px; border: 1px solid #E2E8F0; background: #fff; font-size: 0.6875rem; font-weight: 600; color: #475569; cursor: pointer; transition: all 0.15s; white-space: nowrap; font-family: Inter, sans-serif; }
+    .builder-btn:hover:not(:disabled) { border-color: #F77F00; color: #F77F00; background: #FFF7ED; }
+    .builder-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .builder-btn.primary { background: #F77F00; color: #fff; border-color: #F77F00; }
+    .builder-btn.primary:hover { background: #EA580C; }
+    .builder-btn.success { background: #009A44; color: #fff; border-color: #009A44; }
+    .builder-btn.danger { background: #fff; color: #DC2626; border-color: #FECACA; }
+    .builder-btn.danger:hover { background: #FEF2F2; }
+    .toolbar-sep { width: 1px; height: 20px; background: #E2E8F0; margin: 0 2px; flex-shrink: 0; }
+    .spacer { flex: 1; }
+    .builder-grid-scroll { flex: 1; overflow-y: auto; padding: 16px; }
+    .builder-grid { display: grid; gap: 14px; align-content: start; }
+    .builder-panel { background: #fff; border: 1px solid #E2E8F0; border-radius: 12px; overflow: hidden; transition: box-shadow 0.2s; min-width: 0; display: flex; flex-direction: column; }
+    .builder-panel:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    .builder-panel-header { display: flex; align-items: center; gap: 4px; padding: 6px 10px 5px; border-bottom: 1px solid #F1F5F9; background: #FAFAFA; flex-wrap: wrap; }
+    .builder-panel-title { flex: 1; min-width: 80px; font-size: 0.6875rem; font-weight: 700; color: #334155; border: none; background: transparent; outline: none; font-family: Inter, sans-serif; }
+    .builder-panel-title:focus { outline: 1px solid #F77F00; border-radius: 4px; }
+    .panel-ctrl { padding: 2px 6px; font-size: 0.5625rem; font-weight: 700; border: 1px solid #E2E8F0; border-radius: 6px; background: #fff; color: #64748B; cursor: pointer; font-family: Inter, sans-serif; transition: all 0.15s; flex-shrink: 0; }
+    .panel-ctrl:hover { border-color: #F77F00; color: #F77F00; background: #FFF7ED; }
+    .panel-ctrl.remove { color: #DC2626; border-color: #FECACA; }
+    .panel-ctrl.remove:hover { background: #FEF2F2; }
+    .panel-ctrl.active { background: #FFF7ED; border-color: #F77F00; color: #F77F00; }
+    .panel-ctrl-icon { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid #E2E8F0; border-radius: 6px; background: #fff; cursor: pointer; transition: all 0.15s; padding: 0; flex-shrink: 0; color: #64748B; }
+    .panel-ctrl-icon:hover { border-color: #F77F00; color: #F77F00; background: #FFF7ED; }
+    .panel-ctrl-icon.remove { color: #DC2626; border-color: #FECACA; }
+    .panel-ctrl-icon.remove:hover { background: #FEF2F2; }
+    .builder-chart-container { width: 100%; overflow: hidden; flex: 1; }
+    .builder-table-wrap { overflow: auto; height: 100%; }
+    .builder-table-wrap table { width: 100%; border-collapse: collapse; font-size: 0.625rem; }
+    .builder-table-wrap th { background: #F8FAFC; padding: 4px 8px; font-weight: 700; color: #334155; border-bottom: 1.5px solid #E2E8F0; text-align: left; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
+    .builder-table-wrap td { padding: 3px 8px; border-bottom: 1px solid #F1F5F9; color: #475569; }
+    .builder-table-wrap tr:hover td { background: #FFF7ED; }
+    .builder-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding: 40px; color: #94A3B8; }
 </style>
 {% endblock %}
 
@@ -195,8 +248,8 @@
     <button @click="activeTab='synthese'" :class="activeTab==='synthese' && 'active'" class="tab-btn">
         <span class="material-symbols-outlined text-[14px] align-middle mr-1">dashboard</span>Synthèse
     </button>
-    <button @click="activeTab='analyses'; $nextTick(() => renderAnalysis())" :class="activeTab==='analyses' && 'active'" class="tab-btn">
-        <span class="material-symbols-outlined text-[14px] align-middle mr-1">analytics</span>Analyses avancées
+    <button @click="activeTab='builder'; $nextTick(() => builderRenderAll())" :class="activeTab==='builder' && 'active'" class="tab-btn">
+        <span class="material-symbols-outlined text-[14px] align-middle mr-1">dashboard_customize</span>Mon Dashboard
     </button>
     <button @click="activeTab='carte'; $nextTick(() => initMap())" :class="activeTab==='carte' && 'active'" class="tab-btn">
         <span class="material-symbols-outlined text-[14px] align-middle mr-1">map</span>Carte interactive
@@ -352,164 +405,156 @@
     </div>
 </div>
 
-<!-- ═══════════════════ TAB: ANALYSES AVANCÉES ═══════════════════ -->
-<div x-show="activeTab==='analyses'" x-cloak x-transition>
+<!-- ═══════════════════ TAB: MON DASHBOARD (BUILDER) ═══════════════════ -->
+<div x-show="activeTab==='builder'" x-cloak x-transition>
+    <div class="builder-layout">
 
-    <!-- Control panel -->
-    <div class="card mb-4">
-        <div class="p-4">
-            <!-- Smart hint -->
-            <div class="smart-hint mb-3" x-show="smartHint" x-transition>
-                <span class="material-symbols-outlined text-[14px]">lightbulb</span>
-                <span x-text="smartHint"></span>
-                <button @click="smartHint=''" class="ml-auto text-ci-dark-400 hover:text-ci-dark-600"><span class="material-symbols-outlined text-[12px]">close</span></button>
+        <!-- ── SIDEBAR ── -->
+        <aside class="builder-sidebar" :class="!builderSidebarOpen && 'collapsed'">
+            <div class="builder-sidebar-header">
+                <h3><span class="material-symbols-outlined" style="font-size:14px">layers</span> Variables</h3>
+                <input class="builder-search" x-model="builderSearch" placeholder="Rechercher…">
             </div>
-
-            <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3 mb-3">
-                <!-- Analysis type -->
-                <div>
-                    <label class="sel-label">Type d'analyse</label>
-                    <select class="sel-input" x-model="analysisType" @change="onAnalysisTypeChange()">
-                        <option value="repartition">Répartition</option>
-                        <option value="comparaison">Comparaison</option>
-                        <option value="evolution">Évolution temporelle</option>
-                        <option value="correlation">Corrélation</option>
-                    </select>
-                </div>
-                <!-- Dimension (for repartition & comparaison) -->
-                <div x-show="analysisType!=='correlation'">
-                    <label class="sel-label">Dimension</label>
-                    <select class="sel-input" x-model="varX" @change="validateAndRender()">
-                        <option value="bailleur">Bailleur</option>
-                        <option value="secteur">Secteur</option>
-                        <option value="statut">Statut</option>
-                        <option value="zone">Zone géographique</option>
-                        <option value="categorie">Catégorie bailleur</option>
-                        <option value="devise">Devise</option>
-                    </select>
-                </div>
-                <!-- Second dimension (comparaison) -->
-                <div x-show="analysisType==='comparaison'">
-                    <label class="sel-label">Croiser avec</label>
-                    <select class="sel-input" x-model="varY" @change="validateAndRender()">
-                        <template x-for="opt in crossOptions" :key="opt.value">
-                            <option :value="opt.value" x-text="opt.label"></option>
-                        </template>
-                    </select>
-                </div>
-                <!-- Time grouping (evolution) -->
-                <div x-show="analysisType==='evolution'">
-                    <label class="sel-label">Regrouper par</label>
-                    <select class="sel-input" x-model="timeGroup" @change="validateAndRender()">
-                        <option value="year">Année</option>
-                        <option value="quarter">Trimestre</option>
-                        <option value="month">Mois</option>
-                    </select>
-                </div>
-                <!-- Measure -->
-                <div>
-                    <label class="sel-label">Mesure</label>
-                    <select class="sel-input" x-model="measure" @change="validateAndRender()">
-                        <option value="count">Nombre de projets</option>
-                        <option value="montant">Montant total (USD)</option>
-                        <option value="taux_dec">Taux décaissement moyen</option>
-                        <option value="taux_avanc">Taux avancement moyen</option>
-                    </select>
-                </div>
-                <!-- Chart type — smartly filtered -->
-                <div>
-                    <label class="sel-label">Type de graphique</label>
-                    <select class="sel-input" x-model="chartType" @change="validateAndRender()">
-                        <template x-for="ct in allowedChartTypes" :key="ct.value">
-                            <option :value="ct.value" x-text="ct.label"></option>
-                        </template>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Bailleur multi-filter -->
-            <div class="border-t border-ci-dark-100 pt-3">
-                <div class="flex items-center justify-between mb-2">
-                    <label class="sel-label mb-0">Filtrer les bailleurs</label>
-                    <div class="flex gap-2">
-                        <button @click="selectAllBailleurs()" class="text-[0.625rem] text-ci-orange-500 hover:underline font-semibold cursor-pointer">Tout sélectionner</button>
-                        <button @click="deselectAllBailleurs()" class="text-[0.625rem] text-ci-dark-400 hover:underline font-semibold cursor-pointer">Tout désélectionner</button>
+            <div class="builder-var-list">
+                <template x-for="v in builderFilteredVars" :key="v.key">
+                    <div class="builder-var-item" :class="builderSelectedVar===v.key && 'selected'"
+                         @click="builderSelectedVar = (builderSelectedVar===v.key ? null : v.key)">
+                        <span class="material-symbols-outlined" x-text="v.icon"></span>
+                        <div>
+                            <div class="builder-var-label" x-text="v.label"></div>
+                            <div class="builder-var-type" x-text="v.typeLabel"></div>
+                        </div>
                     </div>
-                </div>
-                <div class="flex flex-wrap gap-1.5 mb-2">
-                    <template x-for="cat in categories" :key="cat.code">
-                        <button class="chip" :class="isCatSelected(cat.code) && 'selected'"
-                                @click="toggleCategory(cat.code)">
-                            <span x-text="cat.label"></span>
-                            <span class="text-[0.5625rem] opacity-70" x-text="'('+countBailleursByCat(cat.code)+')'"></span>
-                        </button>
-                    </template>
-                </div>
-                <div class="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                    <template x-for="b in allBailleurs" :key="b.id">
-                        <button class="chip text-[0.5625rem]" :class="selectedBailleurs.has(b.id) && 'selected'"
-                                @click="toggleBailleur(b.id)">
-                            <span x-text="b.label"></span>
-                        </button>
-                    </template>
-                </div>
+                </template>
             </div>
-        </div>
-    </div>
-
-    <!-- Chart area -->
-    <div class="card card-resizable mb-4">
-        <div class="card-header flex items-center justify-between">
-            <h3 class="text-[0.75rem] font-semibold text-ci-dark-700" x-text="chartTitle"></h3>
-            <div class="flex items-center gap-2">
-                <span class="text-[0.625rem] text-ci-dark-400" x-text="chartSubtitle"></span>
-                <button @click="downloadChart()" class="btn btn-outline btn-sm text-[0.625rem]" title="Télécharger">
-                    <span class="material-symbols-outlined text-[12px]">download</span>
+            <div class="builder-sidebar-footer">
+                <button class="builder-btn primary" style="flex:1;justify-content:center"
+                        :disabled="!builderSelectedVar"
+                        @click="builderAddPanel(builderSelectedVar); builderSelectedVar=null">
+                    <span class="material-symbols-outlined" style="font-size:14px">add</span> Ajouter
                 </button>
             </div>
-        </div>
-        <div class="p-3 chart-panel">
-            <div id="analysisChart" style="width:100%;min-height:380px;"></div>
-        </div>
-    </div>
+        </aside>
 
-    <!-- Data table -->
-    <div class="card">
-        <div class="card-header flex items-center justify-between">
-            <h3 class="text-[0.75rem] font-semibold text-ci-dark-700">Données détaillées</h3>
-            <span class="text-[0.625rem] text-ci-dark-400" x-text="filteredProjets.length + ' projets filtrés'"></span>
-        </div>
-        <div class="overflow-x-auto max-h-64 overflow-y-auto">
-            <table class="data-table">
-                <thead class="sticky top-0">
-                    <tr>
-                        <th>Code</th>
-                        <th>Titre</th>
-                        <th>Bailleur</th>
-                        <th>Secteur</th>
-                        <th>Statut</th>
-                        <th>Zone</th>
-                        <th class="text-right">Montant</th>
-                        <th class="text-right">Décais. %</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <template x-for="p in filteredProjets.slice(0, 50)" :key="p.id">
-                        <tr>
-                            <td class="font-mono text-[0.6875rem] text-ci-dark-400" x-text="p.code"></td>
-                            <td class="max-w-[200px] truncate" x-text="p.titre"></td>
-                            <td x-text="p.bailleur" class="whitespace-nowrap"></td>
-                            <td x-text="p.secteur" class="whitespace-nowrap"></td>
-                            <td><span class="badge badge-gray" x-text="p.statut"></span></td>
-                            <td x-text="p.zone" class="whitespace-nowrap text-[0.6875rem]"></td>
-                            <td class="text-right font-bold whitespace-nowrap" x-text="fmt(p.montant)"></td>
-                            <td class="text-right font-bold" :class="p.taux_decaissement < 30 ? 'text-red-500' : p.taux_decaissement < 60 ? 'text-ci-orange-500' : 'text-ci-green-500'" x-text="p.taux_decaissement + '%'"></td>
-                        </tr>
+        <!-- ── MAIN ── -->
+        <div class="builder-main">
+            <!-- Toolbar -->
+            <div class="builder-toolbar">
+                <button class="builder-btn" @click="builderSidebarOpen=!builderSidebarOpen" title="Masquer/Afficher le panneau">
+                    <span class="material-symbols-outlined" style="font-size:14px">menu_open</span>
+                </button>
+                <div class="toolbar-sep"></div>
+                <button class="builder-btn" @click="builderUndo()" :disabled="builderHistoryIdx<=0" title="Annuler (Ctrl+Z)">
+                    <span class="material-symbols-outlined" style="font-size:14px">undo</span>
+                </button>
+                <button class="builder-btn" @click="builderRedo()" :disabled="builderHistoryIdx>=builderHistory.length-1" title="Rétablir">
+                    <span class="material-symbols-outlined" style="font-size:14px">redo</span>
+                </button>
+                <div class="toolbar-sep"></div>
+                <h2><span class="material-symbols-outlined" style="font-size:16px">dashboard_customize</span> Mon Dashboard</h2>
+                <div class="spacer"></div>
+                <button class="builder-btn success" @click="builderExport()" title="Exporter en PNG">
+                    <span class="material-symbols-outlined" style="font-size:14px">photo_camera</span> Exporter
+                </button>
+                <button class="builder-btn danger" @click="builderReset()" title="Réinitialiser">
+                    <span class="material-symbols-outlined" style="font-size:14px">restart_alt</span> Réinitialiser
+                </button>
+            </div>
+
+            <!-- Grid -->
+            <div class="builder-grid-scroll">
+                <div class="builder-grid" id="builder-grid"
+                     :style="'grid-template-columns: repeat(' + builderGridCols + ', 1fr)'">
+                    <template x-for="panel in builderPanels" :key="panel.id">
+                        <div class="builder-panel"
+                             :style="'grid-column: span ' + Math.min(panel.colSpan||1, builderGridCols)">
+                            <!-- Panel header -->
+                            <div class="builder-panel-header">
+                                <input class="builder-panel-title" x-model="panel.title" @change="builderSave()">
+                                <!-- Dimension -->
+                                <select class="panel-ctrl" x-model="panel.varX"
+                                        @change="builderSave(); $nextTick(()=>builderRenderPanel(panel))">
+                                    <template x-for="v in builderCatVars" :key="v.key">
+                                        <option :value="v.key" x-text="v.label"></option>
+                                    </template>
+                                </select>
+                                <!-- Mesure -->
+                                <select class="panel-ctrl" x-model="panel.measure"
+                                        @change="builderSave(); $nextTick(()=>builderRenderPanel(panel))">
+                                    <option value="count">Nb projets</option>
+                                    <option value="montant">Montant</option>
+                                    <option value="taux_dec">Tx décaiss.</option>
+                                    <option value="taux_avanc">Tx avanc.</option>
+                                </select>
+                                <!-- Type graphique -->
+                                <select class="panel-ctrl" x-model="panel.chartType"
+                                        @change="builderSave(); $nextTick(()=>builderRenderPanel(panel))">
+                                    <optgroup label="Barres">
+                                        <option value="bar">Barres verticales</option>
+                                        <option value="hbar">Barres horizontales</option>
+                                    </optgroup>
+                                    <optgroup label="Courbes">
+                                        <option value="line">Courbe</option>
+                                        <option value="area">Aire</option>
+                                    </optgroup>
+                                    <optgroup label="Circulaires">
+                                        <option value="pie">Camembert</option>
+                                        <option value="donut">Anneau</option>
+                                    </optgroup>
+                                    <optgroup label="Autres graphiques">
+                                        <option value="treemap">Treemap</option>
+                                        <option value="radar">Radar</option>
+                                        <option value="funnel">Entonnoir</option>
+                                        <option value="scatter">Nuage de points</option>
+                                        <option value="gauge">Jauge</option>
+                                    </optgroup>
+                                    <optgroup label="Données">
+                                        <option value="table">Tableau</option>
+                                        <option value="kpi">Indicateur KPI</option>
+                                        <option value="map" x-show="panel.varX==='zone'">Carte géo</option>
+                                    </optgroup>
+                                </select>
+                                <!-- Largeur : cycle 1→2→3→4 -->
+                                <button class="panel-ctrl" title="Largeur (colonnes)"
+                                        @click="builderCycleSpan(panel)"
+                                        x-text="'↔ ' + Math.min(panel.colSpan||1, builderGridCols) + 'c'"></button>
+                                <!-- Hauteur : cycle S/M/L/XL -->
+                                <button class="panel-ctrl" title="Hauteur"
+                                        @click="builderCycleHeight(panel)"
+                                        x-text="'↕ ' + builderHeightLabel(panel.height)"></button>
+                                <!-- Télécharger image -->
+                                <button class="panel-ctrl-icon" title="Télécharger image (PNG)"
+                                        @click="builderDownloadPanel(panel.id)">
+                                    <span class="material-symbols-outlined" style="font-size:13px">download</span>
+                                </button>
+                                <!-- Exporter données Excel -->
+                                <button class="panel-ctrl-icon" title="Exporter données (Excel .xlsx)"
+                                        @click="builderExportData(panel.id)">
+                                    <span class="material-symbols-outlined" style="font-size:13px">table_chart</span>
+                                </button>
+                                <!-- Supprimer -->
+                                <button class="panel-ctrl-icon remove" title="Supprimer"
+                                        @click="builderRemovePanel(panel.id)">
+                                    <span class="material-symbols-outlined" style="font-size:13px">close</span>
+                                </button>
+                            </div>
+                            <!-- Chart/content container — height driven by panel.height -->
+                            <div class="builder-chart-container" :id="'bChart_'+panel.id"
+                                 :style="'height:' + (panel.height||260) + 'px'"></div>
+                        </div>
                     </template>
-                </tbody>
-            </table>
-        </div>
-    </div>
+                    <!-- Empty state -->
+                    <template x-if="builderPanels.length === 0">
+                        <div style="grid-column:1/-1" class="builder-empty-state">
+                            <span class="material-symbols-outlined" style="font-size:48px;margin-bottom:12px;opacity:.4">dashboard_customize</span>
+                            <p style="font-size:0.875rem;font-weight:700;color:#475569;margin:0">Votre dashboard est vide</p>
+                            <p style="font-size:0.75rem;color:#94A3B8;margin:6px 0 0">Sélectionnez une variable dans le panneau gauche puis cliquez sur <strong>Ajouter</strong></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div><!-- end builder-main -->
+    </div><!-- end builder-layout -->
 </div>
 
 <!-- ═══════════════════ TAB: CARTE INTERACTIVE ═══════════════════ -->
@@ -658,7 +703,9 @@ var fmtC = function(v){ return new Intl.NumberFormat('fr-FR',{notation:'compact'
 // Track all chart instances for resize
 var _synthCharts = [];
 
-function initSynthCharts() {
+function initSynthCharts(mult, currLabel) {
+    mult = (mult != null) ? mult : (window.dashboardCurrencyMultiplier || 1);
+    currLabel = currLabel || window.dashboardCurrencyLabel || 'USD';
     // ── KPI Gauge (ECharts) ──
     var taux = {{ taux_decaissement_global }};
     var gaugeColor = taux < 30 ? '#DC2626' : taux < 60 ? '#F77F00' : '#009A44';
@@ -698,11 +745,11 @@ function initSynthCharts() {
         var c1 = echarts.init(el1);
         el1._ec = c1;
         c1.setOption({
-            tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(p){return p[0].name+'<br/>'+p[0].marker+' '+fmtN(p[0].value)+' USD';}},
+            tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(p){return p[0].name+'<br/>'+p[0].marker+' '+fmtN(p[0].value * mult)+' '+currLabel;}},
             grid:{left:10,right:60,top:10,bottom:10,containLabel:true},
-            xAxis:{type:'value',axisLabel:{formatter:function(v){return fmtC(v);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
+            xAxis:{type:'value',axisLabel:{formatter:function(v){return fmtC(v * mult);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
             yAxis:{type:'category',data:bData.map(function(b){return b.label;}),axisLabel:{fontSize:10,fontWeight:600,color:'#334155'}},
-            series:[{type:'bar',data:bData.map(function(b){return b.engage;}),barWidth:'60%',
+            series:[{type:'bar',data:bData.map(function(b){return b.engage * mult;}),barWidth:'60%',
                 itemStyle:{color:'#F77F00',borderRadius:[0,4,4,0]},
                 label:{show:true,position:'right',formatter:function(p){return fmtC(p.value);},fontSize:9,fontWeight:700,color:'#475569'}}],
             animationDuration:800,animationEasing:'cubicOut'
@@ -739,10 +786,11 @@ function initSynthCharts() {
         var c3 = echarts.init(el3);
         el3._ec = c3;
         c3.setOption({
-            tooltip:{formatter:function(p){return p.name+'<br/>'+fmtN(p.value)+' USD';}},
+            tooltip:{formatter:function(p){return p.name+'<br/>'+fmtN(p.value)+' '+currLabel;}},
             series:[{type:'treemap',roam:false,width:'100%',height:'100%',breadcrumb:{show:false},
                 label:{show:true,formatter:function(p){return p.name+'\n'+fmtC(p.value);},fontSize:10,fontWeight:700,color:'#fff'},
-                data:secEntries.map(function(e,i){return{name:e[0],value:Math.round(e[1]),itemStyle:{color:PALETTE[i%PALETTE.length]}};}),
+                data:secEntries.map(function(e,i){return{name:e[0],value:Math.round(e[1]*mult),itemStyle:{color:PALETTE[i%PALETTE.length]}};}),
+
                 animationDuration:600}]
         });
         _synthCharts.push(c3);
@@ -812,16 +860,21 @@ function dashboardApp() {
 
         init() {
             this.selectedBailleurs = new Set(this.allBailleurs.map(b => b.id));
-            // Listen for set-tab events dispatched from inner elements
+            window.dashboardAlpineApp = this;
             const self = this;
             window.addEventListener('set-tab', function(e) {
                 self.activeTab = e.detail;
                 if (e.detail === 'carte') self.$nextTick(() => self.initMap());
-                if (e.detail === 'analyses') self.$nextTick(() => self.renderAnalysis());
+                if (e.detail === 'builder') self.$nextTick(() => self.builderRenderAll());
             });
-            // Render top zones mini list
+            window.addEventListener('currencyChanged', function(e) {
+                initSynthCharts(e.detail.rate, e.detail.currency);
+                if (self.activeTab === 'builder') self.$nextTick(() => self.builderRenderAll());
+            });
             this._renderZonesList();
+            this.builderInit();
         },
+
 
         _renderZonesList() {
             var el = document.getElementById('zoneStatsList');
@@ -852,6 +905,446 @@ function dashboardApp() {
                     + '</div>';
             }).join('');
         },
+
+        // ─────────────────────────────────────────────────────
+        // DASHBOARD BUILDER
+        // ─────────────────────────────────────────────────────
+        builderPanels: [],
+        builderHistory: [],
+        builderHistoryIdx: -1,
+        builderSidebarOpen: true,
+        builderSearch: '',
+        builderSelectedVar: null,
+        builderNextId: 1,
+
+        _builderVars: [
+            {key:'statut',  label:'Statut des projets',      icon:'category',          typeLabel:'Catégorie', defaultChart:'donut'},
+            {key:'secteur', label:'Secteur d\'activité',     icon:'grid_view',         typeLabel:'Catégorie', defaultChart:'treemap'},
+            {key:'bailleur',label:'Bailleur',                icon:'account_balance',   typeLabel:'Catégorie', defaultChart:'hbar'},
+            {key:'zone',    label:'Zone géographique',       icon:'location_on',       typeLabel:'Catégorie', defaultChart:'bar'},
+            {key:'categorie',label:'Catégorie bailleur',     icon:'label',             typeLabel:'Catégorie', defaultChart:'pie'},
+            {key:'devise',  label:'Devise',                  icon:'currency_exchange', typeLabel:'Catégorie', defaultChart:'pie'},
+            {key:'count',   label:'Nombre de projets',       icon:'numbers',           typeLabel:'Comptage',  defaultChart:'kpi'},
+            {key:'montant', label:'Montant engagé',          icon:'paid',              typeLabel:'Numérique', defaultChart:'kpi'},
+            {key:'taux_dec',label:'Taux de décaissement',    icon:'percent',           typeLabel:'Numérique', defaultChart:'kpi'},
+            {key:'taux_avanc',label:'Taux d\'avancement',   icon:'trending_up',        typeLabel:'Numérique', defaultChart:'kpi'},
+        ],
+
+        get builderFilteredVars() {
+            if (!this.builderSearch) return this._builderVars;
+            const q = this.builderSearch.toLowerCase();
+            return this._builderVars.filter(v => v.label.toLowerCase().includes(q));
+        },
+        get builderCatVars() {
+            return this._builderVars.filter(v => v.typeLabel === 'Catégorie');
+        },
+        get builderGridCols() {
+            const n = this.builderPanels.length;
+            if (n <= 1) return 1;
+            if (n === 2) return 2;
+            if (n === 3) return 3;
+            return 4;
+        },
+
+        builderInit() {
+            const saved = localStorage.getItem('dbBuilderPanels');
+            if (saved) {
+                try {
+                    this.builderPanels = JSON.parse(saved);
+                    this.builderNextId = Math.max(0, ...this.builderPanels.map(p=>p.id)) + 1;
+                } catch(e) { this.builderPanels = []; }
+            } else {
+                this.builderPanels = [
+                    {id:1, title:'Statut des projets',  varX:'statut',  measure:'count',   chartType:'donut',   colSpan:1, height:260},
+                    {id:2, title:'Montants par secteur', varX:'secteur', measure:'montant', chartType:'treemap', colSpan:2, height:260},
+                    {id:3, title:'Top bailleurs',        varX:'bailleur',measure:'montant', chartType:'hbar',    colSpan:1, height:260},
+                ];
+                this.builderNextId = 4;
+            }
+            this.builderPushHistory();
+        },
+
+        builderPushHistory() {
+            this.builderHistory = this.builderHistory.slice(0, this.builderHistoryIdx + 1);
+            this.builderHistory.push(JSON.stringify(this.builderPanels));
+            this.builderHistoryIdx = this.builderHistory.length - 1;
+        },
+        builderSave() { localStorage.setItem('dbBuilderPanels', JSON.stringify(this.builderPanels)); },
+        builderUndo() {
+            if (this.builderHistoryIdx <= 0) return;
+            this.builderHistoryIdx--;
+            this.builderPanels = JSON.parse(this.builderHistory[this.builderHistoryIdx]);
+            this.builderSave();
+            this.$nextTick(() => this.builderRenderAll());
+        },
+        builderRedo() {
+            if (this.builderHistoryIdx >= this.builderHistory.length - 1) return;
+            this.builderHistoryIdx++;
+            this.builderPanels = JSON.parse(this.builderHistory[this.builderHistoryIdx]);
+            this.builderSave();
+            this.$nextTick(() => this.builderRenderAll());
+        },
+
+        builderAddPanel(varKey) {
+            const v = this._builderVars.find(x => x.key === varKey);
+            if (!v) return;
+            const isCat = v.typeLabel === 'Catégorie';
+            const panel = {
+                id: this.builderNextId++,
+                title: v.label,
+                varX: isCat ? varKey : 'statut',
+                measure: (!isCat && varKey !== 'count') ? varKey : (varKey === 'count' ? 'count' : 'count'),
+                chartType: v.defaultChart,
+                colSpan: v.defaultChart === 'treemap' || v.defaultChart === 'hbar' ? 2 : 1,
+            };
+            if (varKey === 'montant') { panel.varX = 'bailleur'; panel.measure = 'montant'; }
+            if (varKey === 'taux_dec') { panel.varX = 'statut'; panel.measure = 'taux_dec'; }
+            if (varKey === 'taux_avanc') { panel.varX = 'statut'; panel.measure = 'taux_avanc'; }
+            panel.height = 260;
+            this.builderPanels.push(panel);
+            this.builderPushHistory();
+            this.builderSave();
+            this.$nextTick(() => this.builderRenderPanel(panel));
+        },
+
+        builderRemovePanel(id) {
+            this.builderPanels = this.builderPanels.filter(p => p.id !== id);
+            this.builderPushHistory();
+            this.builderSave();
+        },
+        builderReset() {
+            this.builderPanels = [];
+            this.builderNextId = 1;
+            this.builderPushHistory();
+            this.builderSave();
+        },
+        builderCycleSpan(panel) {
+            panel.colSpan = ((panel.colSpan || 1) % 4) + 1;
+            this.builderPushHistory();
+            this.builderSave();
+            this.$nextTick(() => this.builderRenderPanel(panel));
+        },
+        builderCycleHeight(panel) {
+            const heights = [180, 260, 380, 500];
+            const idx = heights.indexOf(panel.height || 260);
+            panel.height = heights[(idx + 1) % heights.length];
+            this.builderSave();
+            this.$nextTick(() => this.builderRenderPanel(panel));
+        },
+        builderHeightLabel(h) {
+            return {180:'S', 260:'M', 380:'L', 500:'XL'}[h || 260] || 'M';
+        },
+        builderDownloadPanel(id) {
+            const panel = this.builderPanels.find(p => p.id === id);
+            if (!panel) return;
+            const el = document.getElementById('bChart_' + id);
+            if (!el) return;
+            const name = (panel.title || 'cadran').replace(/[^a-zA-Z0-9_-]/g, '_');
+            // Table → Excel
+            if (panel.chartType === 'table') { this.builderExportData(id); return; }
+            // ECharts → high-res PNG (pixelRatio 3)
+            if (el._ec) {
+                try {
+                    const url = el._ec.getDataURL({ type: 'png', pixelRatio: 3, backgroundColor: '#fff' });
+                    const a = document.createElement('a'); a.href = url; a.download = name + '.png'; a.click();
+                    return;
+                } catch(e) {}
+            }
+            // KPI / map → html2canvas on chart container ONLY (not panel header)
+            if (typeof html2canvas !== 'undefined') {
+                html2canvas(el, { backgroundColor: '#fff', scale: 3, useCORS: true, allowTaint: true })
+                    .then(canvas => { const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = name + '.png'; a.click(); })
+                    .catch(e => alert('Erreur export : ' + e.message));
+            } else { alert('Export non disponible'); }
+        },
+        builderExportData(id) {
+            if (typeof XLSX === 'undefined') { alert('Export Excel non disponible'); return; }
+            const panel = this.builderPanels.find(p => p.id === id);
+            if (!panel) return;
+            const cached = this._panelData && this._panelData[id];
+            if (!cached) { alert('Données non disponibles — rechargez le cadran.'); return; }
+            const name = (panel.title || 'données').replace(/[^a-zA-Z0-9_-]/g, '_');
+            const wb = XLSX.utils.book_new();
+            const wsData = [cached.header, ...cached.rows];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            // Auto column widths
+            const colWidths = cached.header.map((h, ci) => ({
+                wch: Math.max(h.length, ...cached.rows.map(r => String(r[ci] ?? '').length)) + 2
+            }));
+            ws['!cols'] = colWidths;
+            XLSX.utils.book_append_sheet(wb, ws, (panel.title || 'Données').substring(0, 31));
+            XLSX.writeFile(wb, name + '.xlsx');
+        },
+
+        builderRenderAll() {
+            this.builderPanels.forEach(p => this.builderRenderPanel(p));
+        },
+
+        builderRenderPanel(panel) {
+            const el = document.getElementById('bChart_' + panel.id);
+            if (!el) return;
+
+            // Apply height
+            const panelH = panel.height || 260;
+            el.style.height = panelH + 'px';
+
+            const mult = window.dashboardCurrencyMultiplier || 1;
+            const currL = window.dashboardCurrencyLabel || 'USD';
+            const P = PALETTE;
+            const data = this.allProjets;
+            const isMoney = panel.measure === 'montant';
+            const isPct = panel.measure === 'taux_dec' || panel.measure === 'taux_avanc';
+
+            // Dispose previous chart instances
+            if (el._ec) { try { el._ec.dispose(); el._ec = null; } catch(e) {} }
+            if (!this._miniMaps) this._miniMaps = {};
+            if (this._miniMaps[panel.id]) { try { this._miniMaps[panel.id].remove(); } catch(e) {} delete this._miniMaps[panel.id]; }
+
+            // Aggregation — returns raw USD for montant, no mult
+            const agg = items => {
+                if (!items || !items.length) return 0;
+                if (panel.measure === 'count') return items.length;
+                if (panel.measure === 'montant') return items.reduce((s, p) => s + (p.montant || 0), 0);
+                if (panel.measure === 'taux_dec') return items.reduce((s, p) => s + (p.taux_decaissement || 0), 0) / items.length;
+                if (panel.measure === 'taux_avanc') return items.reduce((s, p) => s + (p.taux_avancement || 0), 0) / items.length;
+                return items.length;
+            };
+            // Format for display — applies mult for money
+            const fmt = v => {
+                if (isMoney) {
+                    const a = v * mult;
+                    if (a >= 1e9) return (a/1e9).toFixed(1) + ' Md ' + currL;
+                    if (a >= 1e6) return (a/1e6).toFixed(1) + ' M ' + currL;
+                    if (a >= 1e3) return Math.round(a/1e3) + 'k ' + currL;
+                    return Math.round(a).toLocaleString('fr-FR') + ' ' + currL;
+                }
+                return isPct ? v.toFixed(1) + '%' : fmtN(v);
+            };
+
+            // KPI
+            if (panel.chartType === 'kpi') {
+                const total = agg(data);
+                let display, sub;
+                if (panel.measure === 'count')      { display = total.toLocaleString('fr-FR'); sub = 'projets'; }
+                else if (panel.measure === 'montant') { display = fmt(total); sub = currL; }
+                else                                  { display = total.toFixed(1) + '%'; sub = panel.measure === 'taux_dec' ? 'décaissement moyen' : 'avancement moyen'; }
+                el.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:6px;">'
+                    + '<span style="font-size:2.5rem;font-weight:900;color:#F77F00;font-family:Inter,sans-serif;line-height:1">' + display + '</span>'
+                    + '<span style="font-size:0.6875rem;color:#64748B;font-weight:600;text-align:center">' + sub + '</span>'
+                    + '</div>';
+                this._panelData = this._panelData || {};
+                this._panelData[panel.id] = { header: ['Indicateur', 'Valeur'], rows: [[panel.title || panel.measure, total]] };
+                return;
+            }
+
+            // Group data by dimension
+            const groups = {};
+            data.forEach(p => {
+                let k;
+                switch (panel.varX) {
+                    case 'statut':    k = p.statut || 'N/A'; break;
+                    case 'secteur':   k = p.secteur || 'N/A'; break;
+                    case 'bailleur':  k = p.bailleur || 'N/A'; break;
+                    case 'zone':      k = p.zone || 'Non précisé'; break;
+                    case 'categorie': k = p.bailleur_categorie || 'N/A'; break;
+                    case 'devise':    k = p.devise || 'USD'; break;
+                    default:          k = p.statut || 'N/A';
+                }
+                if (!groups[k]) groups[k] = [];
+                groups[k].push(p);
+            });
+            const entries = Object.entries(groups)
+                .map(([k, v]) => ({ name: k, value: Math.round(agg(v) * 100) / 100 }))
+                .sort((a, b) => b.value - a.value).slice(0, 15);
+            const labels = entries.map(e => e.name), values = entries.map(e => e.value);
+
+            // Cache aggregated data for Excel export
+            const _vLabel = {statut:'Statut',secteur:'Secteur',bailleur:'Bailleur',zone:'Zone',categorie:'Catégorie',devise:'Devise'}[panel.varX] || panel.varX;
+            const _mLabel = {count:'Nb projets',montant:'Montant ('+currL+')',taux_dec:'Tx décaiss. (%)',taux_avanc:'Tx avanc. (%)'}[panel.measure] || panel.measure;
+            const _totalEV = entries.reduce((s, e) => s + e.value, 0);
+            this._panelData = this._panelData || {};
+            this._panelData[panel.id] = {
+                header: [_vLabel, _mLabel, '% du total'],
+                rows: entries.map(e => [e.name, isMoney ? +(e.value * mult).toFixed(2) : +e.value.toFixed(2), _totalEV ? +(e.value/_totalEV*100).toFixed(1) : 0])
+            };
+
+            // TABLE
+            if (panel.chartType === 'table') {
+                const varName = {statut:'Statut',secteur:'Secteur',bailleur:'Bailleur',zone:'Zone',categorie:'Catégorie',devise:'Devise'}[panel.varX] || panel.varX;
+                const mName  = {count:'Nb projets',montant:'Montant',taux_dec:'Tx décaiss.',taux_avanc:'Tx avanc.'}[panel.measure] || panel.measure;
+                const totalV = values.reduce((s, v) => s + v, 0);
+                el.innerHTML = '<div class="builder-table-wrap"><table><thead><tr>'
+                    + '<th>#</th><th>' + varName + '</th><th style="text-align:right">' + mName + '</th>'
+                    + (totalV ? '<th style="text-align:right">%</th>' : '') + '</tr></thead><tbody>'
+                    + entries.map((r, i) => '<tr><td style="color:#94A3B8">' + (i+1) + '</td><td>' + r.name + '</td>'
+                        + '<td style="text-align:right;font-weight:700">' + fmt(r.value) + '</td>'
+                        + (totalV ? '<td style="text-align:right;color:#94A3B8">' + (r.value/totalV*100).toFixed(1) + '%</td>' : '')
+                        + '</tr>').join('')
+                    + '</tbody></table></div>';
+                return;
+            }
+
+            // MAP (zone variable) — use NomReg + _zoneToRegion like updateMap()
+            if (panel.chartType === 'map') {
+                el.innerHTML = '';
+                const mapDiv = document.createElement('div');
+                mapDiv.style.cssText = 'width:100%;height:100%;';
+                el.appendChild(mapDiv);
+                const self = this;
+                const ztr = this._zoneToRegion;
+                // Aggregate by NomReg key (same logic as updateMap)
+                const byReg = {};
+                data.forEach(p => {
+                    const zone = p.zone || 'Non précisé';
+                    const reg = ztr.hasOwnProperty(zone) ? ztr[zone] : zone.toUpperCase();
+                    if (!reg) return;
+                    if (!byReg[reg]) byReg[reg] = [];
+                    byReg[reg].push(p);
+                });
+                const regAggVals = Object.values(byReg).map(items => agg(items));
+                const maxRegVal = regAggVals.length ? Math.max(...regAggVals) : 1;
+                const miniMap = L.map(mapDiv, {
+                    scrollWheelZoom: false, zoomControl: true, attributionControl: false,
+                    preferCanvas: true, minZoom: 5, maxZoom: 11
+                }).setView([7.54, -5.55], 6);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+                    maxZoom: 18, subdomains: 'abcd'
+                }).addTo(miniMap);
+                this._miniMaps[panel.id] = miniMap;
+                const renderGeo = geoData => {
+                    if (miniMap._gl) { try { miniMap.removeLayer(miniMap._gl); } catch(e) {} }
+                    miniMap._gl = L.geoJSON(geoData, {
+                        style: feat => {
+                            const rn = feat.properties.NomReg || '';
+                            const val = agg(byReg[rn] || []);
+                            const ratio = maxRegVal > 0 ? val / maxRegVal : 0;
+                            return { fillColor: self._choroplethColor(ratio), fillOpacity: 0.8, weight: 1, color: '#fff' };
+                        },
+                        onEachFeature: (feat, layer) => {
+                            const rn = feat.properties.NomReg || '';
+                            const val = agg(byReg[rn] || []);
+                            layer.bindTooltip('<strong>' + rn + '</strong><br>' + fmt(val), { sticky: true });
+                        }
+                    }).addTo(miniMap);
+                    try { miniMap.fitBounds(L.geoJSON(geoData).getBounds().pad(0.02)); } catch(e) {}
+                    setTimeout(() => { try { miniMap.invalidateSize(); } catch(e) {} }, 180);
+                };
+                if (this._geojsonData) { renderGeo(this._geojsonData); }
+                else {
+                    fetch('{% url "dashboard:regions_geojson" %}')
+                        .then(r => r.json())
+                        .then(d => { self._geojsonData = d; renderGeo(d); })
+                        .catch(() => { el.innerHTML = '<div style="padding:24px;text-align:center;color:#94A3B8;font-size:11px">Carte non disponible</div>'; });
+                }
+                return;
+            }
+
+            // GAUGE
+            if (panel.chartType === 'gauge') {
+                const totalVal = agg(data);
+                const maxGauge = isPct ? 100 : isMoney ? Math.max(totalVal * 1.5, 1) : Math.max(totalVal * 1.2, 10);
+                const chart = echarts.init(el); el._ec = chart;
+                chart.setOption({ series: [{ type: 'gauge', min: 0, max: Math.round(maxGauge * 100)/100,
+                    data: [{ value: Math.round(totalVal * 100)/100, name: panel.title }],
+                    radius: '85%', center: ['50%', '55%'],
+                    axisLabel: { formatter: v => isPct ? v+'%' : fmtC(v), fontSize: 9, color: '#94A3B8' },
+                    detail: { formatter: v => fmt(v), fontSize: 18, fontWeight: 800, color: '#F77F00', offsetCenter: [0, '72%'] },
+                    pointer: { itemStyle: { color: '#F77F00' } },
+                    progress: { show: true, width: 10, itemStyle: { color: '#F77F00' } },
+                    axisTick: { distance: -8, length: 4 }, splitLine: { distance: -12, length: 8 } }] });
+                window.addEventListener('resize', () => { try { chart.resize(); } catch(e) {} });
+                return;
+            }
+
+            // SCATTER — individual projects: avancement vs décaissement
+            if (panel.chartType === 'scatter') {
+                const chart = echarts.init(el); el._ec = chart;
+                chart.setOption({
+                    tooltip: { formatter: p => '<strong>' + (p.data.n||'') + '</strong><br>Avanc: ' + p.data.value[0] + '%<br>Décaiss: ' + p.data.value[1] + '%' },
+                    grid: { left: 32, right: 8, top: 10, bottom: 28, containLabel: true },
+                    xAxis: { type: 'value', name: 'Avanc. %', nameTextStyle:{fontSize:8}, axisLabel:{fontSize:8}, min:0, max:100 },
+                    yAxis: { type: 'value', name: 'Décaiss. %', nameTextStyle:{fontSize:8}, axisLabel:{fontSize:8}, min:0, max:100 },
+                    series: [{ type: 'scatter', symbolSize: 6,
+                        data: data.map(p => ({ n: p.titre || p.code || '', value: [p.taux_avancement||0, p.taux_decaissement||0] })),
+                        itemStyle: { color: 'rgba(247,127,0,0.65)', borderColor: '#F77F00', borderWidth: 1 } }]
+                });
+                this._panelData = this._panelData || {};
+                this._panelData[panel.id] = {
+                    header: ['Code/Titre', 'Avanc. (%)', 'Décaiss. (%)'],
+                    rows: data.map(p => [p.titre || p.code || '', +(p.taux_avancement||0).toFixed(1), +(p.taux_decaissement||0).toFixed(1)])
+                };
+                window.addEventListener('resize', () => { try { chart.resize(); } catch(e) {} });
+                return;
+            }
+
+            // All other ECharts types
+            if (!data.length) return;
+            const chart = echarts.init(el); el._ec = chart;
+            const ct = panel.chartType;
+            const baseGrid = { left: 8, right: 8, top: 8, bottom: 35, containLabel: true };
+            const xCat = { type:'category', data:labels, axisLabel:{ rotate:labels.length>6?40:0, fontSize:9, fontWeight:600, color:'#334155' } };
+            const yVal = { type:'value', axisLabel:{ formatter:v=>isPct?v+'%':fmtC(v), fontSize:9 }, splitLine:{ lineStyle:{ color:'#F1F5F9' } } };
+            let opt = {};
+
+            if (ct === 'pie' || ct === 'donut') {
+                opt = { tooltip:{ trigger:'item', formatter:p=>p.name+': '+fmt(p.value)+' ('+p.percent.toFixed(1)+'%)' },
+                    legend:{ bottom:0, type:'scroll', textStyle:{ fontSize:9 } },
+                    series:[{ type:'pie', radius:ct==='donut'?['40%','70%']:'70%', center:['50%','42%'],
+                        data:entries.map((e,i)=>({ value:e.value, name:e.name, itemStyle:{ color:P[i%P.length] } })),
+                        label:{ show:labels.length<=5, fontSize:9 }, emphasis:{ label:{ show:true, fontSize:11, fontWeight:700 } },
+                        animationType:'scale', animationDuration:500 }] };
+            } else if (ct === 'treemap') {
+                opt = { tooltip:{ formatter:p=>p.name+'<br/>'+fmt(p.value) },
+                    series:[{ type:'treemap', roam:false, breadcrumb:{ show:false }, width:'100%', height:'100%',
+                        label:{ show:true, formatter:p=>p.name+'\n'+fmt(p.value), fontSize:10, fontWeight:700, color:'#fff' },
+                        data:entries.map((e,i)=>({ name:e.name, value:e.value, itemStyle:{ color:P[i%P.length] } })) }] };
+            } else if (ct === 'radar') {
+                const mx = Math.max(...values)*1.1||1;
+                opt = { tooltip:{},
+                    radar:{ indicator:labels.map(l=>({ name:l.length>10?l.substring(0,9)+'…':l, max:mx })), radius:'60%' },
+                    series:[{ type:'radar', data:[{ value:values, name:panel.title, areaStyle:{ opacity:0.15 } }],
+                        itemStyle:{ color:'#F77F00' }, lineStyle:{ width:2 } }] };
+            } else if (ct === 'hbar') {
+                const hl=[...labels].reverse(), hv=[...values].reverse();
+                opt = { tooltip:{ trigger:'axis', axisPointer:{ type:'shadow' }, formatter:p=>p[0].name+': '+fmt(p[0].value) },
+                    grid:{ left:10, right:55, top:8, bottom:8, containLabel:true },
+                    xAxis:{ type:'value', axisLabel:{ formatter:v=>isPct?v+'%':fmtC(v), fontSize:9 }, splitLine:{ lineStyle:{ color:'#F1F5F9' } } },
+                    yAxis:{ type:'category', data:hl, axisLabel:{ fontSize:9, fontWeight:600, color:'#334155' } },
+                    series:[{ type:'bar', data:hv.map((v,i)=>({ value:v, itemStyle:{ color:P[i%P.length], borderRadius:[0,4,4,0] } })),
+                        barWidth:'60%', label:{ show:true, position:'right', formatter:p=>fmt(p.value), fontSize:9, fontWeight:700, color:'#475569' } }], animationDuration:500 };
+            } else if (ct === 'line' || ct === 'area') {
+                opt = { tooltip:{ trigger:'axis', formatter:p=>p[0].name+': '+fmt(p[0].value) },
+                    grid:baseGrid, xAxis:xCat, yAxis:yVal,
+                    series:[{ type:'line', data:values, smooth:true, symbol:'circle', symbolSize:5,
+                        itemStyle:{ color:'#F77F00' }, lineStyle:{ width:2.5, color:'#F77F00' },
+                        ...(ct==='area'?{ areaStyle:{ color:{ type:'linear',x:0,y:0,x2:0,y2:1,
+                            colorStops:[{offset:0,color:'rgba(247,127,0,0.28)'},{offset:1,color:'rgba(247,127,0,0.02)'}] } } }:{}) }] };
+            } else if (ct === 'funnel') {
+                opt = { tooltip:{ formatter:p=>p.name+': '+fmt(p.value) },
+                    legend:{ bottom:0, type:'scroll', textStyle:{ fontSize:9 } },
+                    series:[{ type:'funnel', left:'5%', top:5, bottom:40, width:'90%',
+                        data:entries.slice(0,8).map((e,i)=>({ name:e.name, value:e.value, itemStyle:{ color:P[i%P.length] } })),
+                        label:{ fontSize:9, position:'inside', formatter:p=>p.name+'\n'+fmt(p.value) } }] };
+            } else {
+                // default: bar
+                opt = { tooltip:{ trigger:'axis', axisPointer:{ type:'shadow' }, formatter:p=>p[0].name+': '+fmt(p[0].value) },
+                    grid:baseGrid, xAxis:xCat, yAxis:yVal,
+                    series:[{ type:'bar', data:values.map((v,i)=>({ value:v, itemStyle:{ color:P[i%P.length], borderRadius:[4,4,0,0] } })),
+                        barWidth:'55%', label:{ show:labels.length<=10, position:'top', formatter:p=>fmt(p.value), fontSize:9, fontWeight:700, color:'#475569' } }], animationDuration:500 };
+            }
+            chart.setOption(opt);
+            window.addEventListener('resize', () => { try { chart.resize(); } catch(e) {} });
+        },
+
+        async builderExport() {
+            const grid = document.getElementById('builder-grid');
+            if (!grid || typeof html2canvas === 'undefined') { alert('Export non disponible'); return; }
+            try {
+                const canvas = await html2canvas(grid, {backgroundColor:'#F8FAFC', scale:2});
+                const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'mon-dashboard.png'; a.click();
+            } catch(e) { alert('Erreur export: '+e.message); }
+        },
+        // ─────────────────────────────────────────────────────
 
         onAnalysisTypeChange() {
             const allowed = this.allowedChartTypes;
@@ -888,7 +1381,7 @@ function dashboardApp() {
         },
         countBailleursByCat(cat) { return this.allBailleurs.filter(b => b.categorie_institutionnelle === cat).length; },
 
-        measureLabel() { return {count:'Nombre de projets',montant:'Montant (USD)',taux_dec:'Taux décaissement moyen',taux_avanc:'Taux avancement moyen'}[this.measure]||''; },
+        measureLabel() { const c = window.dashboardCurrencyLabel||'USD'; return {count:'Nombre de projets',montant:'Montant ('+c+')',taux_dec:'Taux décaissement moyen',taux_avanc:'Taux avancement moyen'}[this.measure]||''; },
         varLabel(v) { return {bailleur:'Bailleur',secteur:'Secteur',statut:'Statut',zone:'Zone',categorie:'Catégorie',devise:'Devise'}[v]||v; },
 
         downloadChart() {
@@ -898,11 +1391,10 @@ function dashboardApp() {
             }
         },
 
-        // ── Advanced analysis with ECharts ──
+        // ── Advanced analysis with ECharts (kept for internal use) ──
         renderAnalysis() {
-            if (this.activeTab !== 'analyses') return;
             const el = document.getElementById('analysisChart');
-            if (!el) { setTimeout(() => this.renderAnalysis(), 200); return; }
+            if (!el) return;
             if (el.offsetWidth === 0) { setTimeout(() => this.renderAnalysis(), 200); return; }
 
             try {
@@ -923,16 +1415,18 @@ function dashboardApp() {
                     if (v === 'devise') return p.devise || 'USD';
                     return 'N/A';
                 };
+                const currM = window.dashboardCurrencyMultiplier || 1;
+                const currL = window.dashboardCurrencyLabel || 'USD';
                 const agg = (items) => {
                     if (!items || !items.length) return 0;
                     if (self.measure === 'count') return items.length;
-                    if (self.measure === 'montant') return items.reduce((s,p) => s + (p.montant||0), 0);
+                    if (self.measure === 'montant') return items.reduce((s,p) => s + (p.montant||0), 0) * currM;
                     if (self.measure === 'taux_dec') return items.reduce((s,p) => s + (p.taux_decaissement||0), 0) / items.length;
                     if (self.measure === 'taux_avanc') return items.reduce((s,p) => s + (p.taux_avancement||0), 0) / items.length;
                     return items.length;
                 };
                 const r2 = (v) => Math.round(v * 100) / 100;
-                const fmtTV = (v) => { if (self.measure==='montant') return fmtN(v)+' USD'; if (isPct) return v.toFixed(1)+'%'; return fmtN(v); };
+                const fmtTV = (v) => { if (self.measure==='montant') return fmtN(v)+' '+currL; if (isPct) return v.toFixed(1)+'%'; return fmtN(v); };
                 const trunc = (s, n) => typeof s==='string' && s.length > n ? s.substring(0, n-1)+'…' : s;
 
                 let option = {};
