@@ -8,7 +8,7 @@ class UserProfile(models.Model):
     ROLE_CHOICES = [
         ('superadmin', 'Super Administrateur'),
         ('directeur', 'Directeur / Haute fonction'),
-        ('point_focal', 'Point Focal Bailleur'),
+        ('point_focal', 'Point Focal'),
         ('lecteur', 'Lecteur (consultation seule)'),
     ]
 
@@ -20,7 +20,7 @@ class UserProfile(models.Model):
         ('conseiller', 'Conseiller Technique'),
         ('dg', 'Directeur Général'),
         ('charge_etudes', "Chargé d'Etudes"),
-        ('point_focal', 'Point Focal Bailleur'),
+        ('point_focal', 'Point Focal'),
         ('autre', 'Autre'),
     ]
 

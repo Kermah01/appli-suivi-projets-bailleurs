@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% load humanize projets_tags %}
+
+{% block title %}Tableau de bord — Cabinet du Ministre{% endblock %}
+{% block page_title %}Tableau de bord — Cabinet du Ministre{% endblock %}
+{% block page_subtitle %}Vue synthétique de décision stratégique{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+{% endblock %}
+
+{% block content %}
+
+{# ───────────── Bannières d'alertes stratégiques (top de page) ───────────── #}
+{% if alertes_retard or alertes_decaissement %}
+<div class="space-y-3 mb-6 animate-in">
+    {% if alertes_retard %}
+    <div class="card border-red-300 overflow-hidden">
+        <div class="h-1.5 bg-red-500"></div>
+        <div class="p-5">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-red-600">priority_high</span>
+                </div>
+                <div>
+                    <h3 class="text-[0.9375rem] font-black text-red-700">Projets en retard nécessitant un arbitrage</h3>
+                    <p class="text-[0.75rem] text-red-500 font-medium">{{ alertes_retard|length }} projet{{ alertes_retard|length|pluralize }} en retard critique</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {% for p in alertes_retard %}
+                <a href="{% url 'projets:detail' p.pk %}" class="flex items-center justify-between p-3 rounded-xl bg-red-50 hover:bg-red-100 transition-colors border border-red-100">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[0.8125rem] font-bold text-ci-dark-800 truncate">{{ p.code }} — {{ p.titre|truncatechars:50 }}</p>
+                        <p class="text-[0.6875rem] text-red-600 font-semibold">{{ p.jours_retard }} j de retard · {% if p.bailleur_principal %}{{ p.bailleur_principal.sigle|default:p.bailleur_principal.nom }}{% endif %}</p>
+                    </div>
+                    <span class="material-symbols-outlined text-red-400 text-[18px]">chevron_right</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if alertes_decaissement %}
+    <div class="card border-amber-300 overflow-hidden">
+        <div class="h-1.5 bg-amber-500"></div>
+        <div class="p-5">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-amber-600">trending_down</span>
+                </div>
+                <div>
+                    <h3 class="text-[0.9375rem] font-black text-amber-700">Projets à faible décaissement (&lt; 20 %)</h3>
+                    <p class="text-[0.75rem] text-amber-500 font-medium">{{ alertes_decaissement|length }} projet{{ alertes_decaissement|length|pluralize }} signalé{{ alertes_decaissement|length|pluralize }} par les cellules techniques</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {% for p in alertes_decaissement %}
+                <a href="{% url 'projets:detail' p.pk %}" class="flex items-center justify-between p-3 rounded-xl bg-amber-50 hover:bg-amber-100 transition-colors border border-amber-100">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[0.8125rem] font-bold text-ci-dark-800 truncate">{{ p.code }} — {{ p.titre|truncatechars:50 }}</p>
+                        <p class="text-[0.6875rem] text-amber-600 font-semibold">Taux: {{ p.taux_decaissement }}%</p>
+                    </div>
+                    <span class="material-symbols-outlined text-amber-400 text-[18px]">chevron_right</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+{# ───────────── Boutons d'export 1 clic ───────────── #}
+<div class="flex items-center justify-end gap-2 mb-5 flex-wrap">
+    <a href="{% url 'dashboard:exporter_kpi' %}" class="btn btn-primary btn-sm">
+        <span class="material-symbols-outlined text-[16px]">download</span> Exporter KPI (Excel)
+    </a>
+    <a href="{% url 'projets:exporter' %}" class="btn btn-outline btn-sm">
+        <span class="material-symbols-outlined text-[16px]">list_alt</span> Liste des projets
+    </a>
+    <a href="{% url 'projets:exporter_retards' %}" class="btn btn-outline btn-sm text-red-600 border-red-200 hover:bg-red-50">
+        <span class="material-symbols-outlined text-[16px]">warning</span> Rapport retards
+    </a>
+    <a href="{% url 'assistant:index' %}" class="btn btn-outline btn-sm">
+        <span class="material-symbols-outlined text-[16px]">psychology</span> Assistant IA
+    </a>
+</div>
+
+{# ───────────── 8 KPIs en grand format ───────────── #}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="stat-card animate-in">
+        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
+            <span class="material-symbols-outlined text-blue-500 text-[22px]">folder_open</span>
+        </div>
+        <p class="text-[0.6875rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Projets actifs</p>
+        <p class="text-[2.25rem] font-black text-ci-dark-900 leading-none">{{ projets_actifs|intcomma }}</p>
+        <p class="text-[0.6875rem] text-ci-dark-400 mt-1">/ {{ total_projets|intcomma }} au total</p>
+    </div>
+    <div class="stat-card animate-in stagger-2">
+        <div class="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-3">
+            <span class="material-symbols-outlined text-red-500 text-[22px]">warning</span>
+        </div>
+        <p class="text-[0.6875rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Projets en retard</p>
+        <p class="text-[2.25rem] font-black {% if projets_en_retard > 0 %}text-red-500{% else %}text-ci-green-500{% endif %} leading-none">{{ projets_en_retard|intcomma }}</p>
+        <p class="text-[0.6875rem] text-ci-dark-400 mt-1">Nécessite un arbitrage</p>
+    </div>
+    <div class="stat-card animate-in stagger-3">
+        <div class="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center mb-3">
+            <span class="material-symbols-outlined text-purple-500 text-[22px]">account_balance</span>
+        </div>
+        <p class="text-[0.6875rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Bailleurs actifs</p>
+        <p class="text-[2.25rem] font-black text-ci-dark-900 leading-none">{{ total_bailleurs|intcomma }}</p>
+        <p class="text-[0.6875rem] text-ci-dark-400 mt-1">PTF du portefeuille</p>
+    </div>
+    <div class="stat-card animate-in stagger-4">
+        <div class="w-12 h-12 rounded-xl bg-ci-green-50 flex items-center justify-center mb-3">
+            <span class="material-symbols-outlined text-ci-green-500 text-[22px]">speed</span>
+        </div>
+        <p class="text-[0.6875rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Taux de décaissement</p>
+        <p class="text-[2.25rem] font-black {% if taux_decaissement < 30 %}text-red-500{% elif taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %} leading-none">{{ taux_decaissement }}%</p>
+        <p class="text-[0.6875rem] text-ci-dark-400 mt-1">Décaissé / engagé</p>
+    </div>
+    <div class="stat-card animate-in stagger-2">
+        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
+            <span class="material-symbols-outlined text-blue-500 text-[22px]">request_quote</span>
+        </div>
+        <p class="text-[0.6875rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant engagé (FCFA)</p>
+        <p class="text-[1.5rem] font-black text-ci-dark-900 leading-none">{{ total_engage|fmt_fcfa }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-3">
+        <div class="w-12 h-12 rounded-xl bg-ci-green-50 flex items-center justify-center mb-3">
+            <span class="material-symbols-outlined text-ci-green-500 text-[22px]">payments</span>
+        </div>
+        <p class="text-[0.6875rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant décaissé (FCFA)</p>
+        <p class="text-[1.5rem] font-black text-ci-dark-900 leading-none">{{ total_decaisse|fmt_fcfa }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-4">
+        <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center mb-3">
+            <span class="material-symbols-outlined text-amber-500 text-[22px]">hourglass_top</span>
+        </div>
+        <p class="text-[0.6875rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Reste à décaisser</p>
+        <p class="text-[1.5rem] font-black text-amber-600 leading-none">{{ pipeline|fmt_fcfa }}</p>
+        <p class="text-[0.6875rem] text-ci-dark-400 mt-1">Engagé non encore décaissé</p>
+    </div>
+    <div class="stat-card animate-in">
+        <div class="w-12 h-12 rounded-xl bg-ci-orange-50 flex items-center justify-center mb-3">
+            <span class="material-symbols-outlined text-ci-orange-500 text-[22px]">savings</span>
+        </div>
+        <p class="text-[0.6875rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant total des projets</p>
+        <p class="text-[1.5rem] font-black text-ci-dark-900 leading-none">{{ total_engage|fmt_fcfa }}</p>
+        <p class="text-[0.6875rem] text-ci-dark-400 mt-1">Couverture portefeuille</p>
+    </div>
+</div>
+
+{# ───────────── Graphiques simples ───────────── #}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+    <div class="card animate-in">
+        <div class="card-header flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">pie_chart</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition sectorielle</h3>
+        </div>
+        <div class="p-5"><div id="secteurChart" style="width:100%;height:280px;"></div></div>
+    </div>
+    <div class="card animate-in stagger-2">
+        <div class="card-header flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-green-500 text-[16px]">trending_up</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Évolution des décaissements (12 mois)</h3>
+        </div>
+        <div class="p-5"><div id="evolChart" style="width:100%;height:280px;"></div></div>
+    </div>
+</div>
+
+{# ───────────── Top 5 bailleurs ───────────── #}
+<div class="card mb-5 animate-in">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-purple-500 text-[16px]">leaderboard</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Top 5 bailleurs par engagement</h3>
+    </div>
+    <div class="p-5">
+        <div class="space-y-3">
+            {% for b in top_bailleurs %}
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[0.8125rem] font-bold text-ci-dark-800">{{ forloop.counter }}. {{ b.sigle }}</span>
+                    <span class="text-[0.8125rem] font-black text-purple-600">{{ b.engage|fmt_fcfa }}</span>
+                </div>
+                <div class="w-full bg-ci-dark-100 rounded-full h-2.5">
+                    <div class="h-2.5 rounded-full bg-purple-500 transition-all duration-700" style="width: {{ b.taux }}%;"></div>
+                </div>
+                <div class="flex items-center justify-between mt-0.5 text-[0.625rem] text-ci-dark-400">
+                    <span>{{ b.nom|truncatechars:60 }}</span>
+                    <span>Décaissé: {{ b.taux }}%</span>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-[0.8125rem] text-ci-dark-300 italic text-center py-6">Aucune donnée bailleur.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{# ───────────── Carte (nombre de projets par région) ───────────── #}
+<div class="card animate-in">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">map</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Couverture territoriale</h3>
+        <span class="badge badge-blue text-[0.5625rem]">Nombre de projets actifs par région</span>
+    </div>
+    <div class="p-3"><div id="ministreMap" style="width:100%;height:420px;border-radius:12px;"></div></div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const repartitionSecteur = {{ repartition_secteur_json|safe }};
+const evolution = {{ evolution_json|safe }};
+const projetsParRegion = {{ projets_par_region_json|safe }};
+
+// Camembert sectoriel
+(function(){
+    const el = document.getElementById('secteurChart');
+    if (!el) return;
+    const chart = echarts.init(el);
+    const data = Object.entries(repartitionSecteur).map(([k,v]) => ({name: k, value: v}));
+    chart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c} projet(s) ({d}%)' },
+        legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { fontSize: 11 } },
+        series: [{
+            type: 'pie', radius: ['45%', '70%'], center: ['35%', '50%'],
+            data, label: { fontSize: 10 },
+            emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,.2)' } }
+        }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+})();
+
+// Courbe évolution
+(function(){
+    const el = document.getElementById('evolChart');
+    if (!el) return;
+    const chart = echarts.init(el);
+    const labels = evolution.map(e => e[0]);
+    const values = evolution.map(e => e[1]);
+    chart.setOption({
+        tooltip: { trigger: 'axis' },
+        grid: { top: 20, right: 20, bottom: 40, left: 60 },
+        xAxis: { type: 'category', data: labels, axisLabel: { fontSize: 10, rotate: 45 } },
+        yAxis: { type: 'value', axisLabel: { fontSize: 10, formatter: v => (v/1e6).toFixed(0) + 'M' } },
+        series: [{
+            type: 'line', data: values, smooth: true,
+            areaStyle: { color: 'rgba(34,197,94,.15)' },
+            lineStyle: { color: '#22c55e', width: 2.5 },
+            itemStyle: { color: '#22c55e' }
+        }]
+    });
+    window.addEventListener('resize', () => chart.resize());
+})();
+
+// Carte
+(function(){
+    const el = document.getElementById('ministreMap');
+    if (!el) return;
+    const map = L.map(el).setView([7.54, -5.55], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap', maxZoom: 18
+    }).addTo(map);
+
+    fetch("{% url 'dashboard:regions_geojson' %}")
+        .then(r => r.json())
+        .then(geo => {
+            const layer = L.geoJSON(geo, {
+                style: f => {
+                    const nom = f.properties.nom || f.properties.NAME_1 || f.properties.name || '';
+                    const nb = projetsParRegion[nom] || 0;
+                    const colors = ['#F3F4F6', '#FEE2E2', '#FED7AA', '#FDE68A', '#BBF7D0', '#86EFAC'];
+                    let color = '#F3F4F6';
+                    if (nb >= 10) color = '#86EFAC';
+                    else if (nb >= 5) color = '#BBF7D0';
+                    else if (nb >= 2) color = '#FDE68A';
+                    else if (nb >= 1) color = '#FED7AA';
+                    return { color: '#9CA3AF', weight: 1, fillColor: color, fillOpacity: 0.7 };
+                },
+                onEachFeature: (f, l) => {
+                    const nom = f.properties.nom || f.properties.NAME_1 || f.properties.name || 'Région';
+                    const nb = projetsParRegion[nom] || 0;
+                    l.bindTooltip(`<b>${nom}</b><br>${nb} projet${nb > 1 ? 's' : ''} actif${nb > 1 ? 's' : ''}`, { sticky: true });
+                }
+            }).addTo(map);
+        })
+        .catch(() => {
+            // Fallback: markers simples
+            Object.entries(projetsParRegion).forEach(([nom, nb]) => {
+                // Aucun fallback géo précis ici
+            });
+        });
+})();
+</script>
+{% endblock %}

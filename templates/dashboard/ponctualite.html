@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Ponctualité des saisies - Suivi Projets{% endblock %}
+{% block page_title %}Ponctualité des saisies{% endblock %}
+{% block page_subtitle %}Suivi par structure responsable du respect des délais de mise à jour{% endblock %}
+
+{% block content %}
+<div class="card mb-5 animate-in">
+    <div class="p-5 flex items-center justify-between gap-4 flex-wrap">
+        <form method="get" class="flex items-center gap-3">
+            <label class="text-[0.8125rem] font-semibold text-ci-dark-700">Seuil de retard :</label>
+            <select name="seuil" onchange="this.form.submit()" class="form-input">
+                <option value="30" {% if seuil_jours == 30 %}selected{% endif %}>30 jours</option>
+                <option value="60" {% if seuil_jours == 60 %}selected{% endif %}>60 jours</option>
+                <option value="90" {% if seuil_jours == 90 %}selected{% endif %}>90 jours</option>
+                <option value="180" {% if seuil_jours == 180 %}selected{% endif %}>180 jours</option>
+            </select>
+            <span class="text-[0.75rem] text-ci-dark-400">Un projet non modifié depuis ce délai est considéré comme en retard de saisie.</span>
+        </form>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="stat-card animate-in">
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total projets suivis</p>
+        <p class="text-[1.75rem] font-black text-ci-dark-900">{{ nb_total|intcomma }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-2">
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Saisies à jour</p>
+        <p class="text-[1.75rem] font-black text-ci-green-500">{{ nb_a_jour|intcomma }}</p>
+    </div>
+    <div class="stat-card animate-in stagger-3">
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Taux de ponctualité global</p>
+        <p class="text-[1.75rem] font-black {% if taux_global < 60 %}text-red-500{% elif taux_global < 80 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ taux_global }}%</p>
+    </div>
+</div>
+
+<div class="card animate-in">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">schedule</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Classement par structure</h3>
+        <span class="badge badge-blue text-[0.5625rem]">{{ structures|length }} structure{{ structures|length|pluralize }}</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full">
+            <thead class="bg-ci-dark-50">
+                <tr>
+                    <th class="px-4 py-2.5 text-left text-[0.6875rem] font-bold uppercase tracking-wider text-ci-dark-500">Structure</th>
+                    <th class="px-4 py-2.5 text-center text-[0.6875rem] font-bold uppercase tracking-wider text-ci-dark-500">Projets</th>
+                    <th class="px-4 py-2.5 text-center text-[0.6875rem] font-bold uppercase tracking-wider text-ci-dark-500">À jour</th>
+                    <th class="px-4 py-2.5 text-center text-[0.6875rem] font-bold uppercase tracking-wider text-ci-dark-500">En retard</th>
+                    <th class="px-4 py-2.5 text-left text-[0.6875rem] font-bold uppercase tracking-wider text-ci-dark-500">Taux de ponctualité</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-ci-dark-50">
+                {% for s in structures %}
+                <tr class="hover:bg-ci-dark-50/40 transition-colors" x-data="{open:false}">
+                    <td class="px-4 py-2.5 text-[0.8125rem] font-bold text-ci-dark-800">
+                        <button @click="open=!open" class="flex items-center gap-2 hover:text-ci-orange-500">
+                            <span class="material-symbols-outlined text-[16px]" x-text="open ? 'expand_more' : 'chevron_right'">chevron_right</span>
+                            {{ s.nom }}
+                        </button>
+                    </td>
+                    <td class="px-4 py-2.5 text-[0.8125rem] text-center text-ci-dark-700">{{ s.total }}</td>
+                    <td class="px-4 py-2.5 text-[0.8125rem] text-center font-bold text-ci-green-500">{{ s.a_jour }}</td>
+                    <td class="px-4 py-2.5 text-[0.8125rem] text-center font-bold {% if s.en_retard > 0 %}text-red-500{% else %}text-ci-dark-400{% endif %}">{{ s.en_retard }}</td>
+                    <td class="px-4 py-2.5">
+                        <div class="flex items-center gap-3">
+                            <div class="flex-1 bg-ci-dark-100 rounded-full h-2">
+                                <div class="h-2 rounded-full {% if s.taux_ponctualite < 60 %}bg-red-400{% elif s.taux_ponctualite < 80 %}bg-ci-orange-400{% else %}bg-ci-green-500{% endif %}" style="width: {{ s.taux_ponctualite }}%;"></div>
+                            </div>
+                            <span class="text-[0.8125rem] font-black w-12 text-right {% if s.taux_ponctualite < 60 %}text-red-500{% elif s.taux_ponctualite < 80 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ s.taux_ponctualite }}%</span>
+                        </div>
+                    </td>
+                </tr>
+                <tr x-show="open" x-cloak>
+                    <td colspan="5" class="px-4 py-3 bg-ci-dark-50/30">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {% for p in s.projets %}
+                            <a href="{% url 'projets:detail' p.pk %}" class="flex items-center justify-between p-2 rounded-lg bg-white hover:bg-ci-orange-50 transition-colors border border-ci-dark-100">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-[0.75rem] font-bold text-ci-dark-700 truncate">{{ p.code }} — {{ p.titre|truncatechars:50 }}</p>
+                                    <p class="text-[0.625rem] {% if p.a_jour %}text-ci-green-500{% else %}text-red-500{% endif %} font-semibold">
+                                        {% if p.a_jour %}À jour{% else %}En retard{% endif %} · Modifié il y a {{ p.jours }} j
+                                    </p>
+                                </div>
+                                <span class="material-symbols-outlined text-[14px] text-ci-dark-300">chevron_right</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="px-4 py-12 text-center text-[0.8125rem] text-ci-dark-300 italic">Aucune structure responsable renseignée sur les projets.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

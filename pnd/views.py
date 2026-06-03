@@ -3,7 +3,6 @@ from django.db import models
 from django.db.models import Count, Sum, Prefetch
 from .models import PlanNational, Pilier, SousObjectif
 from projets.models import Projet
-from financements.models import Financement
 from accounts.decorators import login_required_custom
 
 
@@ -16,9 +15,6 @@ def index(request):
     if plan_actif:
         for pilier in plan_actif.piliers.prefetch_related('sous_objectifs').all():
             nb_projets = Projet.objects.filter(objectifs_pnd__pilier=pilier).distinct().count()
-            montant = Financement.objects.filter(
-                projet__objectifs_pnd__pilier=pilier
-            ).distinct().aggregate(total=Sum('montant_engage'))['total'] or 0
             sous_obj_stats = []
             for so in pilier.sous_objectifs.all():
                 so_nb = so.projets.count()
@@ -26,7 +22,6 @@ def index(request):
             piliers_stats.append({
                 'pilier': pilier,
                 'nb_projets': nb_projets,
-                'montant': montant,
                 'sous_objectifs': sous_obj_stats,
             })
 
@@ -50,13 +45,9 @@ def pilier_detail(request, pk):
         pk=pk
     )
     projets = Projet.objects.filter(objectifs_pnd__pilier=pilier).distinct().select_related('secteur', 'bailleur_principal')
-    montant = Financement.objects.filter(
-        projet__objectifs_pnd__pilier=pilier
-    ).distinct().aggregate(total=Sum('montant_engage'))['total'] or 0
 
     context = {
         'pilier': pilier,
         'projets': projets,
-        'montant_total': montant,
     }
     return render(request, 'pnd/pilier_detail.html', context)

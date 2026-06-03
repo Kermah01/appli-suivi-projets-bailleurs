@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% load humanize projets_tags %}
+
+{% block title %}Synthèse Projets & Programmes{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between flex-wrap gap-3">
+    <div>
+        <h1 class="text-xl font-bold text-ci-dark-900 flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-orange-500">analytics</span>
+            Synthèse — Projets &amp; Programmes
+        </h1>
+        <p class="text-sm text-ci-dark-400 mt-0.5">{{ total_projets }} projet{{ total_projets|pluralize }} · {{ total_programmes }} programme{{ total_programmes|pluralize }}</p>
+    </div>
+    <a href="{% url 'dashboard:index' %}" class="btn btn-secondary btn-sm">
+        <span class="material-symbols-outlined text-[14px]">arrow_back</span> Tableau de bord
+    </a>
+</div>
+
+<!-- Barre de contrôle : onglets + méthode programmes -->
+<div class="flex items-center gap-4 mb-5 flex-wrap">
+    <!-- Tabs de vue -->
+    <div class="flex items-center gap-1 bg-white border border-ci-dark-200 rounded-xl p-1.5 shadow-sm">
+        <a href="?vue=avancement&methode={{ methode }}" class="tab-btn {% if vue == 'avancement' %}active{% endif %}">
+            <span class="material-symbols-outlined text-[14px] align-middle mr-1">trending_up</span>Exécution physique
+        </a>
+        <a href="?vue=decaissements&methode={{ methode }}" class="tab-btn {% if vue == 'decaissements' %}active{% endif %}">
+            <span class="material-symbols-outlined text-[14px] align-middle mr-1">payments</span>Décaissements
+        </a>
+        <a href="?vue=montants&methode={{ methode }}" class="tab-btn {% if vue == 'montants' %}active{% endif %}">
+            <span class="material-symbols-outlined text-[14px] align-middle mr-1">account_balance_wallet</span>Montants
+        </a>
+        <a href="?vue=objectifs&methode={{ methode }}" class="tab-btn {% if vue == 'objectifs' %}active{% endif %}">
+            <span class="material-symbols-outlined text-[14px] align-middle mr-1">target</span>Objectifs annuels
+        </a>
+    </div>
+    <!-- Sélecteur méthode programmes -->
+    <div class="flex items-center gap-2">
+        <span class="text-[0.6875rem] text-ci-dark-400 font-semibold whitespace-nowrap">
+            <span class="material-symbols-outlined text-[13px] align-middle text-violet-500">folder_open</span> Source programmes :
+        </span>
+        <div class="flex items-center gap-1 bg-white border border-ci-dark-200 rounded-lg p-1 shadow-sm">
+            <a href="?vue={{ vue }}&methode=auto"   class="px-2.5 py-1 rounded text-[0.625rem] font-bold transition-colors {% if methode == 'auto' %}bg-violet-500 text-white{% else %}text-ci-dark-500 hover:bg-ci-dark-50{% endif %}">Auto</a>
+            <a href="?vue={{ vue }}&methode=saisi"  class="px-2.5 py-1 rounded text-[0.625rem] font-bold transition-colors {% if methode == 'saisi' %}bg-violet-500 text-white{% else %}text-ci-dark-500 hover:bg-ci-dark-50{% endif %}">Saisie</a>
+            <a href="?vue={{ vue }}&methode=agrege" class="px-2.5 py-1 rounded text-[0.625rem] font-bold transition-colors {% if methode == 'agrege' %}bg-violet-500 text-white{% else %}text-ci-dark-500 hover:bg-ci-dark-50{% endif %}">Agrégat</a>
+        </div>
+    </div>
+    <!-- Légende -->
+    <div class="flex items-center gap-2 text-[0.625rem] text-ci-dark-400">
+        <span class="bg-violet-100 text-violet-600 font-bold px-1 rounded">S</span> saisie directe &nbsp;
+        <span class="bg-blue-100 text-blue-600 font-bold px-1 rounded">A</span> agrégat projets
+    </div>
+</div>
+
+<!-- ═══ ONGLET EXÉCUTION PHYSIQUE ═══ -->
+{% if vue == 'avancement' %}
+<div class="card p-0 overflow-hidden">
+    <div class="px-5 py-3 border-b border-ci-dark-100 flex items-center gap-2 bg-ci-dark-50">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">trending_up</span>
+        <span class="font-semibold text-ci-dark-800 text-sm">Taux d'exécution physique</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-ci-dark-50 text-ci-dark-500 text-[0.6875rem] uppercase tracking-wider">
+                    <th class="text-left px-4 py-2.5">Type</th>
+                    <th class="text-left px-4 py-2.5">Code</th>
+                    <th class="text-left px-4 py-2.5">Intitulé</th>
+                    <th class="text-left px-4 py-2.5">Statut</th>
+                    <th class="text-left px-4 py-2.5">Secteur</th>
+                    <th class="text-center px-4 py-2.5">Exécution physique</th>
+                    <th class="text-center px-4 py-2.5">Avancement financier</th>
+                    <th class="text-left px-4 py-2.5">Programme</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-ci-dark-100">
+                {% for item in items_programmes %}
+                <tr class="hover:bg-violet-50 transition-colors">
+                    <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
+                            <span class="material-symbols-outlined text-[11px]">folder_open</span>Programme
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs font-bold text-ci-dark-700">
+                        <a href="{{ item.url }}" class="hover:text-violet-600">{{ item.code }}</a>
+                    </td>
+                    <td class="px-4 py-2.5 font-medium text-ci-dark-800 max-w-[280px] truncate">
+                        <a href="{{ item.url }}" class="hover:text-violet-600" title="{{ item.nom }}">{{ item.nom }}</a>
+                        <span class="ml-1 text-[0.5625rem] text-ci-dark-400">{{ item.nb_projets }} projet{{ item.nb_projets|pluralize }}</span>
+                    </td>
+                    <td class="px-4 py-2.5 text-ci-dark-500">{{ item.statut }}</td>
+                    <td class="px-4 py-2.5 text-ci-dark-500 text-xs">{{ item.secteur }}</td>
+                    <td class="px-4 py-2.5">
+                        <div class="flex items-center gap-1.5">
+                            {% if item.taux_avancement_src == 'saisi' %}<span class="text-[0.5rem] bg-violet-100 text-violet-600 font-bold px-1 rounded flex-shrink-0" title="Saisie directe">S</span>
+                            {% elif item.taux_avancement_src == 'agrege' %}<span class="text-[0.5rem] bg-blue-100 text-blue-600 font-bold px-1 rounded flex-shrink-0" title="Agrégat">A</span>{% endif %}
+                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[50px]">
+                                <div class="h-1.5 rounded-full {% if item.taux_avancement >= 80 %}bg-ci-green-500{% elif item.taux_avancement >= 50 %}bg-ci-orange-500{% else %}bg-red-400{% endif %}" style="width: {{ item.taux_avancement }}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-ci-dark-700 w-9 text-right">{% if item.taux_avancement %}{{ item.taux_avancement }}%{% else %}&mdash;{% endif %}</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2.5">
+                        <div class="flex items-center gap-1.5">
+                            {% if item.taux_avancement_financier_src == 'saisi' %}<span class="text-[0.5rem] bg-violet-100 text-violet-600 font-bold px-1 rounded flex-shrink-0" title="Saisie directe">S</span>
+                            {% elif item.taux_avancement_financier_src == 'agrege' %}<span class="text-[0.5rem] bg-blue-100 text-blue-600 font-bold px-1 rounded flex-shrink-0" title="Agrégat">A</span>{% endif %}
+                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[50px]">
+                                <div class="h-1.5 rounded-full bg-blue-400" style="width: {{ item.taux_avancement_financier }}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-ci-dark-700 w-9 text-right">{{ item.taux_avancement_financier }}%</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2.5 text-xs text-ci-dark-400">—</td>
+                </tr>
+                {% endfor %}
+                {% for item in items_projets %}
+                <tr class="hover:bg-ci-orange-50 transition-colors">
+                    <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-ci-orange-100 text-ci-orange-700 px-2 py-0.5 rounded-full">
+                            <span class="material-symbols-outlined text-[11px]">article</span>Projet
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs font-bold text-ci-dark-700">
+                        <a href="{{ item.url }}" class="hover:text-ci-orange-600">{{ item.code }}</a>
+                    </td>
+                    <td class="px-4 py-2.5 font-medium text-ci-dark-800 max-w-[280px] truncate">
+                        <a href="{{ item.url }}" class="hover:text-ci-orange-600" title="{{ item.nom }}">{{ item.nom }}</a>
+                    </td>
+                    <td class="px-4 py-2.5 text-ci-dark-500">{{ item.statut }}</td>
+                    <td class="px-4 py-2.5 text-ci-dark-500 text-xs">{{ item.secteur }}</td>
+                    <td class="px-4 py-2.5">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[60px]">
+                                <div class="h-1.5 rounded-full {% if item.taux_avancement >= 80 %}bg-ci-green-500{% elif item.taux_avancement >= 50 %}bg-ci-orange-500{% else %}bg-red-400{% endif %}" style="width: {{ item.taux_avancement }}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-ci-dark-700 w-10 text-right">{{ item.taux_avancement }}%</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2.5">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[60px]">
+                                <div class="h-1.5 rounded-full bg-blue-400" style="width: {{ item.taux_avancement_financier }}%"></div>
+                            </div>
+                            <span class="text-xs font-bold text-ci-dark-700 w-10 text-right">{{ item.taux_avancement_financier }}%</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2.5 text-xs text-ci-dark-500 truncate max-w-[140px]">{{ item.programme }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="px-4 py-8 text-center text-ci-dark-400">Aucun projet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══ ONGLET DÉCAISSEMENTS ═══ -->
+{% elif vue == 'decaissements' %}
+<div class="card p-0 overflow-hidden">
+    <div class="px-5 py-3 border-b border-ci-dark-100 flex items-center gap-2 bg-ci-dark-50">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">payments</span>
+        <span class="font-semibold text-ci-dark-800 text-sm">Taux de décaissement</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-ci-dark-50 text-ci-dark-500 text-[0.6875rem] uppercase tracking-wider">
+                    <th class="text-left px-4 py-2.5">Type</th>
+                    <th class="text-left px-4 py-2.5">Code</th>
+                    <th class="text-left px-4 py-2.5">Intitulé</th>
+                    <th class="text-left px-4 py-2.5">Statut</th>
+                    <th class="text-right px-4 py-2.5">Montant engagé</th>
+                    <th class="text-right px-4 py-2.5">Décaissé</th>
+                    <th class="text-center px-4 py-2.5">Taux déc.</th>
+                    <th class="text-center px-4 py-2.5">Objectif annuel</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-ci-dark-100">
+                {% for item in items_programmes %}
+                <tr class="hover:bg-violet-50 transition-colors">
+                    <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
+                            <span class="material-symbols-outlined text-[11px]">folder_open</span>Programme
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs font-bold"><a href="{{ item.url }}" class="hover:text-violet-600">{{ item.code }}</a></td>
+                    <td class="px-4 py-2.5 font-medium text-ci-dark-800 max-w-[260px] truncate"><a href="{{ item.url }}" title="{{ item.nom }}">{{ item.nom }}</a></td>
+                    <td class="px-4 py-2.5 text-ci-dark-500 text-xs">{{ item.statut }}</td>
+                    <td class="px-4 py-2.5 text-right text-xs font-mono">{{ item.engage|fmt_fcfa }}</td>
+                    <td class="px-4 py-2.5 text-right text-xs font-mono">{{ item.decaisse|fmt_fcfa }}</td>
+                    <td class="px-4 py-2.5">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[60px]">
+                                <div class="h-1.5 rounded-full {% if item.taux_decaissement >= 80 %}bg-ci-green-500{% elif item.taux_decaissement >= 50 %}bg-ci-orange-500{% else %}bg-red-400{% endif %}" style="width: {% if item.taux_decaissement > 100 %}100{% else %}{{ item.taux_decaissement }}{% endif %}%"></div>
+                            </div>
+                            <span class="text-xs font-bold w-10 text-right {% if item.taux_decaissement >= 80 %}text-ci-green-600{% elif item.taux_decaissement >= 50 %}text-ci-orange-600{% else %}text-red-500{% endif %}">{{ item.taux_decaissement }}%</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2.5 text-center text-xs text-ci-dark-500">{{ item.taux_prevu_annee }}%</td>
+                </tr>
+                {% endfor %}
+                {% for item in items_projets %}
+                <tr class="hover:bg-ci-orange-50 transition-colors">
+                    <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-ci-orange-100 text-ci-orange-700 px-2 py-0.5 rounded-full">
+                            <span class="material-symbols-outlined text-[11px]">article</span>Projet
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs font-bold"><a href="{{ item.url }}" class="hover:text-ci-orange-600">{{ item.code }}</a></td>
+                    <td class="px-4 py-2.5 font-medium text-ci-dark-800 max-w-[260px] truncate"><a href="{{ item.url }}" title="{{ item.nom }}">{{ item.nom }}</a></td>
+                    <td class="px-4 py-2.5 text-ci-dark-500 text-xs">{{ item.statut }}</td>
+                    <td class="px-4 py-2.5 text-right text-xs font-mono">{{ item.engage|fmt_fcfa }}</td>
+                    <td class="px-4 py-2.5 text-right text-xs font-mono">{{ item.decaisse|fmt_fcfa }}</td>
+                    <td class="px-4 py-2.5">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[60px]">
+                                <div class="h-1.5 rounded-full {% if item.taux_decaissement >= 80 %}bg-ci-green-500{% elif item.taux_decaissement >= 50 %}bg-ci-orange-500{% else %}bg-red-400{% endif %}" style="width: {% if item.taux_decaissement > 100 %}100{% else %}{{ item.taux_decaissement }}{% endif %}%"></div>
+                            </div>
+                            <span class="text-xs font-bold w-10 text-right {% if item.taux_decaissement >= 80 %}text-ci-green-600{% elif item.taux_decaissement >= 50 %}text-ci-orange-600{% else %}text-red-500{% endif %}">{{ item.taux_decaissement }}%</span>
+                        </div>
+                    </td>
+                    <td class="px-4 py-2.5 text-center text-xs text-ci-dark-500">{{ item.taux_prevu_annee }}%</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="px-4 py-8 text-center text-ci-dark-400">Aucun projet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══ ONGLET MONTANTS ═══ -->
+{% elif vue == 'montants' %}
+<div class="card p-0 overflow-hidden">
+    <div class="px-5 py-3 border-b border-ci-dark-100 flex items-center gap-2 bg-ci-dark-50">
+        <span class="material-symbols-outlined text-ci-green-500 text-[18px]">account_balance_wallet</span>
+        <span class="font-semibold text-ci-dark-800 text-sm">Montants alloués</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-ci-dark-50 text-ci-dark-500 text-[0.6875rem] uppercase tracking-wider">
+                    <th class="text-left px-4 py-2.5">Type</th>
+                    <th class="text-left px-4 py-2.5">Code</th>
+                    <th class="text-left px-4 py-2.5">Intitulé</th>
+                    <th class="text-left px-4 py-2.5">Bailleur</th>
+                    <th class="text-left px-4 py-2.5">Secteur</th>
+                    <th class="text-right px-4 py-2.5">Montant total</th>
+                    <th class="text-left px-4 py-2.5">Devise</th>
+                    <th class="text-right px-4 py-2.5">Montant engagé</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-ci-dark-100">
+                {% for item in items_programmes %}
+                <tr class="hover:bg-violet-50 transition-colors">
+                    <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
+                            <span class="material-symbols-outlined text-[11px]">folder_open</span>Programme
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs font-bold"><a href="{{ item.url }}" class="hover:text-violet-600">{{ item.code }}</a></td>
+                    <td class="px-4 py-2.5 font-medium max-w-[260px] truncate"><a href="{{ item.url }}" title="{{ item.nom }}">{{ item.nom }}</a></td>
+                    <td class="px-4 py-2.5 text-xs text-ci-dark-500">{{ item.bailleur }}</td>
+                    <td class="px-4 py-2.5 text-xs text-ci-dark-500">{{ item.secteur }}</td>
+                    <td class="px-4 py-2.5 text-right font-mono font-bold text-ci-dark-800">{{ item.montant|fmt_fcfa }}</td>
+                    <td class="px-4 py-2.5 text-xs font-bold text-ci-dark-500">FCFA</td>
+                    <td class="px-4 py-2.5 text-right font-mono text-ci-dark-600">{{ item.engage|fmt_fcfa }}</td>
+                </tr>
+                {% endfor %}
+                {% for item in items_projets %}
+                <tr class="hover:bg-ci-orange-50 transition-colors">
+                    <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-ci-orange-100 text-ci-orange-700 px-2 py-0.5 rounded-full">
+                            <span class="material-symbols-outlined text-[11px]">article</span>Projet
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs font-bold"><a href="{{ item.url }}" class="hover:text-ci-orange-600">{{ item.code }}</a></td>
+                    <td class="px-4 py-2.5 font-medium max-w-[260px] truncate"><a href="{{ item.url }}" title="{{ item.nom }}">{{ item.nom }}</a></td>
+                    <td class="px-4 py-2.5 text-xs text-ci-dark-500">{{ item.bailleur }}</td>
+                    <td class="px-4 py-2.5 text-xs text-ci-dark-500">{{ item.secteur }}</td>
+                    <td class="px-4 py-2.5 text-right font-mono font-bold text-ci-dark-800">{{ item.montant|fmt_fcfa }}</td>
+                    <td class="px-4 py-2.5 text-xs font-bold text-ci-dark-500">FCFA</td>
+                    <td class="px-4 py-2.5 text-right font-mono text-ci-dark-600">{{ item.engage|fmt_fcfa }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="px-4 py-8 text-center text-ci-dark-400">Aucun projet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ═══ ONGLET OBJECTIFS ANNUELS ═══ -->
+{% elif vue == 'objectifs' %}
+<div class="card p-0 overflow-hidden">
+    <div class="px-5 py-3 border-b border-ci-dark-100 flex items-center gap-2 bg-ci-dark-50">
+        <span class="material-symbols-outlined text-ci-dark-500 text-[18px]">target</span>
+        <span class="font-semibold text-ci-dark-800 text-sm">Objectifs de décaissement annuels</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-ci-dark-50 text-ci-dark-500 text-[0.6875rem] uppercase tracking-wider">
+                    <th class="text-left px-4 py-2.5">Type</th>
+                    <th class="text-left px-4 py-2.5">Code</th>
+                    <th class="text-left px-4 py-2.5">Intitulé</th>
+                    <th class="text-left px-4 py-2.5">Statut</th>
+                    <th class="text-center px-4 py-2.5">Objectif annuel</th>
+                    <th class="text-center px-4 py-2.5">Taux déc. réel</th>
+                    <th class="text-center px-4 py-2.5">Écart</th>
+                    <th class="text-center px-4 py-2.5">Exécution physique</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-ci-dark-100">
+                {% for item in items_programmes %}
+                <tr class="hover:bg-violet-50 transition-colors">
+                    <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
+                            <span class="material-symbols-outlined text-[11px]">folder_open</span>Programme
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs font-bold"><a href="{{ item.url }}" class="hover:text-violet-600">{{ item.code }}</a></td>
+                    <td class="px-4 py-2.5 font-medium max-w-[260px] truncate"><a href="{{ item.url }}" title="{{ item.nom }}">{{ item.nom }}</a></td>
+                    <td class="px-4 py-2.5 text-xs text-ci-dark-500">{{ item.statut }}</td>
+                    <td class="px-4 py-2.5 text-center text-xs font-bold">{{ item.taux_prevu_annee }}%</td>
+                    <td class="px-4 py-2.5 text-center text-xs font-bold {% if item.taux_decaissement >= item.taux_prevu_annee %}text-ci-green-600{% else %}text-red-500{% endif %}">{{ item.taux_decaissement }}%</td>
+                    <td class="px-4 py-2.5 text-center text-xs font-bold {% if item.taux_decaissement >= item.taux_prevu_annee %}text-ci-green-600{% else %}text-red-500{% endif %}">
+                        {% if item.taux_prevu_annee %}
+                            {% widthratio item.taux_decaissement 1 1 as real %}
+                            {{ item.taux_decaissement|add:"-0" }}% vs {{ item.taux_prevu_annee }}%
+                        {% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-2.5 text-center text-xs font-bold text-ci-dark-700">{% if item.taux_avancement %}{{ item.taux_avancement }}%{% else %}&mdash;{% endif %}</td>
+                </tr>
+                {% endfor %}
+                {% for item in items_projets %}
+                <tr class="hover:bg-ci-orange-50 transition-colors">
+                    <td class="px-4 py-2.5">
+                        <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-ci-orange-100 text-ci-orange-700 px-2 py-0.5 rounded-full">
+                            <span class="material-symbols-outlined text-[11px]">article</span>Projet
+                        </span>
+                    </td>
+                    <td class="px-4 py-2.5 font-mono text-xs font-bold"><a href="{{ item.url }}" class="hover:text-ci-orange-600">{{ item.code }}</a></td>
+                    <td class="px-4 py-2.5 font-medium max-w-[260px] truncate"><a href="{{ item.url }}" title="{{ item.nom }}">{{ item.nom }}</a></td>
+                    <td class="px-4 py-2.5 text-xs text-ci-dark-500">{{ item.statut }}</td>
+                    <td class="px-4 py-2.5 text-center text-xs font-bold">{{ item.taux_prevu_annee }}%</td>
+                    <td class="px-4 py-2.5 text-center text-xs font-bold {% if item.taux_decaissement >= item.taux_prevu_annee %}text-ci-green-600{% else %}text-red-500{% endif %}">{{ item.taux_decaissement }}%</td>
+                    <td class="px-4 py-2.5 text-center text-xs text-ci-dark-500">
+                        {% if item.taux_prevu_annee %}{{ item.taux_decaissement }}% vs {{ item.taux_prevu_annee }}%{% else %}—{% endif %}
+                    </td>
+                    <td class="px-4 py-2.5 text-center text-xs font-bold text-ci-dark-700">{% if item.taux_avancement %}{{ item.taux_avancement }}%{% else %}&mdash;{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" class="px-4 py-8 text-center text-ci-dark-400">Aucun projet</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

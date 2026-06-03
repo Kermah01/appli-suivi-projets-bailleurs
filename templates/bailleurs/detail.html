@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load humanize %}
+{% load humanize projets_tags %}
 
 {% block title %}{{ bailleur }} - Suivi Projets{% endblock %}
 {% block page_title %}{{ bailleur.nom }}{% endblock %}
@@ -24,9 +24,15 @@
     <div class="p-6">
         <div class="flex items-start justify-between">
             <div class="flex items-start gap-4">
+                {% if bailleur.logo %}
+                <div class="w-16 h-16 rounded-xl bg-white flex items-center justify-center flex-shrink-0 shadow-lg border border-ci-dark-100 overflow-hidden">
+                    <img src="{{ bailleur.logo.url }}" alt="{{ bailleur.nom }}" class="max-h-14 max-w-14 object-contain">
+                </div>
+                {% else %}
                 <div class="w-16 h-16 rounded-xl bg-ci-orange-500 flex items-center justify-center text-white font-bold text-[1.125rem] flex-shrink-0 shadow-lg shadow-ci-orange-500/20">
                     {{ bailleur.sigle|default:bailleur.nom|truncatechars:3 }}
                 </div>
+                {% endif %}
                 <div>
                     <h2 class="text-[1.25rem] font-black text-ci-dark-900 tracking-tight">{{ bailleur.nom }}</h2>
                     <div class="flex items-center gap-2 mt-1.5">
@@ -72,13 +78,12 @@
     </div>
     <div class="stat-card animate-in stagger-2">
         <div class="flex items-center gap-2 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <span class="material-symbols-outlined text-blue-500 text-[18px]">account_balance_wallet</span>
+            <div class="w-10 h-10 rounded-lg bg-ci-green-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-green-500 text-[18px]">account_balance_wallet</span>
             </div>
         </div>
-        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total engagé</p>
-        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ total_engage|floatformat:0|intcomma }}</p>
-        <p class="text-[0.5625rem] text-ci-dark-300 mt-0.5 font-semibold">USD</p>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant global du portefeuille</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ total_engage|fmt_fcfa }}</p>
     </div>
     <div class="stat-card animate-in stagger-3">
         <div class="flex items-center gap-2 mb-3">
@@ -87,8 +92,7 @@
             </div>
         </div>
         <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total décaissé</p>
-        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ total_decaisse|floatformat:0|intcomma }}</p>
-        <p class="text-[0.5625rem] text-ci-dark-300 mt-0.5 font-semibold">USD</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ total_decaisse|fmt_fcfa }}</p>
     </div>
     <div class="stat-card animate-in stagger-4">
         <div class="flex items-center gap-3">
@@ -210,7 +214,7 @@
                     </td>
                     <td class="text-ci-dark-500">{{ projet.secteur|default:"-" }}</td>
                     <td><span class="{{ projet.statut_badge_class }}">{{ projet.get_statut_display }}</span></td>
-                    <td class="text-right font-bold">{{ projet.montant_total|floatformat:0|intcomma }}</td>
+                    <td class="text-right font-bold">{{ projet.montant_total_fcfa|fmt_fcfa }}</td>
                 </tr>
                 {% empty %}
                 <tr><td colspan="5" class="!py-10 text-center text-ci-dark-300 text-[0.8125rem]">Aucun projet</td></tr>
@@ -242,8 +246,8 @@
                 <tr>
                     <td><a href="{% url 'financements:detail' f.pk %}" class="text-ci-orange-500 hover:underline font-semibold">{{ f.projet.code }}</a></td>
                     <td class="text-ci-dark-500">{{ f.get_type_financement_display }}</td>
-                    <td class="text-right font-bold">{{ f.montant_engage|floatformat:0|intcomma }} {{ f.devise }}</td>
-                    <td class="text-right">{{ f.total_decaisse|floatformat:0|intcomma }}</td>
+                    <td class="text-right font-bold">{{ f.montant_engage|fmt_fcfa }}</td>
+                    <td class="text-right">{{ f.total_decaisse|fmt_fcfa }}</td>
                     <td class="text-right">
                         <span class="font-bold {% if f.taux_decaissement < 30 %}text-red-500{% elif f.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ f.taux_decaissement }}%</span>
                     </td>

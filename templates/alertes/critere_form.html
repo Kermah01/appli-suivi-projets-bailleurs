@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}{{ titre }}{% endblock %}
+{% block page_title %}{{ titre }}{% endblock %}
+{% block page_subtitle %}Critères de retard de projet{% endblock %}
+
+{% block content %}
+<div class="mb-4 animate-in">
+    <a href="{% url 'alertes:criteres' %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors">
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour aux critères
+    </a>
+</div>
+
+<div class="card animate-in max-w-2xl">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">rule</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">{{ titre }}</h3>
+    </div>
+    <form method="post" class="p-6 space-y-5">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 gap-4">
+            <div>
+                <label class="block text-[0.6875rem] font-semibold text-ci-dark-600 mb-1">Nom du critère *</label>
+                {{ form.nom }}
+                {% if form.nom.errors %}<p class="text-red-500 text-[0.6875rem] mt-1">{{ form.nom.errors.0 }}</p>{% endif %}
+            </div>
+            <div>
+                <label class="block text-[0.6875rem] font-semibold text-ci-dark-600 mb-1">Type *</label>
+                {{ form.type_critere }}
+                {% if form.type_critere.errors %}<p class="text-red-500 text-[0.6875rem] mt-1">{{ form.type_critere.errors.0 }}</p>{% endif %}
+            </div>
+            <div>
+                <label class="block text-[0.6875rem] font-semibold text-ci-dark-600 mb-1">Description</label>
+                {{ form.description }}
+            </div>
+        </div>
+
+        <!-- Seuils conditionnels -->
+        <div id="seuil-ecart" class="hidden p-4 rounded-xl bg-ci-orange-50 border border-ci-orange-200 space-y-3">
+            <p class="text-[0.75rem] font-bold text-ci-orange-700 flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">tune</span> Seuil — Écart physique/décaissement</p>
+            <div>
+                <label class="block text-[0.6875rem] font-semibold text-ci-dark-600 mb-1">{{ form.seuil_ecart_pct.label }} (%)</label>
+                {{ form.seuil_ecart_pct }}
+                <p class="text-[0.625rem] text-ci-dark-400 mt-1">{{ form.seuil_ecart_pct.help_text }}</p>
+            </div>
+        </div>
+
+        <div id="seuil-duree" class="hidden p-4 rounded-xl bg-ci-orange-50 border border-ci-orange-200 space-y-3">
+            <p class="text-[0.75rem] font-bold text-ci-orange-700 flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">tune</span> Seuils — Durée critique</p>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[0.6875rem] font-semibold text-ci-dark-600 mb-1">{{ form.seuil_duree_ecoulee_pct.label }} (%)</label>
+                    {{ form.seuil_duree_ecoulee_pct }}
+                    <p class="text-[0.625rem] text-ci-dark-400 mt-1">{{ form.seuil_duree_ecoulee_pct.help_text }}</p>
+                </div>
+                <div>
+                    <label class="block text-[0.6875rem] font-semibold text-ci-dark-600 mb-1">{{ form.seuil_taux_decaissement_pct.label }} (%)</label>
+                    {{ form.seuil_taux_decaissement_pct }}
+                    <p class="text-[0.625rem] text-ci-dark-400 mt-1">{{ form.seuil_taux_decaissement_pct.help_text }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="flex items-center gap-3">
+                {{ form.actif }}
+                <label class="text-[0.8125rem] font-semibold text-ci-dark-700">Critère actif</label>
+            </div>
+            <div>
+                <label class="block text-[0.6875rem] font-semibold text-ci-dark-600 mb-1">Ordre d'affichage</label>
+                {{ form.ordre }}
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 pt-2">
+            <button type="submit" class="btn btn-primary">
+                <span class="material-symbols-outlined text-[16px]">save</span>
+                {% if critere %}Enregistrer{% else %}Créer le critère{% endif %}
+            </button>
+            <a href="{% url 'alertes:criteres' %}" class="btn btn-outline">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    const sel = document.getElementById('id_type_critere');
+    const seuilEcart = document.getElementById('seuil-ecart');
+    const seuilDuree = document.getElementById('seuil-duree');
+
+    function update() {
+        const v = sel.value;
+        seuilEcart.classList.toggle('hidden', v !== 'ecart_physique_financier');
+        seuilDuree.classList.toggle('hidden', v !== 'duree_ecoulee_taux_faible');
+    }
+    sel.addEventListener('change', update);
+    update();
+})();
+</script>
+{% endblock %}

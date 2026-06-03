@@ -70,7 +70,7 @@
 
     <div class="min-h-full flex">
         <!-- Left: decorative panel -->
-        <div class="hidden lg:flex lg:w-1/2 xl:w-[55%] bg-ci-dark-900 relative overflow-hidden items-center justify-center">
+        <div class="hidden lg:flex lg:w-1/2 xl:w-[55%] relative overflow-hidden items-center justify-center" style="background: linear-gradient(135deg, #0B2218 0%, #1A4D2D 55%, #0F2C1C 100%);">
             <!-- Decorative elements -->
             <div class="absolute inset-0">
                 <div class="absolute top-20 left-20 w-72 h-72 bg-ci-orange-500/10 rounded-full blur-3xl"></div>
@@ -149,7 +149,7 @@
                     <div class="flex items-center gap-2 px-4 py-3 rounded-xl text-[0.8125rem] font-medium
                         {% if message.tags == 'success' %}bg-ci-green-50 text-ci-green-700 border border-ci-green-200
                         {% elif message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
-                        {% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}">
+                        {% else %}bg-ci-green-50 text-ci-green-700 border border-ci-green-200{% endif %}">
                         <span class="material-symbols-outlined text-[16px]">
                             {% if message.tags == 'success' %}check_circle{% elif message.tags == 'error' %}error{% else %}info{% endif %}
                         </span>
@@ -195,19 +195,15 @@
                     </div>
                 </form>
 
-                <!-- Register link -->
+                <!-- Admin info -->
                 <div class="mt-8 text-center animate-in stagger-4">
-                    <div class="relative">
-                        <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-ci-dark-200"></div></div>
-                        <div class="relative flex justify-center">
-                            <span class="px-4 bg-ci-dark-50 text-[0.75rem] font-semibold text-ci-dark-400">Nouveau sur la plateforme ?</span>
-                        </div>
+                    <div class="flex items-start gap-2 bg-ci-dark-100/60 rounded-xl px-4 py-3 text-left">
+                        <span class="material-symbols-outlined text-ci-dark-400 text-[16px] mt-0.5 flex-shrink-0">info</span>
+                        <p class="text-[0.75rem] text-ci-dark-500 leading-relaxed">
+                            L'accès à la plateforme est <strong class="text-ci-dark-700">sur invitation uniquement</strong>.<br>
+                            Contactez l'administrateur pour obtenir vos identifiants.
+                        </p>
                     </div>
-                    <a href="{% url 'accounts:register' %}"
-                       class="mt-4 inline-flex items-center gap-2 px-6 py-2.5 rounded-xl border-2 border-ci-dark-200 text-[0.8125rem] font-bold text-ci-dark-600 hover:border-ci-orange-300 hover:text-ci-orange-600 hover:bg-ci-orange-50 transition-all">
-                        <span class="material-symbols-outlined text-[16px]">person_add</span>
-                        Créer un compte
-                    </a>
                 </div>
 
                 <!-- Footer -->

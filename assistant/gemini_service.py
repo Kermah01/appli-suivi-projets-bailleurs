@@ -20,6 +20,23 @@ class DecimalEncoder(json.JSONEncoder):
         return super().default(o)
 
 
+def get_gemini_api_key(user=None):
+    """
+    Récupère la clé API Gemini en priorité :
+    1. Configuration utilisateur (si fourni et actif)
+    2. Variable d'environnement GEMINI_API_KEY
+    3. None si aucune clé disponible
+    """
+    # Priorité 1: Clé utilisateur
+    if user and hasattr(user, 'gemini_config'):
+        config = user.gemini_config
+        if config and config.is_active and config.api_key:
+            return config.api_key
+
+    # Priorité 2: Variable d'environnement
+    return settings.GEMINI_API_KEY or None
+
+
 def _build_db_context(user=None):
     """Construit un résumé des données filtré par bailleurs autorisés de l'utilisateur."""
     from dashboard.views import _get_user_bailleur_ids
@@ -188,7 +205,16 @@ def ask_gemini(question, conversation_history=None, user=None):
     Essaie plusieurs modèles en cas de quota dépassé.
     """
     import time
-    genai.configure(api_key=settings.GEMINI_API_KEY)
+
+    api_key = get_gemini_api_key(user)
+    if not api_key:
+        return {
+            'text': "⚠️ **Assistant IA non configuré.**\n\nVeuillez configurer votre clé API Gemini dans [les paramètres de l'assistant](/assistant/configurer/).",
+            'chart': None,
+            'table': None,
+        }
+
+    genai.configure(api_key=api_key)
 
     db_context = _build_db_context(user=user)
 

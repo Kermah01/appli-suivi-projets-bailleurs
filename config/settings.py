@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "accounts",
     "imports",
     "assistant",
+    "alertes",
 ]
 
 MIDDLEWARE = [
@@ -144,6 +145,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # WhiteNoise configuration for production
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# Media files (uploads: logos bailleurs, pièces jointes projets)
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -1,15 +1,18 @@
 {% extends "base.html" %}
-{% load humanize %}
+{% load humanize projets_tags %}
 
 {% block title %}{{ projet.code }} - Suivi Projets{% endblock %}
 {% block page_title %}{{ projet.titre }}{% endblock %}
 {% block page_subtitle %}{{ projet.code }} &middot; {{ projet.get_statut_display }}{% endblock %}
 
 {% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
     .detail-row { transition: background 0.15s ease; }
     .detail-row:hover { background: #FAFBFC; }
     .progress-bar-anim { transition: width 1s cubic-bezier(.4,0,.2,1); }
+    #projet-map { height: 280px; border-radius: 0.75rem; z-index: 1; }
+    .leaflet-container { font-family: 'Inter', sans-serif !important; }
 </style>
 {% endblock %}
 
@@ -56,16 +59,16 @@
 </div>
 
 <!-- KPIs -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
     <div class="stat-card animate-in stagger-1">
         <div class="flex items-center gap-2 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                <span class="material-symbols-outlined text-blue-500 text-[18px]">account_balance_wallet</span>
+            <div class="w-10 h-10 rounded-lg bg-ci-green-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-green-500 text-[18px]">account_balance_wallet</span>
             </div>
         </div>
-        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant total</p>
-        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ projet.montant_total|floatformat:0|intcomma }} <span class="text-[0.6875rem] font-semibold text-ci-dark-400">{{ projet.devise }}</span></p>
-        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">~ {{ projet.montant_total_fcfa|floatformat:0|intcomma }} FCFA</p>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant total du projet</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ projet.montant_total_fcfa|fmt_fcfa }}</p>
+        {% if projet.devise != 'XOF' %}<p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">{{ projet.montant_total|fmt_montant:projet.devise }}</p>{% endif %}
     </div>
     <div class="stat-card animate-in stagger-2">
         <div class="flex items-center gap-2 mb-3">
@@ -74,13 +77,13 @@
             </div>
         </div>
         <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total décaissé</p>
-        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ projet.total_decaisse|floatformat:0|intcomma }}</p>
-        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">{{ projet.devise }}</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ projet.total_decaisse|fmt_fcfa }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">sur {{ projet.total_engage|fmt_fcfa }}</p>
     </div>
     <div class="stat-card animate-in stagger-3">
         <div class="flex items-center gap-2 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
-                <span class="material-symbols-outlined text-purple-500 text-[18px]">speed</span>
+            <div class="w-10 h-10 rounded-lg bg-ci-orange-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">speed</span>
             </div>
         </div>
         <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Taux décaissement</p>
@@ -92,13 +95,61 @@
                 <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">trending_up</span>
             </div>
         </div>
-        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Avancement physique</p>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Exécution physique</p>
+        {% if projet.taux_avancement %}
         <p class="text-[1.75rem] font-black text-ci-dark-900 leading-none mt-1">{{ projet.taux_avancement }}%</p>
         <div class="w-full bg-ci-dark-100 rounded-full h-2 mt-3 overflow-hidden">
             <div class="h-2 rounded-full progress-bar-anim {% if projet.taux_avancement < 30 %}bg-red-400{% elif projet.taux_avancement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-500{% endif %}" style="width: {{ projet.taux_avancement }}%;"></div>
         </div>
+        {% else %}
+        <p class="text-[1.75rem] font-black text-ci-dark-300 leading-none mt-1">&mdash;</p>
+        {% endif %}
+    </div>
+    <div class="stat-card animate-in stagger-4">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-amber-500 text-[18px]">pending_actions</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Circuit validation</p>
+        <p class="text-xl font-black text-amber-600 leading-none">{{ projet.montant_pipeline|fmt_fcfa }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">montant en attente</p>
+    </div>
+    <!-- Objectif décaissement annuel -->
+    <div class="stat-card animate-in stagger-5">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg {% if projet.taux_decaissement_prevu_annee > 0 %}{% if projet.ecart_taux_annuel >= 0 %}bg-ci-green-50{% else %}bg-red-50{% endif %}{% else %}bg-ci-dark-50{% endif %} flex items-center justify-center">
+                <span class="material-symbols-outlined {% if projet.taux_decaissement_prevu_annee > 0 %}{% if projet.ecart_taux_annuel >= 0 %}text-ci-green-500{% else %}text-red-500{% endif %}{% else %}text-ci-dark-300{% endif %} text-[18px]">target</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Obj. annuel</p>
+        {% if projet.taux_decaissement_prevu_annee > 0 %}
+        <p class="text-[1.75rem] font-black leading-none {% if projet.ecart_taux_annuel >= 0 %}text-ci-green-600{% else %}text-red-500{% endif %}">{{ projet.taux_decaissement_prevu_annee }}%</p>
+        <p class="text-[0.5625rem] mt-1 font-semibold {% if projet.ecart_taux_annuel >= 0 %}text-ci-green-600{% else %}text-red-500{% endif %}">
+            écart {% if projet.ecart_taux_annuel >= 0 %}+{% endif %}{{ projet.ecart_taux_annuel }}pts
+        </p>
+        {% else %}
+        <p class="text-base font-bold text-ci-dark-300 mt-1">—</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1">Non défini</p>
+        {% endif %}
     </div>
 </div>
+
+<!-- Carte interactive zone d'intervention -->
+{% if projet.zone_geographique %}
+<div class="card mb-5 animate-in stagger-5">
+    <div class="card-header flex items-center gap-2 flex-wrap">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">map</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Zone d'intervention</h3>
+        {% for zone in projet.zone_geographique|split_comma %}
+        <span class="badge badge-blue text-[0.5625rem]">{{ zone }}</span>
+        {% endfor %}
+    </div>
+    <div class="p-0">
+        <div id="projet-map" style="height:360px;border-radius:0 0 0.75rem 0.75rem;"></div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Info cards -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
@@ -132,14 +183,63 @@
                     <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">category</span> Secteur</dt>
                     <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.secteur|default:"-" }}</dd>
                 </div>
+                {% if projet.programme %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">hub</span> Programme</dt>
+                    <dd><a href="{% url 'projets:programme_detail' projet.programme.pk %}" class="text-[0.8125rem] font-bold text-ci-green-600 hover:underline">{{ projet.programme.nom|truncatechars:35 }}</a></dd>
+                </div>
+                {% endif %}
                 <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
                     <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">location_on</span> Zone géographique</dt>
-                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.zone_geographique|default:"-" }}</dd>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800 flex flex-wrap gap-1">
+                        {% if projet.zone_geographique %}
+                        {% for z in projet.zone_geographique|split_comma %}
+                        <span class="inline-block bg-ci-dark-50 border border-ci-dark-200 text-ci-dark-700 text-[0.6875rem] font-semibold px-2 py-0.5 rounded-full">{{ z }}</span>
+                        {% endfor %}
+                        {% else %}&mdash;{% endif %}
+                    </dd>
                 </div>
+                {% if projet.niveau_intervention %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">public</span> Niveau d'intervention</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.get_niveau_intervention_display }}</dd>
+                </div>
+                {% endif %}
+                {% if projet.part_etat and projet.part_etat > 0 %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">flag</span> Part de l'État</dt>
+                    <dd class="text-[0.8125rem] font-bold text-ci-orange-600">
+                        {% if projet.part_etat_pourcentage and projet.part_etat_pourcentage > 0 %}
+                            {{ projet.part_etat_pourcentage|floatformat:2 }}&nbsp;%
+                            <span class="text-ci-dark-400 font-normal text-[0.75rem]">= {{ projet.part_etat|floatformat:0|intcomma }} {{ projet.devise }}</span>
+                        {% else %}
+                            {{ projet.part_etat|floatformat:0|intcomma }} {{ projet.devise }}
+                        {% endif %}
+                    </dd>
+                </div>
+                {% endif %}
                 <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
                     <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">person</span> Responsable</dt>
                     <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.responsable|default:"-" }}</dd>
                 </div>
+                {% if projet.structure_responsable %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">business</span> Structure</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.structure_responsable }}</dd>
+                </div>
+                {% endif %}
+                {% if projet.responsable_telephone %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">phone</span> Téléphone</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800"><a href="tel:{{ projet.responsable_telephone }}" class="hover:text-ci-orange-500">{{ projet.responsable_telephone }}</a></dd>
+                </div>
+                {% endif %}
+                {% if projet.responsable_email %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">mail</span> Email</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800"><a href="mailto:{{ projet.responsable_email }}" class="hover:text-ci-orange-500">{{ projet.responsable_email }}</a></dd>
+                </div>
+                {% endif %}
                 <div class="detail-row flex items-center justify-between py-2.5 rounded-lg px-2">
                     <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">flag</span> Statut</dt>
                     <dd><span class="{{ projet.statut_badge_class }}">{{ projet.get_statut_display }}</span></dd>
@@ -165,6 +265,14 @@
                     <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.date_debut|date:"d/m/Y"|default:"-" }}</dd>
                 </div>
                 <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]" title="1er décaissement prévu">payments</span> 1er décaissement prévu</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.date_1er_decaissement_prevu|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]" title="1er décaissement effectif">price_check</span> 1er décaissement effectif</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ projet.date_1er_decaissement_effectif|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
                     <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">event</span> Date de fin prévue</dt>
                     <dd class="text-[0.8125rem] font-bold {% if projet.est_en_retard %}text-red-500{% else %}text-ci-dark-800{% endif %}">{{ projet.date_fin_prevue|date:"d/m/Y"|default:"-" }}</dd>
                 </div>
@@ -186,6 +294,275 @@
     <div class="p-5 text-[0.8125rem] text-ci-dark-600 leading-relaxed">{{ projet.description|linebreaks }}</div>
 </div>
 {% endif %}
+
+{% if projet.est_en_retard or projet.motif_retard or projet.motif_retard_categorie %}
+<div class="card mb-5 animate-in stagger-6 border-red-200">
+    <div class="h-1 bg-red-500"></div>
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-red-500 text-[16px]">warning</span>
+        <h3 class="text-[0.8125rem] font-bold text-red-700">Retard d’exécution</h3>
+        {% if projet.est_en_retard %}<span class="badge badge-red text-[0.5625rem]">En retard</span>{% endif %}
+        {% if projet.motif_retard_categorie %}<span class="badge badge-orange text-[0.5625rem]">{{ projet.get_motif_retard_categorie_display }}</span>{% endif %}
+    </div>
+    <div class="p-5">
+        {% if projet.motif_retard_categorie %}
+        <p class="text-[0.6875rem] uppercase font-bold text-red-500 tracking-wider mb-1">Catégorie : {{ projet.get_motif_retard_categorie_display }}</p>
+        {% endif %}
+        {% if projet.motif_retard %}
+        <p class="text-[0.8125rem] text-ci-dark-700 leading-relaxed">{{ projet.motif_retard|linebreaks }}</p>
+        {% elif projet.est_en_retard and not projet.motif_retard_categorie %}
+        <p class="text-[0.8125rem] text-ci-dark-400 italic">Aucun motif de retard renseigné. <a href="{% url 'projets:modifier' projet.pk %}" class="text-ci-orange-500 hover:underline font-semibold">Ajouter un motif</a></p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ══ COMMENTAIRES / JUSTIFICATIONS ══ -->
+<div class="card mb-5 animate-in stagger-6b" x-data="{ openForm: false }">
+    <div class="card-header flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">forum</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Justifications &amp; Points d'attention</h3>
+            {% if commentaires %}
+            <span class="badge badge-orange text-[0.5625rem]">{{ commentaires|length }}</span>
+            {% endif %}
+        </div>
+        <button @click="openForm = !openForm"
+                class="btn btn-sm btn-primary flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">add_comment</span>
+            <span x-text="openForm ? 'Annuler' : 'Ajouter'"></span>
+        </button>
+    </div>
+
+    <!-- Formulaire d'ajout -->
+    <div x-show="openForm" x-transition x-cloak class="px-5 pb-4">
+        <form method="post" action="{% url 'projets:commentaire_ajouter' projet.pk %}">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Type *</label>
+                    <select name="type_commentaire" class="form-input">
+                        {% for val, label in type_commentaire_choices %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Niveau</label>
+                    <select name="niveau" class="form-input">
+                        {% for val, label in niveau_commentaire_choices %}
+                        <option value="{{ val }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Contenu *</label>
+                    <textarea name="contenu" rows="4" required
+                              class="form-input resize-none"
+                              placeholder="Décrivez la justification, le point d'attention ou le blocage…"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button type="button" @click="openForm = false" class="btn btn-sm btn-ghost">Annuler</button>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <span class="material-symbols-outlined text-[14px]">send</span> Enregistrer
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Liste des commentaires -->
+    <div class="p-5 pt-0 {% if commentaires %}pt-3{% endif %}">
+        {% if commentaires %}
+        <div class="space-y-3">
+            {% for c in commentaires %}
+            {% with type=c.type_commentaire %}
+            <div class="rounded-xl p-4 border
+                {% if type == 'retard' %}bg-red-50 border-red-200
+                {% elif type == 'blocage' %}bg-ci-orange-50 border-ci-orange-200
+                {% elif type == 'attention' %}bg-yellow-50 border-yellow-200
+                {% else %}bg-ci-dark-50 border-ci-dark-100{% endif %}">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
+                            {% if type == 'retard' %}bg-red-100 text-red-700
+                            {% elif type == 'blocage' %}bg-ci-orange-100 text-ci-orange-700
+                            {% elif type == 'attention' %}bg-yellow-100 text-yellow-700
+                            {% else %}bg-ci-dark-100 text-ci-dark-600{% endif %}">
+                            <span class="material-symbols-outlined text-[10px]">
+                                {% if type == 'retard' %}schedule{% elif type == 'blocage' %}block{% elif type == 'attention' %}warning{% else %}chat{% endif %}
+                            </span>
+                            {{ c.get_type_commentaire_display }}
+                        </span>
+                        <span class="text-[0.625rem] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full
+                            {% if c.niveau == 'critique' %}bg-red-100 text-red-600
+                            {% elif c.niveau == 'important' %}bg-ci-orange-100 text-ci-orange-600
+                            {% else %}bg-ci-dark-100 text-ci-dark-400{% endif %}">
+                            {{ c.get_niveau_display }}
+                        </span>
+                        {% if c.source and c.source != 'manuel' %}
+                        <span class="text-[0.5625rem] px-1.5 py-0.5 rounded bg-ci-dark-100 text-ci-dark-400 font-medium">{{ c.source }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="text-[0.625rem] text-ci-dark-300">
+                            {% if c.date_commentaire %}{{ c.date_commentaire|date:"d/m/Y" }}{% endif %}
+                            {% if c.auteur %}&nbsp;·&nbsp;{{ c.auteur.get_full_name|default:c.auteur.username }}{% endif %}
+                        </span>
+                        {% if request.user == c.auteur or request.user.is_superuser %}
+                        <form method="post" action="{% url 'projets:commentaire_supprimer' projet.pk c.pk %}"
+                              onsubmit="return confirm('Supprimer ce commentaire ?')">
+                            {% csrf_token %}
+                            <button type="submit" class="w-6 h-6 flex items-center justify-center rounded hover:bg-red-100 text-ci-dark-300 hover:text-red-500 transition-colors" title="Supprimer">
+                                <span class="material-symbols-outlined text-[14px]">delete</span>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+                <p class="text-[0.8125rem] text-ci-dark-700 leading-relaxed whitespace-pre-wrap">{{ c.contenu }}</p>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <div class="w-12 h-12 mx-auto rounded-xl bg-ci-dark-50 flex items-center justify-center mb-2">
+                <span class="material-symbols-outlined text-ci-dark-200 text-[24px]">forum</span>
+            </div>
+            <p class="text-[0.8125rem] text-ci-dark-300 font-medium">Aucun commentaire pour ce projet</p>
+            <button @click="openForm = true" class="mt-2 text-[0.75rem] text-ci-orange-500 hover:underline font-semibold">
+                Ajouter le premier commentaire
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pièces jointes -->
+<div class="card mb-5 animate-in stagger-6" x-data="{ open: {{ projet.pieces_jointes.count|yesno:'true,false' }} }">
+    <div class="card-header flex items-center justify-between cursor-pointer select-none" @click="open = !open">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">attach_file</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Pièces jointes</h3>
+            <span class="badge badge-blue text-[0.5625rem]">{{ projet.pieces_jointes.count }}</span>
+        </div>
+        <span class="material-symbols-outlined text-ci-dark-400 text-[18px] transition-transform duration-200" :class="open ? 'rotate-180' : ''">expand_more</span>
+    </div>
+    <div x-show="open" x-transition x-cloak class="p-5">
+        {% if projet.pieces_jointes.all %}
+        <div class="space-y-2 mb-4">
+            {% for pj in projet.pieces_jointes.all %}
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-ci-dark-50/40 border border-ci-dark-100 hover:bg-ci-green-50 transition-colors">
+                <div class="w-9 h-9 rounded-lg bg-ci-green-50 flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-ci-green-600 text-[18px]">{% if pj.extension == 'pdf' %}picture_as_pdf{% elif pj.extension in 'doc,docx' %}description{% elif pj.extension in 'xls,xlsx' %}table_chart{% elif pj.extension in 'png,jpg,jpeg' %}image{% else %}draft{% endif %}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[0.8125rem] font-bold text-ci-dark-800 truncate">{{ pj.titre }}</p>
+                    <p class="text-[0.625rem] text-ci-dark-400">{{ pj.get_type_document_display }} · {{ pj.taille_kb }} ko · {{ pj.date_upload|date:"d/m/Y" }}{% if pj.uploaded_by %} · {{ pj.uploaded_by.username }}{% endif %}</p>
+                </div>
+                <a href="{{ pj.fichier.url }}" target="_blank" class="btn btn-outline btn-sm" title="Télécharger">
+                    <span class="material-symbols-outlined text-[14px]">download</span>
+                </a>
+                {% if can_edit %}
+                <form method="post" action="{% url 'projets:piece_supprimer' pj.pk %}" onsubmit="return confirm('Supprimer cette pièce jointe ?')" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline btn-sm text-red-500 border-red-200 hover:bg-red-50" title="Supprimer">
+                        <span class="material-symbols-outlined text-[14px]">delete</span>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-[0.8125rem] text-ci-dark-300 italic mb-4">Aucune pièce jointe.</p>
+        {% endif %}
+        {% if can_edit %}
+        <form method="post" action="{% url 'projets:piece_ajouter' projet.pk %}" enctype="multipart/form-data" class="border-2 border-dashed border-ci-dark-200 rounded-xl p-4">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                <div>
+                    <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Titre *</label>
+                    {{ piece_form.titre }}
+                </div>
+                <div>
+                    <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Type</label>
+                    {{ piece_form.type_document }}
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Fichier *</label>
+                    {{ piece_form.fichier }}
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Description</label>
+                    {{ piece_form.description }}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <span class="material-symbols-outlined text-[14px]">upload</span> Ajouter le document
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Responsables locaux -->
+<div class="card mb-5 animate-in stagger-6" x-data="{ open: {{ projet.responsables_locaux.count|yesno:'true,false' }} }">
+    <div class="card-header flex items-center justify-between cursor-pointer select-none" @click="open = !open">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-green-500 text-[16px]">groups</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Responsables locaux</h3>
+            <span class="badge badge-green text-[0.5625rem]">{{ projet.responsables_locaux.count }}</span>
+        </div>
+        <span class="material-symbols-outlined text-ci-dark-400 text-[18px] transition-transform duration-200" :class="open ? 'rotate-180' : ''">expand_more</span>
+    </div>
+    <div x-show="open" x-transition x-cloak class="p-5">
+        {% if projet.responsables_locaux.all %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+            {% for r in projet.responsables_locaux.all %}
+            <div class="p-3 rounded-xl bg-ci-green-50/30 border border-ci-green-100 flex items-start justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <p class="text-[0.8125rem] font-bold text-ci-dark-800">{{ r.nom }}</p>
+                    {% if r.fonction %}<p class="text-[0.6875rem] text-ci-dark-500">{{ r.fonction }}</p>{% endif %}
+                    {% if r.structure %}<p class="text-[0.625rem] text-ci-dark-400">{{ r.structure }}{% if r.region %} · {{ r.region }}{% endif %}</p>{% endif %}
+                    <div class="flex items-center gap-3 mt-1">
+                        {% if r.telephone %}<a href="tel:{{ r.telephone }}" class="text-[0.625rem] text-ci-dark-500 hover:text-ci-orange-500"><span class="material-symbols-outlined text-[12px] align-middle">phone</span> {{ r.telephone }}</a>{% endif %}
+                        {% if r.email %}<a href="mailto:{{ r.email }}" class="text-[0.625rem] text-ci-dark-500 hover:text-ci-orange-500"><span class="material-symbols-outlined text-[12px] align-middle">mail</span> {{ r.email|truncatechars:20 }}</a>{% endif %}
+                    </div>
+                </div>
+                {% if can_edit %}
+                <form method="post" action="{% url 'projets:responsable_supprimer' r.pk %}" onsubmit="return confirm('Supprimer ce responsable ?')" class="inline">
+                    {% csrf_token %}
+                    <button type="submit" class="text-red-400 hover:text-red-600" title="Supprimer">
+                        <span class="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-[0.8125rem] text-ci-dark-300 italic mb-4">Aucun responsable local enregistré.</p>
+        {% endif %}
+        {% if can_edit %}
+        <form method="post" action="{% url 'projets:responsable_ajouter' projet.pk %}" class="border-2 border-dashed border-ci-dark-200 rounded-xl p-4">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                <div><label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Nom *</label>{{ responsable_form.nom }}</div>
+                <div><label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Fonction</label>{{ responsable_form.fonction }}</div>
+                <div><label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Structure</label>{{ responsable_form.structure }}</div>
+                <div><label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Région</label>{{ responsable_form.region }}</div>
+                <div><label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Téléphone</label>{{ responsable_form.telephone }}</div>
+                <div><label class="block text-[0.6875rem] font-semibold text-ci-dark-500 mb-1">Email</label>{{ responsable_form.email }}</div>
+            </div>
+            <button type="submit" class="btn btn-green btn-sm">
+                <span class="material-symbols-outlined text-[14px]">person_add</span> Ajouter le responsable
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
 
 <!-- Objectifs PND -->
 <div class="card mb-5 animate-in stagger-6">
@@ -223,7 +600,7 @@
 {% if projet.est_cofinance %}
 <div class="card mb-5 animate-in stagger-6">
     <div class="card-header flex items-center gap-2">
-        <span class="material-symbols-outlined text-purple-500 text-[16px]">group_work</span>
+        <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">group_work</span>
         <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition du cofinancement</h3>
         <span class="badge badge-blue text-[0.5625rem] ml-1">{{ projet.nombre_bailleurs }} bailleurs</span>
     </div>
@@ -236,18 +613,24 @@
                     <div class="flex items-center justify-between mb-1">
                         <div class="flex items-center gap-2">
                             <span class="text-[0.8125rem] font-bold text-ci-dark-800">{{ r.sigle }}</span>
+                            {% if r.is_etat %}
+                            <span class="badge badge-green text-[0.5rem]">Contr. nationale</span>
+                            {% else %}
                             <span class="text-[0.625rem] text-ci-dark-400">{{ r.type_financement }}</span>
+                            {% endif %}
                         </div>
                         <div class="text-right">
                             <span class="text-[0.8125rem] font-black text-ci-dark-900">{{ r.part_pct }}%</span>
                         </div>
                     </div>
                     <div class="w-full bg-ci-dark-100 rounded-full h-3 overflow-hidden">
-                        <div class="h-3 rounded-full transition-all duration-700 {% cycle 'bg-ci-orange-500' 'bg-blue-500' 'bg-ci-green-500' 'bg-purple-500' 'bg-red-400' 'bg-yellow-500' %}" style="width: {{ r.part_pct }}%;"></div>
+                        <div class="h-3 rounded-full transition-all duration-700 {% if r.is_etat %}bg-ci-green-600{% else %}{% cycle 'bg-ci-orange-500' 'bg-ci-green-500' 'bg-ci-orange-600' 'bg-ci-green-700' 'bg-red-400' 'bg-ci-dark-500' %}{% endif %}" style="width: {{ r.part_pct }}%;"></div>
                     </div>
                     <div class="flex items-center justify-between mt-0.5">
-                        <span class="text-[0.625rem] text-ci-dark-400">Engagé: <span class="font-bold text-ci-dark-600">{{ r.montant_engage|floatformat:0|intcomma }} {{ r.devise }}</span></span>
+                        <span class="text-[0.625rem] text-ci-dark-400">Montant: <span class="font-bold text-ci-dark-600">{{ r.montant_engage|fmt_fcfa }}</span></span>
+                        {% if not r.is_etat %}
                         <span class="text-[0.625rem] {% if r.taux_decaissement < 30 %}text-red-500{% elif r.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %} font-bold">Décaissé: {{ r.taux_decaissement }}%</span>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -280,8 +663,9 @@
                 <tr>
                     <th>Bailleur</th>
                     <th>Type</th>
-                    <th class="text-right">Engagé</th>
-                    <th class="text-right">Décaissé</th>
+                    <th class="text-right">Engagé (FCFA)</th>
+                    <th class="text-right">Décaissé (FCFA)</th>
+                    <th class="text-right">Reste à décaisser</th>
                     <th class="text-right">Taux</th>
                     <th class="text-right">Actions</th>
                 </tr>
@@ -291,8 +675,9 @@
                 <tr class="group">
                     <td class="font-bold text-ci-dark-800">{{ f.bailleur.sigle|default:f.bailleur.nom }}</td>
                     <td class="text-ci-dark-500 text-[0.75rem]">{{ f.get_type_financement_display }}</td>
-                    <td class="text-right font-bold text-ci-dark-800">{{ f.montant_engage|floatformat:0|intcomma }} <span class="text-ci-dark-300 text-[0.625rem]">{{ f.devise }}</span></td>
-                    <td class="text-right font-semibold">{{ f.total_decaisse|floatformat:0|intcomma }}</td>
+                    <td class="text-right font-bold text-ci-dark-800">{{ f.montant_engage|fmt_fcfa }}</td>
+                    <td class="text-right font-semibold">{{ f.total_decaisse|fmt_fcfa }}</td>
+                    <td class="text-right font-semibold text-amber-600">{{ f.reste_a_decaisser|fmt_fcfa }}</td>
                     <td class="text-right">
                         <span class="font-bold text-[0.8125rem] {% if f.taux_decaissement < 30 %}text-red-500{% elif f.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ f.taux_decaissement }}%</span>
                     </td>
@@ -334,23 +719,183 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var labels = [];
     var series = [];
-    var colors = ['#F77F00','#3B82F6','#009A44','#8B5CF6','#EF4444','#F59E0B','#10B981','#6366F1'];
+    var paletteCI = ['#F77F00','#EA580C','#F59E0B','#009A44','#15803D','#166534','#1E293B','#475569'];
+    var colorMap = [];
     {% for r in projet.repartition_financements %}
     labels.push('{{ r.sigle|escapejs }}');
     series.push({{ r.montant_engage|floatformat:0 }});
+    colorMap.push({{ r.is_etat|yesno:"true,false" }} ? '#009A44' : paletteCI[{{ forloop.counter0 }} % paletteCI.length]);
     {% endfor %}
 
     new ApexCharts(el, {
         chart: { type: 'donut', height: 280, fontFamily: 'Inter, sans-serif' },
         series: series,
         labels: labels,
-        colors: colors.slice(0, series.length),
+        colors: colorMap,
         legend: { position: 'bottom', fontSize: '11px', fontWeight: 600 },
-        plotOptions: { pie: { donut: { size: '60%', labels: { show: true, total: { show: true, label: 'Total engagé', fontSize: '10px', fontWeight: 600, formatter: function(w) { var t = w.globals.seriesTotals.reduce(function(a,b){return a+b},0); if(t>=1e9) return (t/1e9).toFixed(1)+' Mrd'; if(t>=1e6) return (t/1e6).toFixed(1)+' M'; return t.toLocaleString(); } } } } } },
+        plotOptions: { pie: { donut: { size: '60%', labels: { show: true, total: { show: true, label: 'Total accord', fontSize: '10px', fontWeight: 600, formatter: function(w) { var t = w.globals.seriesTotals.reduce(function(a,b){return a+b},0); if(t>=1e9) return (t/1e9).toFixed(1)+' Mrd'; if(t>=1e6) return (t/1e6).toFixed(1)+' M'; return t.toLocaleString(); } } } } } },
         dataLabels: { enabled: true, formatter: function(val){ return val.toFixed(1)+'%'; }, style: { fontSize: '10px', fontWeight: 700 } },
         tooltip: { y: { formatter: function(val){ if(val>=1e9) return (val/1e9).toFixed(2)+' Mrd'; if(val>=1e6) return (val/1e6).toFixed(1)+' M'; return val.toLocaleString(); } } },
     }).render();
 });
+</script>
+{% endif %}
+{% if projet.zone_geographique %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin=""></script>
+<script>
+(function () {
+    var mapEl = document.getElementById('projet-map');
+    if (!mapEl) return;
+
+    var CI_COORDS = {
+        'abidjan': [5.3600, -4.0083],
+        'yamoussoukro': [6.8276, -5.2893],
+        'bouaké': [7.6881, -5.0305], 'bouake': [7.6881, -5.0305],
+        'san-pédro': [4.7392, -6.6363], 'san pedro': [4.7392, -6.6363], 'san-pedro': [4.7392, -6.6363],
+        'daloa': [6.8774, -6.4502],
+        'korhogo': [9.4580, -5.6292],
+        'man': [7.4127, -7.5539],
+        'divo': [5.8369, -5.3593],
+        'gagnoa': [6.1319, -5.9503],
+        'agboville': [5.9264, -4.2114],
+        'abengourou': [6.7298, -3.4938],
+        'bondoukou': [8.0403, -2.8009],
+        'soubré': [5.7855, -6.5963], 'soubre': [5.7855, -6.5963],
+        'tabou': [4.4168, -7.3501],
+        'guiglo': [6.5420, -7.4897],
+        'odienné': [9.5091, -7.5633], 'odienne': [9.5091, -7.5633],
+        'séguéla': [7.9606, -6.6698], 'seguela': [7.9606, -6.6698],
+        'mankono': [8.0581, -6.1835],
+        'touba': [8.2813, -7.6916],
+        'ferkessédougou': [9.5923, -5.1944], 'ferkessedougou': [9.5923, -5.1944],
+        'boundiali': [9.5219, -6.4934],
+        'tengréla': [10.4833, -6.4083], 'tengrela': [10.4833, -6.4083],
+        'national': [7.54, -5.55], 'national (toutes régions)': [7.54, -5.55],
+        'grand-bassam': [5.2010, -3.7440], 'bassam': [5.2010, -3.7440],
+        'sassandra': [4.9494, -6.0820], 'dimbokro': [6.6511, -4.7050],
+        'katiola': [8.1355, -5.1038], 'bongouanou': [6.6528, -4.2046],
+        'lakota': [5.8503, -5.6831], 'tiassalé': [5.8989, -4.8241], 'tiassale': [5.8989, -4.8241],
+    };
+
+    // Mapping zone → code région GeoJSON
+    var ZONE_TO_REGION = {
+        'abidjan': 'ABIDJAN', 'yamoussoukro': 'YAMOUSSOUKRO',
+        'bouaké': 'GBEKE', 'bouake': 'GBEKE',
+        'korhogo': 'PORO', 'san-pédro': 'SAN-PEDRO', 'san pedro': 'SAN-PEDRO', 'san-pedro': 'SAN-PEDRO',
+        'daloa': 'HAUT-SASSANDRA', 'man': 'TONKPI', 'gagnoa': 'GÔH',
+        'divo': 'LÔH-DJIBOUA', 'abengourou': 'INDÉNIÉ-DJUABLIN',
+        'bondoukou': 'GONTOUGO', 'odienné': 'KABADOUGOU', 'odienne': 'KABADOUGOU',
+        'séguéla': 'WORODOUGOU', 'seguela': 'WORODOUGOU',
+        'touba': 'BAFING', 'mankono': 'BÉRÉ', 'ferkessédougou': 'TCHOLOGO',
+        'ferkessedougou': 'TCHOLOGO', 'boundiali': 'BAGOUÉ', 'tengréla': 'FOLON', 'tengrela': 'FOLON',
+        'soubré': 'NAWA', 'soubre': 'NAWA', 'tabou': 'SAN-PEDRO', 'guiglo': 'CAVALLY',
+        'agboville': 'AGNÉBY-TIASSA', 'grand-bassam': 'SUD-COMOÉ', 'bassam': 'SUD-COMOÉ',
+        'sassandra': 'GBÔKLE', 'dimbokro': 'N\'ZI', 'katiola': 'HAMBOL',
+        'bongouanou': 'IFFOU', 'lakota': 'GÔH', 'tiassalé': 'AGNÉBY-TIASSA', 'tiassale': 'AGNÉBY-TIASSA',
+    };
+
+    var rawZone = "{{ projet.zone_geographique|escapejs }}";
+    var projetCode = "{{ projet.code|escapejs }}";
+    var projetTitre = "{{ projet.titre|truncatechars:60|escapejs }}";
+    var isNational = /national/i.test(rawZone);
+
+    // Découper les zones multiples séparées par des virgules
+    var zones = rawZone.split(',').map(function(z){ return z.trim(); });
+    var zonesLower = zones.map(function(z){ return z.toLowerCase(); });
+
+    var map = L.map('projet-map', {
+        scrollWheelZoom: false, zoomControl: true, preferCanvas: true,
+        minZoom: 5, maxZoom: 13
+    }).setView([7.54, -5.55], isNational ? 6.5 : 7.0);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CARTO', maxZoom: 18, subdomains: 'abcd'
+    }).addTo(map);
+    map.zoomControl.setPosition('topright');
+
+    // Marqueurs par zone
+    var icon = L.divIcon({
+        className: '',
+        html: '<div style="width:32px;height:32px;background:#F77F00;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 3px 10px rgba(0,0,0,0.3);"></div>',
+        iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -36],
+    });
+
+    var markerBounds = [];
+    zonesLower.forEach(function(z, idx) {
+        var coords = CI_COORDS[z] || CI_COORDS[z.split(' ')[0]];
+        if (!coords) return;
+        markerBounds.push(coords);
+        L.marker(coords, { icon: icon }).addTo(map).bindPopup(
+            '<div style="font-family:Inter,sans-serif;min-width:160px;">' +
+            '<p style="font-weight:800;font-size:12px;margin:0 0 3px;color:#1E293B;">' + projetCode + '</p>' +
+            '<p style="font-size:10px;color:#475569;margin:0 0 5px;">' + projetTitre + '</p>' +
+            '<span style="background:#FFF7ED;color:#C2410C;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #FDBA74;">' + zones[idx] + '</span>' +
+            '</div>', { maxWidth: 220 }
+        );
+    });
+
+    // Choroplèthe GeoJSON
+    var activeRegions = new Set();
+    zonesLower.forEach(function(z) {
+        var reg = ZONE_TO_REGION[z];
+        if (reg) activeRegions.add(reg.toUpperCase());
+        if (isNational) activeRegions.add('ALL');
+    });
+
+    fetch('/static/data/ci_regions.geojson')
+        .then(function(r){ return r.json(); })
+        .then(function(geojson) {
+            // Contour noir
+            L.geoJSON(geojson, { style: { fill: false, weight: 1.5, color: '#1E293B', opacity: 0.5 }, interactive: false }).addTo(map);
+
+            // Régions surlignées
+            L.geoJSON(geojson, {
+                style: function(feature) {
+                    var name = (feature.properties.name || feature.properties.NAME || '').toUpperCase();
+                    var active = isNational || activeRegions.has(name);
+                    return {
+                        fillColor: active ? '#F77F00' : '#E2E8F0',
+                        fillOpacity: active ? 0.35 : 0.1,
+                        weight: active ? 2 : 0.5,
+                        color: active ? '#F77F00' : '#94A3B8',
+                        opacity: active ? 0.8 : 0.4,
+                    };
+                },
+                onEachFeature: function(feature, layer) {
+                    var name = feature.properties.name || feature.properties.NAME || '';
+                    var nameUp = name.toUpperCase();
+                    var active = isNational || activeRegions.has(nameUp);
+                    if (active) {
+                        layer.bindTooltip('<span style="font-family:Inter,sans-serif;font-size:11px;font-weight:700;color:#C2410C;">' + name + '</span>',
+                            { sticky: true, className: 'leaflet-tooltip-custom', direction: 'top' });
+                        layer.on('mouseover', function(){ this.setStyle({ fillOpacity: 0.6, weight: 2.5 }); });
+                        layer.on('mouseout', function(){ this.setStyle({ fillOpacity: 0.35, weight: 2 }); });
+                    }
+                }
+            }).addTo(map);
+
+            // Ajuster la vue
+            if (markerBounds.length > 0 && !isNational) {
+                var lb = L.latLngBounds(markerBounds);
+                map.fitBounds(lb.pad(0.5), { maxZoom: 10 });
+            } else {
+                var allBounds = L.geoJSON(geojson).getBounds();
+                map.fitBounds(allBounds.pad(0.05), { maxZoom: 7.5 });
+            }
+            setTimeout(function(){ map.invalidateSize(); }, 200);
+        })
+        .catch(function() {
+            // Fallback si GeoJSON absent : ajuster sur marqueurs
+            if (markerBounds.length > 0) {
+                if (markerBounds.length === 1) {
+                    map.setView(markerBounds[0], isNational ? 6.5 : 9);
+                } else {
+                    map.fitBounds(L.latLngBounds(markerBounds).pad(0.4), { maxZoom: 10 });
+                }
+            }
+            setTimeout(function(){ map.invalidateSize(); }, 200);
+        });
+})();
 </script>
 {% endif %}
 {% endblock extra_js %}

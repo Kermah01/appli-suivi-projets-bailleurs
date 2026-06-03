@@ -149,7 +149,7 @@ def detail(request, pk):
 @edit_permission_required
 def creer(request):
     if request.method == 'POST':
-        form = BailleurForm(request.POST)
+        form = BailleurForm(request.POST, request.FILES)
         if form.is_valid():
             bailleur = form.save()
             messages.success(request, f'Bailleur "{bailleur.nom}" créé avec succès.')
@@ -163,7 +163,7 @@ def creer(request):
 def modifier(request, pk):
     bailleur = get_object_or_404(Bailleur, pk=pk)
     if request.method == 'POST':
-        form = BailleurForm(request.POST, instance=bailleur)
+        form = BailleurForm(request.POST, request.FILES, instance=bailleur)
         if form.is_valid():
             form.save()
             messages.success(request, f'Bailleur "{bailleur.nom}" modifié avec succès.')
@@ -182,3 +182,74 @@ def supprimer(request, pk):
         messages.success(request, f'Bailleur "{nom}" supprimé.')
         return redirect('bailleurs:liste')
     return render(request, 'bailleurs/confirmer_suppression.html', {'bailleur': bailleur})
+
+
+@login_required_custom
+def exporter_excel(request):
+    """Exporte la liste filtrée des bailleurs en Excel."""
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from financements.models import Decaissement
+
+    from dashboard.views import _get_user_bailleur_ids
+    bailleur_ids = _get_user_bailleur_ids(request.user)
+    bailleurs = Bailleur.objects.filter(pk__in=bailleur_ids) if bailleur_ids is not None else Bailleur.objects.all()
+    query = request.GET.get('q', '')
+    type_filter = request.GET.get('type', '')
+    if query:
+        bailleurs = bailleurs.filter(Q(nom__icontains=query) | Q(sigle__icontains=query))
+    if type_filter:
+        bailleurs = bailleurs.filter(type_bailleur=type_filter)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Bailleurs'
+
+    header_fill = PatternFill('solid', fgColor='F77F00')
+    header_font = Font(bold=True, color='FFFFFF', size=10)
+    center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    thin = Side(style='thin', color='D1D5DB')
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    headers = [
+        'Sigle', 'Nom complet', 'Type', 'Catégorie institutionnelle',
+        'Pays siège', 'Site web', 'Email', 'Téléphone',
+        'Nb projets', 'Engagé', 'Décaissé', 'Taux décaissement (%)',
+        'Seuil de significativité (FCFA)',
+    ]
+    ws.row_dimensions[1].height = 30
+    for col_idx, h in enumerate(headers, 1):
+        c = ws.cell(row=1, column=col_idx, value=h)
+        c.fill = header_fill; c.font = header_font; c.alignment = center; c.border = border
+
+    for row_idx, b in enumerate(bailleurs, 2):
+        engage = float(b.montant_total_engage or 0)
+        decaisse = float(b.montant_total_decaisse or 0)
+        taux = round(decaisse / engage * 100, 1) if engage > 0 else 0
+        row = [
+            b.sigle, b.nom, b.get_type_bailleur_display(),
+            b.get_categorie_institutionnelle_display() if b.categorie_institutionnelle else '',
+            b.pays_siege, b.site_web, b.contact_email, b.contact_telephone,
+            b.nombre_projets, engage, decaisse, taux,
+            float(b.seuil_significativite or 0),
+        ]
+        for col_idx, val in enumerate(row, 1):
+            c = ws.cell(row=row_idx, column=col_idx, value=val)
+            c.border = border
+            c.alignment = Alignment(vertical='center', wrap_text=False)
+            if row_idx % 2 == 0:
+                c.fill = PatternFill('solid', fgColor='FFF7ED')
+
+    widths = [10, 35, 18, 28, 18, 30, 25, 18, 10, 18, 18, 14, 22]
+    for i, w in enumerate(widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+    ws.freeze_panes = 'A2'
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f'bailleurs_{timezone.now().strftime("%Y%m%d")}.xlsx'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response

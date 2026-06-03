@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Supprimer le critère{% endblock %}
+{% block page_title %}Supprimer le critère{% endblock %}
+{% block content %}
+<div class="card max-w-lg animate-in">
+    <div class="p-6 text-center">
+        <div class="w-14 h-14 mx-auto rounded-full bg-red-50 flex items-center justify-center mb-4">
+            <span class="material-symbols-outlined text-red-500 text-[28px]">delete_forever</span>
+        </div>
+        <h3 class="text-[1rem] font-bold text-ci-dark-900 mb-2">Supprimer ce critère ?</h3>
+        <p class="text-[0.8125rem] text-ci-dark-600 mb-1">Vous êtes sur le point de supprimer le critère :</p>
+        <p class="text-[0.9375rem] font-bold text-red-700 mb-5">« {{ critere.nom }} »</p>
+        <p class="text-[0.75rem] text-ci-dark-400 mb-6">Cette action est irréversible. Les projets ne seront plus évalués selon ce critère.</p>
+        <div class="flex justify-center gap-3">
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary bg-red-600 hover:bg-red-700 border-red-600 hover:border-red-700">
+                    <span class="material-symbols-outlined text-[16px]">delete</span> Supprimer définitivement
+                </button>
+            </form>
+            <a href="{% url 'alertes:criteres' %}" class="btn btn-outline">Annuler</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

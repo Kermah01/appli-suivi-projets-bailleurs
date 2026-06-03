@@ -11,6 +11,18 @@
     .progress-mini-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
     .row-hover-reveal { opacity: 0; transition: opacity 0.2s ease; }
     tr:hover .row-hover-reveal { opacity: 1; }
+    tr.row-selected { background-color: #fff7ed !important; }
+    .bulk-bar {
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: #1e293b; color: #fff; border-radius: 14px;
+        padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.3); z-index: 1000;
+        transition: all 0.25s cubic-bezier(.4,0,.2,1);
+        min-width: 320px;
+    }
+    .bulk-bar.hidden { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(16px); }
+    .cb-cell { width: 36px; padding-left: 14px !important; }
+    input[type="checkbox"].row-cb { width: 15px; height: 15px; cursor: pointer; accent-color: #F77F00; }
 </style>
 {% endblock %}
 
@@ -26,6 +38,14 @@
             <p class="text-[0.5625rem] text-ci-dark-400 font-bold uppercase tracking-wider mt-0.5">Projets</p>
         </div>
     </div>
+    {% if bailleur_filter %}
+    {% for b in bailleurs %}{% if b.pk|stringformat:"d" == bailleur_filter %}
+    <div class="flex items-center gap-2 bg-ci-orange-50 border border-ci-orange-200 rounded-xl px-3 py-2">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">filter_alt</span>
+        <span class="text-[0.75rem] font-bold text-ci-orange-700">Portefeuille : {{ b.sigle|default:b.nom }}</span>
+    </div>
+    {% endif %}{% endfor %}
+    {% endif %}
 </div>
 
 <!-- Toolbar -->
@@ -58,6 +78,9 @@
             <button type="submit" class="btn btn-primary">
                 <span class="material-symbols-outlined text-[16px]">filter_list</span> Filtrer
             </button>
+            <a href="{% url 'projets:exporter' %}?{{ request.GET.urlencode }}" class="btn btn-outline whitespace-nowrap">
+                <span class="material-symbols-outlined text-[16px]">download</span> Exporter Excel
+            </a>
             {% if can_edit %}
             <a href="{% url 'projets:creer' %}" class="btn btn-green whitespace-nowrap">
                 <span class="material-symbols-outlined text-[16px]">add</span> Nouveau projet
@@ -67,12 +90,19 @@
     </div>
 </div>
 
-<!-- Table -->
+<!-- Bulk delete form + Table -->
+<form id="bulk-form" method="post" action="{% url 'projets:supprimer_lot' %}">
+    {% csrf_token %}
 <div class="card overflow-hidden animate-in stagger-2">
     <div class="overflow-x-auto">
         <table class="data-table">
             <thead>
                 <tr>
+                    {% if can_edit %}
+                    <th class="cb-cell">
+                        <input type="checkbox" class="row-cb" id="check-all" title="Tout sélectionner">
+                    </th>
+                    {% endif %}
                     <th>Code</th>
                     <th>Titre du projet</th>
                     <th>Bailleur</th>
@@ -86,7 +116,12 @@
             </thead>
             <tbody>
                 {% for projet in projets %}
-                <tr class="group">
+                <tr class="group" id="row-{{ projet.pk }}">
+                    {% if can_edit %}
+                    <td class="cb-cell">
+                        <input type="checkbox" class="row-cb row-check" name="ids[]" value="{{ projet.pk }}">
+                    </td>
+                    {% endif %}
                     <td class="font-mono text-[0.6875rem] text-ci-dark-400 whitespace-nowrap">
                         <span class="bg-ci-dark-50 px-1.5 py-0.5 rounded font-bold">{{ projet.code }}</span>
                     </td>
@@ -139,7 +174,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="9" class="!py-20 text-center">
+                    <td colspan="{% if can_edit %}10{% else %}9{% endif %}" class="!py-20 text-center">
                         <div class="w-16 h-16 mx-auto rounded-2xl bg-ci-dark-50 flex items-center justify-center mb-4">
                             <span class="material-symbols-outlined text-ci-dark-200 text-[32px]">folder_off</span>
                         </div>
@@ -157,4 +192,86 @@
         </table>
     </div>
 </div>
+</form>
+
+{% if can_edit %}
+<!-- Floating bulk-action bar -->
+<div class="bulk-bar hidden" id="bulk-bar">
+    <span class="material-symbols-outlined text-red-400 text-[20px]">delete_sweep</span>
+    <span class="text-[0.8125rem] font-bold flex-1">
+        <span id="bulk-count">0</span> projet<span id="bulk-plural"></span> sélectionné<span id="bulk-plural2"></span>
+    </span>
+    <button type="button" onclick="clearSelection()"
+            class="text-[0.75rem] font-semibold text-ci-dark-300 hover:text-white transition-colors px-2 py-1 rounded-lg">
+        <span class="material-symbols-outlined text-[14px] align-middle">close</span> Désélectionner
+    </button>
+    <button type="button" onclick="confirmDelete()"
+            class="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-[0.8125rem] font-bold px-4 py-2 rounded-lg transition-colors">
+        <span class="material-symbols-outlined text-[15px]">delete</span> Supprimer
+    </button>
+</div>
+
+<script>
+(function () {
+    const checkAll   = document.getElementById('check-all');
+    const checks     = () => [...document.querySelectorAll('.row-check')];
+    const bulkBar    = document.getElementById('bulk-bar');
+    const countEl    = document.getElementById('bulk-count');
+    const pluralEl   = document.getElementById('bulk-plural');
+    const plural2El  = document.getElementById('bulk-plural2');
+    const bulkForm   = document.getElementById('bulk-form');
+
+    function updateBar() {
+        const selected = checks().filter(c => c.checked);
+        const n = selected.length;
+        if (n > 0) {
+            countEl.textContent  = n;
+            pluralEl.textContent = n > 1 ? 's' : '';
+            plural2El.textContent = n > 1 ? 's' : '';
+            bulkBar.classList.remove('hidden');
+        } else {
+            bulkBar.classList.add('hidden');
+        }
+        // Highlight rows
+        checks().forEach(cb => {
+            const row = cb.closest('tr');
+            row.classList.toggle('row-selected', cb.checked);
+        });
+        // Update check-all state
+        const all = checks();
+        if (checkAll) {
+            checkAll.checked = all.length > 0 && all.every(c => c.checked);
+            checkAll.indeterminate = all.some(c => c.checked) && !all.every(c => c.checked);
+        }
+    }
+
+    if (checkAll) {
+        checkAll.addEventListener('change', function () {
+            checks().forEach(cb => cb.checked = this.checked);
+            updateBar();
+        });
+    }
+
+    document.querySelectorAll('.row-check').forEach(cb => {
+        cb.addEventListener('change', updateBar);
+    });
+
+    window.clearSelection = function () {
+        checks().forEach(cb => cb.checked = false);
+        if (checkAll) { checkAll.checked = false; checkAll.indeterminate = false; }
+        updateBar();
+    };
+
+    window.confirmDelete = function () {
+        const n = checks().filter(c => c.checked).length;
+        if (n === 0) return;
+        const msg = `Supprimer définitivement ${n} projet${n > 1 ? 's' : ''} ?\n\nTous les financements et décaissements associés seront également supprimés. Cette action est irréversible.`;
+        if (window.confirm(msg)) {
+            bulkForm.submit();
+        }
+    };
+})();
+</script>
+{% endif %}
+
 {% endblock %}

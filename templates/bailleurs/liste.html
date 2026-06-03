@@ -36,6 +36,9 @@
             <button type="submit" class="btn btn-primary">
                 <span class="material-symbols-outlined text-[16px]">filter_list</span> Filtrer
             </button>
+            <a href="{% url 'bailleurs:exporter' %}?q={{ query }}&type={{ type_filter }}" class="btn btn-outline whitespace-nowrap">
+                <span class="material-symbols-outlined text-[16px]">download</span> Exporter Excel
+            </a>
             {% if can_edit %}
             <a href="{% url 'bailleurs:creer' %}" class="btn btn-green whitespace-nowrap">
                 <span class="material-symbols-outlined text-[16px]">add</span> Nouveau bailleur
@@ -53,9 +56,15 @@
         <div class="h-1 bg-ci-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         <div class="p-6">
             <div class="flex items-start justify-between mb-4">
+                {% if bailleur.logo %}
+                <div class="w-14 h-14 rounded-xl bg-white flex items-center justify-center flex-shrink-0 shadow-lg border border-ci-dark-100 overflow-hidden group-hover:scale-105 transition-transform">
+                    <img src="{{ bailleur.logo.url }}" alt="{{ bailleur.nom }}" class="max-h-12 max-w-12 object-contain">
+                </div>
+                {% else %}
                 <div class="w-14 h-14 rounded-xl bg-ci-orange-500 flex items-center justify-center text-white font-bold text-[0.9375rem] flex-shrink-0 shadow-lg shadow-ci-orange-500/20 group-hover:scale-105 transition-transform">
                     {{ bailleur.sigle|default:bailleur.nom|truncatechars:3 }}
                 </div>
+                {% endif %}
                 <span class="badge badge-gray">{{ bailleur.get_type_bailleur_display }}</span>
             </div>
             <h3 class="text-[0.9375rem] font-extrabold text-ci-dark-900 group-hover:text-ci-orange-600 transition-colors leading-tight">{{ bailleur.nom }}</h3>

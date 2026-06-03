@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Programmes - Suivi Projets{% endblock %}
+{% block page_title %}Programmes{% endblock %}
+{% block page_subtitle %}Ensembles cohérents d'interventions stratégiques{% endblock %}
+
+{% block content %}
+<div class="card mb-5 animate-in">
+    <div class="p-5 flex items-center justify-between gap-3 flex-wrap">
+        <form method="get" class="flex items-center gap-2 flex-1 min-w-[280px]">
+            <div class="relative flex-1">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-ci-dark-300 text-[18px]">search</span>
+                <input type="text" name="q" value="{{ query }}" placeholder="Rechercher un programme..." class="form-input pl-10">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+        </form>
+        {% if can_edit %}
+        <a href="{% url 'projets:programme_creer' %}" class="btn btn-primary">
+            <span class="material-symbols-outlined text-[16px]">add</span> Nouveau programme
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for prog in programmes %}
+    <a href="{% url 'projets:programme_detail' prog.pk %}" class="card group hover:shadow-lg transition-all animate-in">
+        <div class="h-1 bg-blue-500"></div>
+        <div class="p-5">
+            <div class="flex items-start justify-between gap-3 mb-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <span class="material-symbols-outlined text-blue-500 text-[20px]">hub</span>
+                </div>
+                <span class="bg-ci-dark-50 px-2 py-0.5 rounded font-mono text-[0.6875rem] font-bold text-ci-dark-600">{{ prog.code }}</span>
+            </div>
+            <h3 class="text-[0.9375rem] font-black text-ci-dark-900 leading-tight mb-2 group-hover:text-blue-600 transition-colors">{{ prog.nom|truncatechars:60 }}</h3>
+            {% if prog.secteur %}<span class="badge text-[0.625rem]" style="background-color:{{ prog.secteur.couleur }}20;color:{{ prog.secteur.couleur }};">{{ prog.secteur.nom }}</span>{% endif %}
+            <div class="flex items-center justify-between mt-4 pt-3 border-t border-ci-dark-50">
+                <span class="text-[0.6875rem] text-ci-dark-400 font-medium">{{ prog.nb_projets }} projet{{ prog.nb_projets|pluralize }}</span>
+                <span class="text-[0.75rem] font-bold text-blue-600">Voir →</span>
+            </div>
+        </div>
+    </a>
+    {% empty %}
+    <div class="col-span-full text-center py-16">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-ci-dark-50 flex items-center justify-center mb-3">
+            <span class="material-symbols-outlined text-ci-dark-200 text-[32px]">hub</span>
+        </div>
+        <p class="text-[0.875rem] text-ci-dark-400 font-semibold">Aucun programme enregistré</p>
+        {% if can_edit %}
+        <a href="{% url 'projets:programme_creer' %}" class="btn btn-primary btn-sm mt-3 inline-flex">
+            <span class="material-symbols-outlined text-[14px]">add</span> Créer un programme
+        </a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

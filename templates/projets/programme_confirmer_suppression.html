@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Supprimer {{ programme.nom }}{% endblock %}
+{% block page_title %}Confirmation de suppression{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <div class="card animate-in border-red-200">
+        <div class="h-1.5 bg-red-500"></div>
+        <div class="p-6">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-red-500">warning</span>
+                </div>
+                <h3 class="text-[0.9375rem] font-bold text-ci-dark-900">Supprimer ce programme ?</h3>
+            </div>
+            <p class="text-[0.8125rem] text-ci-dark-600 mb-2">Vous êtes sur le point de supprimer le programme :</p>
+            <p class="text-[0.875rem] font-bold text-ci-dark-900 mb-2">[{{ programme.code }}] {{ programme.nom }}</p>
+            <p class="text-[0.75rem] text-ci-dark-400 mb-5">{{ programme.nombre_projets }} projet(s) rattaché(s) seront détachés (mais pas supprimés).</p>
+            <form method="post" class="flex items-center gap-2">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-outline text-red-500 border-red-300 hover:bg-red-50">
+                    <span class="material-symbols-outlined text-[16px]">delete</span> Supprimer définitivement
+                </button>
+                <a href="{% url 'projets:programme_detail' programme.pk %}" class="btn btn-outline">Annuler</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

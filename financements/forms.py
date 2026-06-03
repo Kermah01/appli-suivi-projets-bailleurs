@@ -5,12 +5,13 @@ from .models import Financement, Decaissement
 class FinancementForm(forms.ModelForm):
     class Meta:
         model = Financement
-        fields = ['projet', 'bailleur', 'type_financement', 'montant_engage', 'devise', 'date_accord', 'reference', 'observations']
+        fields = ['projet', 'bailleur', 'type_financement', 'montant_engage', 'montant_circuit_validation', 'devise', 'date_accord', 'reference', 'observations']
         widgets = {
             'projet': forms.Select(attrs={'class': 'form-input'}),
             'bailleur': forms.Select(attrs={'class': 'form-input'}),
             'type_financement': forms.Select(attrs={'class': 'form-input'}),
             'montant_engage': forms.NumberInput(attrs={'class': 'form-input', 'step': '0.01'}),
+            'montant_circuit_validation': forms.NumberInput(attrs={'class': 'form-input', 'step': '0.01', 'min': '0'}),
             'devise': forms.Select(attrs={'class': 'form-input'}),
             'date_accord': forms.DateInput(attrs={'class': 'form-input', 'type': 'date'}),
             'reference': forms.TextInput(attrs={'class': 'form-input'}),

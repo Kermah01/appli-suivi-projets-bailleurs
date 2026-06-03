@@ -1,0 +1,95 @@
+ANNEXE : OBSERVATIONS DÉTAILLÉES PAR STRUCTURE
+La présente annexe restitue, structure par structure et dans l’ordre chronologique des consultations, l’ensemble des observations et recommandations formulées lors des séances de travail tenues du 05 au 08 mai 2026.
+A. Réunions du mardi 05 mai 2026
+1. Direction des Systèmes Informatique et de la Digitalisation (DSID)
+Fonctionnalités et architecture de la plateforme
+Intégrer les projets cofinancés conjointement par l’État et les bailleurs de fonds, avec une fonctionnalité permettant de visualiser en temps réel la part respective de l’État dans le financement de chaque projet.
+Prévoir l’insertion d’un module de suivi des décaissements jusqu’à l’atteinte des objectifs fixés pour chaque projet.
+Intégrer un système d’alertes automatiques signalant toute discordance significative entre le montant décaissé et le niveau d’avancement physique du projet.
+Prévoir une fonctionnalité permettant l’ajout de pièces jointes (documents, rapports, etc.) aux fiches projets.
+Ajouter les logos des bailleurs de fonds dans l’onglet qui leur est dédié.
+Concevoir la plateforme comme un outil évolutif, susceptible de servir, à terme, d’instrument de suivi-gestion et de communication à destination du public.
+Modèles et documentation
+Élaborer un cahier des charges pour l’utilisation de la plateforme, en prenant soin d’y intégrer les exigences relatives à la réglementation sur la protection des données personnelles.
+Rédiger un manuel d’utilisation de la plateforme et idéalement ajouter un didacticiel interactif sur la plateforme ;
+Anomalies techniques relevées
+Une erreur a été signalée au niveau du module d’inscription : certains champs relatifs à la fonction et aux coordonnées des utilisateurs apparaissent de manière anormalement grisée et inaccessibles à la saisie.
+2. Cellule de Coordination des Bailleurs Arabes
+Interopérabilité des plateformes
+Étudier la faisabilité d’une interconnexion entre la plateforme de la Cellule de Coordination des Bailleurs Arabes et la plateforme nationale en cours de conception, de sorte que toute actualisation effectuée sur la plateforme de la Cellule soit automatiquement répercutée sur la plateforme nationale.
+Fonctionnalités analytiques
+Développer une cartographie par performances des projets, élaborée selon les critères de l’âge du projet et du taux de décaissement.
+Ajouter une colonne dédiée à l’explication des retards afin de permettre le renseignement des motifs justifiant le non-respect des délais pour les projets en retard.
+B. Réunions du mercredi 06 mai 2026
+3. Cellule de Coordination et de Suivi du Portefeuille des Projets et Programmes de la Banque Africaine de Développement (CCSPPP-BAD)
+Finalité et positionnement de la plateforme
+Définir clairement la finalité de la plateforme : celle-ci devrait essentiellement servir d’outil d’alerte à destination du Directeur de Cabinet  et du Ministre, afin de leur ménager le temps de réaction nécessaire.
+Envisager la plateforme comme un canal formel par lequel les cellules techniques alertent le Cabinet sur les situations nécessitant une attention particulière.
+Identifier des indicateurs de signalement permettant de détecter automatiquement les projets méritant une attention particulière.
+Limiter les droits d’intervention du Ministre aux seuls sujets nécessitant effectivement son arbitrage.
+Donner la main aux cellules techniques pour filtrer et hiérarchiser les informations remontées vers le Ministre et le DIRCAB.
+Fonctionnalités et architecture
+Ajouter une section d’aide à la décision destinée au Ministre, synthétisant exclusivement les problèmes généraux, les informations globales et les taux de décaissement.
+Ajouter dans le template une cellule dédiée à l’explication des probables retards de projets.
+Trouver une méthode permettant de désagréger et de spécifier la nature des retards, compte tenu de la diversité des types d’activités.
+Préciser dans le template de quel taux d’avancement il est fait référence (physique, financier, etc.).
+Cadrage méthodologique
+Retirer la section relative à l’alignement avec le Plan National de Développement (PND), dont la mise en œuvre se révèle difficile en raison du niveau de spécification requis.
+Rédiger un cahier des charges mis à disposition de l’ensemble des parties prenantes pour amendement et validation.
+4. Direction Générale du Plan (DGP) et Direction Générale de l’Aménagement du Territoire et du Développement Régionale et Locale (DGATDRL)
+Complétude et clarté des données
+Apporter une précision sur le traitement des montants déjà engagés mais non encore décaissés (montants en pipeline).
+Modifier l’intitulé « point focal bailleur » en « point focal » afin de ne pas avoir de confusion.
+Répertorier les noms des responsables intervenant sur les projets au niveau local.
+Interopérabilité et calendrier de suivi
+Examiner la faisabilité d’une interconnexion entre la plateforme et le système SYNAPSE.
+Identifier le délai à l’issue duquel les cellules clôturent leur suivi semestriel, afin d’en déduire un délai de remplissage des données sur la plateforme.
+Prendre note que certaines observations issues de la hiérarchie des directions pourraient être transmises ultérieurement.
+C. Réunion du jeudi 07 mai 2026
+5. Projet d’Harmonisation et d’Amélioration des Statistiques (PHAS) & Agence Nationale de la Statistique (ANStat)
+Observations et recommandations
+Respecter la charte graphique du Ministère dans la conception de la plateforme.
+Supprimer le bouton « Créer un compte » et centraliser la gestion des accès au niveau de l’administrateur, qui sera chargé de créer les comptes des utilisateurs autorisés et de leur transmettre leurs identifiants.
+Introduire une distinction claire entre les notions de programme et de projet au sein de la plateforme.
+Retirer les montants affichés par région sur la carte graphique, dans la mesure où un même projet peut intervenir simultanément dans plusieurs régions, ce qui rendrait les montants indiqués inexacts.
+Cartographier les niveaux d’intervention géographique dans la section dédiée à la carte graphique.
+Intégrer une fonctionnalité de cartographie dans la fiche projet, afin d’offrir une visualisation des zones d’intervention de chaque projet.
+Mettre en place un système de restrictions d’accès pour le chargement des données, afin de limiter cette action aux seuls utilisateurs habilités.
+Offrir au Ministre et au Directeur de Cabinet la possibilité d’exporter la liste des projets.
+D. Réunions du vendredi 08 mai 2026
+6. Direction Générale de la Coopération au Développement (DGCOD)
+Tableau de bord et collecte des données
+Concevoir un tableau de bord simple facilitant la prise de décision.
+Mettre en place un mécanisme simple de collecte des données afin de limiter la saisie de données erronées.
+Paramétrage et fonctionnalités
+Intégrer l’euro aux devises monétaires disponibles sur la plateforme.
+Attribuer un titre approprié à la plateforme.
+Dans l’onglet bailleur, définir le seuil à partir duquel l’intervention d’un bailleur est considérée comme non négligeable.
+Ajouter des champs dédiés aux dates prévisionnelles et aux dates effectives de réalisation des activités ainsi que de décaissement.
+Intégrer un volet spécifique aux appuis budgétaires.
+Observations du Directeur Général
+Le Directeur Général a souligné l’importance stratégique de la plateforme pour la DGCOD, la direction ayant besoin de données fiables pour améliorer son efficience.
+Le Directeur Général a également indiqué que, une fois la plateforme opérationnelle, des propositions d’améliorations complémentaires pourront être formulées, la plateforme étant conçue comme un outil évolutif.
+7. Bureau National de la Prospective et de la Veille Stratégique (BNPVS)
+Gestion des informations et des accès
+Dans l’onglet projet, ajouter une rubrique permettant de renseigner les coordonnées des responsables de projet ainsi que la structure responsable.
+Mettre en place un mécanisme de contrôle des saisies permettant à une seule structure désignée de renseigner les informations relatives à un projet, les autres structures concernées disposant d’un accès en lecture seule.
+Uniformisation des libellés
+Uniformiser les libellés de la plateforme en traduisant les termes anglais en français.
+8. École Nationale Supérieure de Statistique et Économie Appliquée (ENSEA)
+Accès et profils utilisateurs
+Dans la mesure où la plateforme est à usage interne, supprimer la fonctionnalité de création de compte.
+Définir clairement les profils utilisateurs et leurs finalités d’usage ; la plateforme étant jugée peu utile pour les conseillers techniques dans sa configuration actuelle.
+Formaliser les rôles et responsabilités des différents intervenants sur la plateforme.
+Tableau de bord et indicateurs de performance
+Concevoir un tableau de bord plus synthétique à destination du Ministre.
+Améliorer la présentation des indicateurs clés de performance (KPI) afin d’en renforcer la lisibilité et la visibilité.
+Permettre l’export d’une vue synthétique des KPI.
+Fonctionnalités
+Ajouter une fonctionnalité permettant de rétrécir la barre de navigation.
+Mettre en place une fonctionnalité de suivi de la ponctualité des saisies, permettant d’identifier les structures ayant renseigné les données dans les délais impartis.
+Ajouter une fonctionnalité permettant de spécifier la date d’entrée et de sortie des projets.
+Données financières
+Prendre en compte le taux de conversion en vigueur au moment de la signature du financement, ce taux étant défini contractuellement.
+Documentation
+Rédiger le cahier des charges de la plateforme et le partager aux différentes structures concernées.

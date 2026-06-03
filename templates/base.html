@@ -6,15 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token }}">
     <title>{% block title %}Suivi Projets Bailleurs{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.44.0/dist/apexcharts.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    {% load static %}
+    <script src="{% static 'vendor/tailwindcss.js' %}"></script>
+    <script src="{% static 'vendor/echarts.min.js' %}"></script>
+    <script src="{% static 'vendor/html2canvas.min.js' %}"></script>
+    <script src="{% static 'vendor/xlsx.full.min.js' %}"></script>
+    <script src="{% static 'vendor/apexcharts.min.js' %}"></script>
+    <script src="{% static 'vendor/marked.min.js' %}"></script>
+    <script defer src="{% static 'vendor/alpinejs.min.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'vendor/leaflet.css' %}" />
+    <script src="{% static 'vendor/leaflet.js' %}"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
@@ -104,9 +105,9 @@
         .badge-orange { background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; }
         .badge-green { background: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0; }
         .badge-red { background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; }
-        .badge-blue { background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; }
+        .badge-blue { background: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0; }
         .badge-gray { background: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; }
-        .badge-purple { background: #FAF5FF; color: #7C3AED; border: 1px solid #DDD6FE; }
+        .badge-purple { background: #FFF7ED; color: #C2410C; border: 1px solid #FED7AA; }
 
         /* ── Gauge ── */
         .gauge-ring { transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1); }
@@ -185,7 +186,7 @@
 
         /* ── Glass morphism utility ── */
         .glass { background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-        .glass-dark { background: rgba(15,23,42,0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+        .glass-dark { background: rgba(0, 30, 14, 0.98); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 
         /* ── Pulse notification ── */
         .pulse-ring { animation: pulseRing 2s cubic-bezier(.4,0,.6,1) infinite; }
@@ -242,6 +243,43 @@
         .notif-item:last-child { border-bottom: none; }
     </style>
     {% block extra_head %}{% endblock %}
+    <style>
+    @media print {
+        /* Masquer tous les éléments de navigation et d'interface */
+        .sidebar-nav, [data-sidebar], nav, #sidebarNav,
+        .fixed.top-\[3px\], .fixed.z-\[55\], .flag-bar,
+        button:not(.print-keep), a.btn:not(.print-keep),
+        .notif-dropdown, .search-dropdown,
+        [x-data="globalSearch()"], [x-data*="notif"],
+        .no-print, .hint-banner, .builder-toolbar { display: none !important; }
+        /* Fond blanc, texte noir */
+        body { background: #fff !important; color: #000 !important; font-size: 10pt; }
+        /* Contenu pleine largeur */
+        [data-main], main { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+        /* Cards sans ombre */
+        .card, .stat-card, .kpi-card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; break-inside: avoid; }
+        /* Graphiques : garder la taille */
+        canvas, svg { max-width: 100% !important; }
+        /* En-tête allégé */
+        .welcome-banner { background: #003D1E !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .kpi-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        /* Forcer les couleurs de fond des badges */
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        /* Titre de page */
+        @page { margin: 1.5cm; size: A4 landscape; }
+        /* Bouton print flottant caché à l'impression */
+        .print-btn-float { display: none !important; }
+    }
+    /* Bouton flottant d'impression */
+    .print-btn-float {
+        position: fixed; bottom: 5.5rem; right: 1.5rem; z-index: 999;
+        background: #1A4D2D; color: #fff; border: none; border-radius: 50%;
+        width: 44px; height: 44px; cursor: pointer; box-shadow: 0 2px 8px rgba(26,77,45,0.35);
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.2s ease;
+    }
+    .print-btn-float:hover { background: #245838; transform: scale(1.06); box-shadow: 0 4px 14px rgba(26,77,45,0.5); }
+    </style>
 </head>
 <body class="h-full bg-ci-dark-50 font-sans antialiased" x-data="{ sidebarOpen: true, mobileSidebar: false }">
 
@@ -280,7 +318,7 @@
                 <template x-for="r in results" :key="r.url">
                     <a :href="r.url" class="search-item">
                         <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                             :class="r.type==='projet' ? 'bg-ci-orange-50 text-ci-orange-500' : r.type==='bailleur' ? 'bg-blue-50 text-blue-500' : 'bg-ci-green-50 text-ci-green-500'">
+                             :class="r.type==='projet' ? 'bg-ci-orange-50 text-ci-orange-500' : r.type==='bailleur' ? 'bg-ci-green-50 text-ci-green-500' : 'bg-ci-green-50 text-ci-green-500'">
                             <span class="material-symbols-outlined text-[16px]" x-text="r.icon"></span>
                         </div>
                         <div class="min-w-0 flex-1">
@@ -313,7 +351,7 @@
                     <template x-for="n in notifs" :key="n.title+n.message">
                         <a :href="n.url" class="notif-item">
                             <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                                 :class="n.type==='warning' ? 'bg-red-50 text-red-500' : n.type==='alert' ? 'bg-ci-orange-50 text-ci-orange-500' : 'bg-blue-50 text-blue-500'">
+                                 :class="n.type==='warning' ? 'bg-red-50 text-red-500' : n.type==='alert' ? 'bg-ci-orange-50 text-ci-orange-500' : 'bg-ci-green-50 text-ci-green-500'">
                                 <span class="material-symbols-outlined text-[16px]" x-text="n.icon"></span>
                             </div>
                             <div class="min-w-0 flex-1">
@@ -378,21 +416,28 @@
                     <span x-show="sidebarOpen" x-transition.opacity>Tableau de bord</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Tableau de bord</span>
                 </a>
-                <a href="{% url 'projets:liste' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'projets' %}active{% endif %}">
-                    <span class="material-symbols-outlined">folder_open</span>
+                <a href="{% url 'projets:liste' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'projets' and 'programme' not in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">article</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Projets</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Projets</span>
+                </a>
+                <a href="{% url 'projets:programme_liste' %}" class="sidebar-link group {% if 'programme' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">folder_open</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Programmes</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Programmes</span>
                 </a>
                 <a href="{% url 'bailleurs:liste' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'bailleurs' %}active{% endif %}">
                     <span class="material-symbols-outlined">account_balance</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Bailleurs</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Bailleurs</span>
                 </a>
+                {% if not is_ministre %}
                 <a href="{% url 'financements:liste' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'financements' %}active{% endif %}">
                     <span class="material-symbols-outlined">payments</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Financements</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Financements</span>
                 </a>
+                {% endif %}
 
                 <div class="my-5 mx-2 border-t border-ci-dark-100"></div>
                 <p x-show="sidebarOpen" x-transition class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Stratégie</p>
@@ -411,12 +456,21 @@
                     <span x-show="sidebarOpen" x-transition.opacity>Assistant IA</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Assistant IA</span>
                 </a>
+                {% if not is_ministre %}
+                <a href="{% url 'alertes:criteres' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'alertes' %}active{% endif %}">
+                    <span class="material-symbols-outlined">rule</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Critères retard</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Critères retard</span>
+                </a>
+                {% endif %}
 
+                {% if not is_ministre %}
                 <a href="{% url 'imports:index' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'imports' %}active{% endif %}">
                     <span class="material-symbols-outlined">upload_file</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Import Excel</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Import Excel</span>
                 </a>
+                {% endif %}
 
                 {% if is_admin %}
                 <div class="my-5 mx-2 border-t border-ci-dark-100"></div>
@@ -430,6 +484,11 @@
                     <span class="material-symbols-outlined">history</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Journal d'activité</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Journal</span>
+                </a>
+                <a href="{% url 'dashboard:ponctualite' %}" class="sidebar-link group {% if 'ponctualite' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">schedule</span>
+                    <span x-show="sidebarOpen" x-transition.opacity>Ponctualité saisies</span>
+                    <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Ponctualité</span>
                 </a>
                 <a href="/admin/" class="sidebar-link group" target="_blank">
                     <span class="material-symbols-outlined">settings</span>
@@ -503,7 +562,7 @@
                         {% if message.tags == 'success' %}bg-ci-green-50 text-ci-green-700 border border-ci-green-200
                         {% elif message.tags == 'error' %}bg-red-50 text-red-700 border border-red-200
                         {% elif message.tags == 'warning' %}bg-ci-orange-50 text-ci-orange-700 border border-ci-orange-200
-                        {% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}"
+                        {% else %}bg-ci-green-50 text-ci-green-700 border border-ci-green-200{% endif %}"
                         x-data="{ show: true }" x-show="show" x-transition>
                         <span class="material-symbols-outlined text-[16px]">
                             {% if message.tags == 'success' %}check_circle{% elif message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}
@@ -536,6 +595,11 @@
             </footer>
         </div>
     </div>
+
+    <!-- Floating print button (hidden at actual print time via @media print) -->
+    <button class="print-btn-float no-print" onclick="window.print()" title="Imprimer / Exporter PDF">
+        <span class="material-symbols-outlined text-[22px]">print</span>
+    </button>
 
     <!-- Global Search & Notification Alpine Components -->
     <script>

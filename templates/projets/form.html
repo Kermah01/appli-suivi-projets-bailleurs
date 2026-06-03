@@ -24,7 +24,7 @@
             <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {% for field in form %}
                 {% if field.name != 'financements_json' %}
-                <div class="{% if field.name == 'titre' or field.name == 'description' or field.name == 'objectifs_pnd' %}md:col-span-2{% endif %}">
+                <div class="{% if field.name == 'titre' or field.name == 'description' or field.name == 'objectifs_pnd' or field.name == 'motif_retard' %}md:col-span-2{% endif %}">
                     <label for="{{ field.id_for_label }}" class="block text-[0.75rem] font-medium text-ci-dark-600 mb-1">
                         {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
                     </label>
@@ -51,7 +51,7 @@
                     <span>Montant total en FCFA (XOF) :</span>
                     <span class="font-bold text-ci-dark-800 text-[0.875rem]" x-text="fcfaAmount"></span>
                 </div>
-                <p class="text-[0.6875rem] text-ci-dark-300 mt-1">Taux indicatifs &mdash; USD: 615, EUR: 655,957, GBP: 775, JPY: 4,10, CHF: 685, CNY: 85</p>
+                <p class="text-[0.6875rem] text-ci-dark-300 mt-1">Taux indicatifs &mdash; USD: 615, EUR: 655,957, GBP: 775, JPY: 4,10, CHF: 685, CNY: 85 &bull; <strong class="text-ci-orange-600">UC (Unité de Compte BAD) : 769,083</strong> (bulletin BAD mai 2026)</p>
             </div>
         </div>
 
@@ -107,6 +107,7 @@
                                     <option value="USD">USD</option>
                                     <option value="EUR">EUR</option>
                                     <option value="XOF">XOF</option>
+                                    <option value="UC">UC (Unité de Compte BAD)</option>
                                     <option value="GBP">GBP</option>
                                     <option value="JPY">JPY</option>
                                     <option value="CHF">CHF</option>
@@ -144,7 +145,7 @@
 {% block extra_js %}
 <script>
 function projetForm() {
-    var rates = { XOF:1, USD:615, EUR:655.957, GBP:775, JPY:4.10, CHF:685, CNY:85 };
+    var rates = { XOF:1, USD:615, EUR:655.957, GBP:775, JPY:4.10, CHF:685, CNY:85, UC:769.083 };
     var bailleursData = {{ form.get_bailleurs_json|safe }};
     var typeData = {{ form.get_type_choices_json|safe }};
     return {

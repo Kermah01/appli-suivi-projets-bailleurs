@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load humanize %}
+{% load humanize projets_tags %}
 
 {% block title %}Financement {{ financement.pk }} - Suivi Projets{% endblock %}
 {% block page_title %}Financement #{{ financement.pk }}{% endblock %}
@@ -49,9 +49,8 @@
                 <span class="material-symbols-outlined text-blue-500 text-[18px]">account_balance_wallet</span>
             </div>
         </div>
-        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant engagé</p>
-        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ financement.montant_engage|floatformat:0|intcomma }}</p>
-        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">{{ financement.devise }}</p>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant engagé (FCFA)</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ financement.montant_engage|fmt_fcfa }}</p>
     </div>
     <div class="stat-card animate-in stagger-2">
         <div class="flex items-center gap-2 mb-3">
@@ -59,8 +58,8 @@
                 <span class="material-symbols-outlined text-ci-green-500 text-[18px]">payments</span>
             </div>
         </div>
-        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total décaissé</p>
-        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ financement.total_decaisse|floatformat:0|intcomma }}</p>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total décaissé (FCFA)</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ financement.total_decaisse|fmt_fcfa }}</p>
     </div>
     <div class="stat-card animate-in stagger-3">
         <div class="flex items-center gap-2 mb-3">
@@ -69,7 +68,7 @@
             </div>
         </div>
         <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Reste à décaisser</p>
-        <p class="text-xl font-black text-ci-orange-500 leading-none">{{ financement.reste_a_decaisser|floatformat:0|intcomma }}</p>
+        <p class="text-xl font-black text-ci-orange-500 leading-none">{{ financement.reste_a_decaisser|fmt_fcfa }}</p>
     </div>
     <div class="stat-card animate-in stagger-4">
         <div class="flex items-center gap-2 mb-3">
@@ -141,7 +140,7 @@
         <div class="px-5 py-4 border-b border-ci-dark-100/60 last:border-b-0 hover:bg-slate-50/50 transition-colors">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-[0.875rem] font-black text-ci-dark-800">{{ d.montant|floatformat:0|intcomma }} <span class="text-ci-dark-400 font-medium text-[0.6875rem]">{{ financement.devise }}</span></p>
+                    <p class="text-[0.875rem] font-black text-ci-dark-800">{{ d.montant|fmt_fcfa }}</p>
                     <p class="text-[0.6875rem] text-ci-dark-400 font-medium mt-0.5 flex items-center gap-1">
                         <span class="material-symbols-outlined text-[12px]">calendar_month</span>
                         {{ d.date_decaissement|date:"d/m/Y" }} {% if d.reference %}&middot; <span class="font-mono font-bold">{{ d.reference }}</span>{% endif %}

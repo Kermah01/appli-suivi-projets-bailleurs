@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% load humanize projets_tags %}
+
+{% block title %}{{ programme.nom }} - Suivi Projets{% endblock %}
+{% block page_title %}{{ programme.nom }}{% endblock %}
+{% block page_subtitle %}Programme {{ programme.code }}{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+    .detail-row { transition: background 0.15s ease; }
+    .detail-row:hover { background: #FAFBFC; }
+    .progress-bar-anim { transition: width 1s cubic-bezier(.4,0,.2,1); }
+    #prog-map { height: 280px; border-radius: 0.75rem; z-index: 1; }
+    .src-badge-s { display:inline-flex;align-items:center;font-size:0.5rem;background:#EDE9FE;color:#7C3AED;font-weight:700;padding:0 4px;border-radius:3px; }
+    .src-badge-a { display:inline-flex;align-items:center;font-size:0.5rem;background:#DBEAFE;color:#1D4ED8;font-weight:700;padding:0 4px;border-radius:3px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══ HERO HEADER ═══ -->
+<div class="card mb-6 overflow-hidden animate-in">
+    <div class="h-1.5 bg-violet-500"></div>
+    <div class="p-6">
+        <div class="flex items-start justify-between gap-4">
+            <div class="flex items-start gap-4 flex-1 min-w-0">
+                <div class="w-14 h-14 rounded-xl bg-violet-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-violet-500/20">
+                    <span class="material-symbols-outlined text-white text-[24px]">folder_open</span>
+                </div>
+                <div class="min-w-0">
+                    <h2 class="text-[1.125rem] font-black text-ci-dark-900 tracking-tight leading-tight">{{ programme.nom }}</h2>
+                    <div class="flex items-center gap-2.5 mt-2 flex-wrap">
+                        <span class="bg-ci-dark-50 px-2 py-0.5 rounded font-mono text-[0.75rem] font-bold text-ci-dark-600">{{ programme.code }}</span>
+                        <span class="badge text-[0.625rem]">{{ programme.get_statut_display }}</span>
+                        {% if est_en_retard %}<span class="badge badge-red gap-1 text-[0.625rem]"><span class="material-symbols-outlined text-[12px]">warning</span> En retard</span>{% endif %}
+                        {% if programme.secteur %}<span class="badge text-[0.625rem]" style="background-color:{{ programme.secteur.couleur }}20;color:{{ programme.secteur.couleur }};">{{ programme.secteur.nom }}</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+            {% if can_edit %}
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <a href="{% url 'projets:programme_modifier' programme.pk %}" class="btn btn-primary btn-sm">
+                    <span class="material-symbols-outlined text-[14px]">edit</span> Modifier
+                </a>
+                <a href="{% url 'projets:programme_supprimer' programme.pk %}" class="btn btn-outline btn-sm text-red-500 border-red-200 hover:bg-red-50">
+                    <span class="material-symbols-outlined text-[14px]">delete</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Retour + toggle méthode -->
+<div class="mb-5 animate-in stagger-1 flex items-center gap-3 flex-wrap">
+    <a href="{% url 'projets:programme_liste' %}" class="inline-flex items-center gap-1.5 text-[0.8125rem] text-ci-dark-400 hover:text-violet-500 font-semibold transition-colors">
+        <span class="material-symbols-outlined text-[16px]">arrow_back</span> Retour à la liste
+    </a>
+    <span class="text-ci-dark-200 hidden sm:block">|</span>
+    <div class="flex items-center gap-2">
+        <span class="text-[0.6875rem] text-ci-dark-400 font-semibold">Source :</span>
+        <div class="flex items-center gap-1 bg-white border border-ci-dark-200 rounded-lg p-1 shadow-sm">
+            <a href="?methode=auto"   class="px-2.5 py-1 rounded text-[0.625rem] font-bold transition-colors {% if methode == 'auto' %}bg-violet-500 text-white{% else %}text-ci-dark-500 hover:bg-ci-dark-50{% endif %}"><span class="material-symbols-outlined text-[10px] align-middle">auto_fix_high</span> Auto</a>
+            <a href="?methode=saisi"  class="px-2.5 py-1 rounded text-[0.625rem] font-bold transition-colors {% if methode == 'saisi' %}bg-violet-500 text-white{% else %}text-ci-dark-500 hover:bg-ci-dark-50{% endif %}"><span class="material-symbols-outlined text-[10px] align-middle">edit_note</span> Saisie</a>
+            <a href="?methode=agrege" class="px-2.5 py-1 rounded text-[0.625rem] font-bold transition-colors {% if methode == 'agrege' %}bg-violet-500 text-white{% else %}text-ci-dark-500 hover:bg-ci-dark-50{% endif %}"><span class="material-symbols-outlined text-[10px] align-middle">merge</span> Agrégat</a>
+        </div>
+        <span class="text-[0.625rem] text-ci-dark-300 italic hidden sm:block">
+            <span class="src-badge-s">S</span> saisie &nbsp; <span class="src-badge-a">A</span> agrégat projets
+        </span>
+    </div>
+</div>
+
+<!-- ═══ KPIs — 6 cartes ═══ -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+
+    <!-- 1. Montant total du programme -->
+    <div class="stat-card animate-in stagger-1">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-green-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-green-500 text-[18px]">account_balance_wallet</span>
+            </div>
+            <span class="src-badge-{% if stats.montant_total_src == 'saisi' %}s{% elif stats.montant_total_src == 'agrege' %}a{% endif %}" title="{{ stats.montant_total_src }}">{% if stats.montant_total_src == 'saisi' %}S{% elif stats.montant_total_src == 'agrege' %}A{% endif %}</span>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Montant total</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ stats.montant_total|fmt_fcfa }}</p>
+    </div>
+
+    <!-- 2. Total décaissé -->
+    <div class="stat-card animate-in stagger-2">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-green-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-green-500 text-[18px]">payments</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total décaissé</p>
+        <p class="text-xl font-black text-ci-dark-900 leading-none">{{ stats.montant_decaisse|fmt_fcfa }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">sur {{ stats.montant_engage|fmt_fcfa }}</p>
+    </div>
+
+    <!-- 3. Taux décaissement -->
+    <div class="stat-card animate-in stagger-3">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-orange-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">speed</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Taux décaissement</p>
+        <p class="text-[1.75rem] font-black leading-none mt-1 {% if stats.taux_decaissement < 30 %}text-red-500{% elif stats.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ stats.taux_decaissement }}%</p>
+    </div>
+
+    <!-- 4. Exécution physique -->
+    <div class="stat-card animate-in stagger-4">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-ci-orange-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">trending_up</span>
+            </div>
+            <span class="src-badge-{% if stats.taux_avancement_src == 'saisi' %}s{% elif stats.taux_avancement_src == 'agrege' %}a{% endif %}">{% if stats.taux_avancement_src == 'saisi' %}S{% elif stats.taux_avancement_src == 'agrege' %}A{% endif %}</span>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Exécution physique</p>
+        <p class="text-[1.75rem] font-black text-ci-dark-900 leading-none mt-1">{{ stats.taux_avancement }}%</p>
+        <div class="w-full bg-ci-dark-100 rounded-full h-2 mt-3 overflow-hidden">
+            <div class="h-2 rounded-full progress-bar-anim {% if stats.taux_avancement < 30 %}bg-red-400{% elif stats.taux_avancement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-500{% endif %}" style="width: {{ stats.taux_avancement }}%;"></div>
+        </div>
+    </div>
+
+    <!-- 5. Reste à décaisser -->
+    <div class="stat-card animate-in stagger-5">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <span class="material-symbols-outlined text-amber-500 text-[18px]">hourglass_top</span>
+            </div>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Reste à décaisser</p>
+        <p class="text-xl font-black text-amber-600 leading-none">{{ reste_a_decaisser|fmt_fcfa }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">engagé − décaissé</p>
+    </div>
+
+    <!-- 6. Objectif annuel -->
+    <div class="stat-card animate-in stagger-6">
+        <div class="flex items-center gap-2 mb-3">
+            <div class="w-10 h-10 rounded-lg {% if stats.taux_decaissement_prevu > 0 %}{% if ecart_taux_annuel >= 0 %}bg-ci-green-50{% else %}bg-red-50{% endif %}{% else %}bg-ci-dark-50{% endif %} flex items-center justify-center">
+                <span class="material-symbols-outlined {% if stats.taux_decaissement_prevu > 0 %}{% if ecart_taux_annuel >= 0 %}text-ci-green-500{% else %}text-red-500{% endif %}{% else %}text-ci-dark-300{% endif %} text-[18px]">target</span>
+            </div>
+            <span class="src-badge-{% if stats.taux_decaissement_prevu_src == 'saisi' %}s{% elif stats.taux_decaissement_prevu_src == 'agrege' %}a{% endif %}">{% if stats.taux_decaissement_prevu_src == 'saisi' %}S{% elif stats.taux_decaissement_prevu_src == 'agrege' %}A{% endif %}</span>
+        </div>
+        <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Obj. annuel</p>
+        {% if stats.taux_decaissement_prevu > 0 %}
+        <p class="text-[1.75rem] font-black leading-none {% if ecart_taux_annuel >= 0 %}text-ci-green-600{% else %}text-red-500{% endif %}">{{ stats.taux_decaissement_prevu }}%</p>
+        <p class="text-[0.5625rem] mt-1 font-semibold {% if ecart_taux_annuel >= 0 %}text-ci-green-600{% else %}text-red-500{% endif %}">
+            écart {% if ecart_taux_annuel >= 0 %}+{% endif %}{{ ecart_taux_annuel }}pts
+        </p>
+        {% else %}
+        <p class="text-base font-bold text-ci-dark-300 mt-1">—</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1">Non défini</p>
+        {% endif %}
+    </div>
+
+</div>
+
+<!-- ═══ CARTE ZONE D'INTERVENTION ═══ -->
+{% if programme.zone_geographique %}
+<div class="card mb-5 animate-in stagger-5">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-violet-500 text-[16px]">map</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Zone d'intervention</h3>
+        <span class="badge badge-blue text-[0.5625rem]">{{ programme.zone_geographique }}</span>
+    </div>
+    <div class="p-3">
+        <div id="prog-map"></div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══ INFOS GÉNÉRALES + CALENDRIER ═══ -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+
+    <!-- Informations générales -->
+    <div class="card animate-in stagger-5">
+        <div class="card-header flex items-center gap-2">
+            <span class="material-symbols-outlined text-violet-500 text-[16px]">info</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Informations générales</h3>
+        </div>
+        <div class="p-5">
+            <dl class="space-y-0">
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">tag</span> Code</dt>
+                    <dd class="text-[0.8125rem] font-bold text-ci-dark-800 font-mono bg-ci-dark-50 px-2 py-0.5 rounded">{{ programme.code }}</dd>
+                </div>
+                {% if programme.bailleur_principal %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">account_balance</span> Bailleur principal</dt>
+                    <dd><a href="{% url 'bailleurs:detail' programme.bailleur_principal.pk %}" class="text-[0.8125rem] font-bold text-ci-orange-600 hover:underline">{{ programme.bailleur_principal }}</a></dd>
+                </div>
+                {% endif %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">category</span> Secteur</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ programme.secteur|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">location_on</span> Zone géographique</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ programme.zone_geographique|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">person</span> Responsable</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ programme.responsable|default:"-" }}</dd>
+                </div>
+                {% if programme.structure_responsable %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">business</span> Structure</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ programme.structure_responsable }}</dd>
+                </div>
+                {% endif %}
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">payments</span> Devise</dt>
+                    <dd class="text-[0.8125rem] font-bold text-ci-dark-800">{{ programme.devise }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">flag</span> Statut</dt>
+                    <dd><span class="badge text-[0.625rem]">{{ programme.get_statut_display }}</span></dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+
+    <!-- Calendrier -->
+    <div class="card animate-in stagger-5">
+        <div class="card-header flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-green-500 text-[16px]">calendar_month</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Calendrier</h3>
+        </div>
+        <div class="p-5">
+            <dl class="space-y-0">
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">edit_calendar</span> Date de signature</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ programme.date_signature|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">play_arrow</span> Date de début</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ programme.date_debut|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">event</span> Date de fin prévue</dt>
+                    <dd class="text-[0.8125rem] font-bold {% if est_en_retard %}text-red-500{% else %}text-ci-dark-800{% endif %}">{{ programme.date_fin|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">event_available</span> Date de fin effective</dt>
+                    <dd class="text-[0.8125rem] font-semibold text-ci-dark-800">{{ programme.date_fin_effective|date:"d/m/Y"|default:"-" }}</dd>
+                </div>
+                <div class="detail-row flex items-center justify-between py-2.5 border-b border-ci-dark-50 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-ci-dark-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">folder_open</span> Projets rattachés</dt>
+                    <dd class="text-[0.8125rem] font-black text-ci-dark-900">{{ stats.nb_projets }}</dd>
+                </div>
+                {% if projets_en_retard.count > 0 %}
+                <div class="detail-row flex items-center justify-between py-2.5 rounded-lg px-2">
+                    <dt class="text-[0.8125rem] text-red-400 flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">warning</span> Projets en retard</dt>
+                    <dd class="text-[0.8125rem] font-black text-red-500">{{ projets_en_retard.count }}</dd>
+                </div>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══ DESCRIPTION ═══ -->
+{% if programme.description %}
+<div class="card mb-5 animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-dark-400 text-[16px]">description</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Description</h3>
+    </div>
+    <div class="p-5 text-[0.8125rem] text-ci-dark-600 leading-relaxed">{{ programme.description|linebreaks }}</div>
+</div>
+{% endif %}
+
+<!-- ═══ OBJECTIF STRATÉGIQUE ═══ -->
+{% if programme.objectif_strategique %}
+<div class="card mb-5 animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-green-500 text-[16px]">flag</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Objectif stratégique</h3>
+    </div>
+    <div class="p-5 text-[0.8125rem] text-ci-dark-600 leading-relaxed">{{ programme.objectif_strategique|linebreaks }}</div>
+</div>
+{% endif %}
+
+<!-- ═══ RETARD ═══ -->
+{% if est_en_retard %}
+<div class="card mb-5 animate-in stagger-6 border-red-200">
+    <div class="h-1 bg-red-500"></div>
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-red-500 text-[16px]">warning</span>
+        <h3 class="text-[0.8125rem] font-bold text-red-700">Programme en retard</h3>
+        <span class="badge badge-red text-[0.5625rem]">Date fin dépassée</span>
+    </div>
+    <div class="p-5 text-[0.8125rem] text-ci-dark-600">
+        La date de fin prévue <strong>{{ programme.date_fin|date:"d/m/Y" }}</strong> est dépassée.
+        {% if projets_en_retard.count > 0 %}
+        <span class="ml-2 text-red-500 font-bold">{{ projets_en_retard.count }} projet{{ projets_en_retard.count|pluralize }} en retard.</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══ RÉPARTITION BAILLEURS ═══ -->
+{% if est_cofinance %}
+<div class="card mb-5 animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">group_work</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition par bailleur</h3>
+        <span class="badge badge-blue text-[0.5625rem] ml-1">{{ repartition|length }} bailleurs</span>
+    </div>
+    <div class="p-5">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="space-y-3">
+                {% for r in repartition %}
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[0.8125rem] font-bold text-ci-dark-800">{{ r.sigle }}</span>
+                        <span class="text-[0.8125rem] font-black text-ci-dark-900">{{ r.part_pct }}%</span>
+                    </div>
+                    <div class="w-full bg-ci-dark-100 rounded-full h-3 overflow-hidden">
+                        <div class="h-3 rounded-full transition-all duration-700 {% cycle 'bg-ci-orange-500' 'bg-violet-500' 'bg-ci-green-500' 'bg-blue-500' 'bg-amber-500' %}" style="width: {{ r.part_pct }}%;"></div>
+                    </div>
+                    <div class="flex items-center justify-between mt-0.5">
+                        <span class="text-[0.625rem] text-ci-dark-400">Engagé: <span class="font-bold text-ci-dark-600">{{ r.montant_engage|fmt_fcfa }}</span></span>
+                        <span class="text-[0.625rem] {% if r.taux_decaissement < 30 %}text-red-500{% elif r.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %} font-bold">Décaissé: {{ r.taux_decaissement }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="flex items-center justify-center">
+                <div id="progCofinChart" style="width:100%;min-height:280px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ═══ PROJETS DU PROGRAMME ═══ -->
+<div class="card mb-5 animate-in stagger-6">
+    <div class="card-header flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">folder</span>
+            <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Projets du programme</h3>
+            <span class="badge badge-blue text-[0.5625rem]">{{ stats.nb_projets }}</span>
+        </div>
+        {% if can_edit %}
+        <a href="{% url 'projets:creer' %}" class="btn btn-green btn-sm">
+            <span class="material-symbols-outlined text-[14px]">add</span> Ajouter un projet
+        </a>
+        {% endif %}
+    </div>
+    <div class="overflow-x-auto">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Titre</th>
+                    <th>Bailleur</th>
+                    <th>Statut</th>
+                    <th class="text-right">Montant</th>
+                    <th class="text-right">Décaissé</th>
+                    <th class="text-center">Taux déc.</th>
+                    <th class="text-center">Avan. phys.</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in programme.projets.all %}
+                <tr class="group">
+                    <td class="font-mono font-bold text-ci-dark-700">
+                        <a href="{% url 'projets:detail' p.pk %}" class="hover:text-violet-600">{{ p.code }}</a>
+                    </td>
+                    <td class="max-w-[260px] truncate" title="{{ p.titre }}">
+                        <a href="{% url 'projets:detail' p.pk %}" class="hover:text-violet-600 font-semibold">{{ p.titre|truncatechars:50 }}</a>
+                    </td>
+                    <td class="text-ci-dark-500 text-[0.75rem]">{{ p.bailleur_principal.sigle|default:p.bailleur_principal.nom|default:"-" }}</td>
+                    <td><span class="{{ p.statut_badge_class }} text-[0.625rem]">{{ p.get_statut_display }}</span></td>
+                    <td class="text-right font-bold text-ci-dark-800">{{ p.montant_total_fcfa|fmt_fcfa }}</td>
+                    <td class="text-right font-semibold">{{ p.total_decaisse|fmt_fcfa }}</td>
+                    <td class="text-center">
+                        <span class="font-bold text-[0.8125rem] {% if p.taux_decaissement < 30 %}text-red-500{% elif p.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ p.taux_decaissement }}%</span>
+                    </td>
+                    <td class="text-center">
+                        <div class="flex items-center gap-1.5 justify-center">
+                            <div class="w-16 bg-ci-dark-100 rounded-full h-1.5">
+                                <div class="h-1.5 rounded-full {% if p.taux_avancement < 30 %}bg-red-400{% elif p.taux_avancement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-500{% endif %}" style="width:{{ p.taux_avancement }}%"></div>
+                            </div>
+                            <span class="text-[0.75rem] font-bold text-ci-dark-700">{{ p.taux_avancement }}%</span>
+                        </div>
+                    </td>
+                    <td class="text-right whitespace-nowrap">
+                        <a href="{% url 'projets:detail' p.pk %}" class="inline-flex items-center gap-1 text-ci-orange-500 hover:text-ci-orange-700 text-[0.75rem] font-semibold transition-colors">
+                            <span class="material-symbols-outlined text-[12px]">visibility</span> Voir
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="9" class="!py-12 text-center">
+                        <div class="w-12 h-12 mx-auto rounded-xl bg-ci-dark-50 flex items-center justify-center mb-2">
+                            <span class="material-symbols-outlined text-ci-dark-200 text-[24px]">folder_open</span>
+                        </div>
+                        <p class="text-[0.8125rem] text-ci-dark-300 font-medium">Aucun projet rattaché à ce programme</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{% if est_cofinance %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof ApexCharts === 'undefined') return;
+    var el = document.getElementById('progCofinChart');
+    if (!el) return;
+    var paletteCI = ['#F77F00','#8B5CF6','#009A44','#3B82F6','#F59E0B','#1E293B'];
+    var labels = [], series = [];
+    {% for r in repartition %}
+    labels.push('{{ r.sigle|escapejs }}');
+    series.push({{ r.montant_engage|floatformat:0 }});
+    {% endfor %}
+    new ApexCharts(el, {
+        chart: { type: 'donut', height: 280, fontFamily: 'Inter, sans-serif' },
+        series: series, labels: labels, colors: paletteCI,
+        legend: { position: 'bottom', fontSize: '11px', fontWeight: 600 },
+        plotOptions: { pie: { donut: { size: '60%', labels: { show: true, total: { show: true, label: 'Total engagé', fontSize: '10px', fontWeight: 600, formatter: function(w){ var t=w.globals.seriesTotals.reduce(function(a,b){return a+b},0); if(t>=1e9) return (t/1e9).toFixed(1)+' Mrd'; if(t>=1e6) return (t/1e6).toFixed(1)+' M'; return t.toLocaleString(); } } } } } },
+        dataLabels: { enabled: true, formatter: function(val){ return val.toFixed(1)+'%'; }, style: { fontSize: '10px', fontWeight: 700 } },
+        tooltip: { y: { formatter: function(val){ if(val>=1e9) return (val/1e9).toFixed(2)+' Mrd'; if(val>=1e6) return (val/1e6).toFixed(1)+' M'; return val.toLocaleString(); } } },
+    }).render();
+});
+</script>
+{% endif %}
+
+{% if programme.zone_geographique %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs=" crossorigin=""></script>
+<script>
+(function () {
+    var mapEl = document.getElementById('prog-map');
+    if (!mapEl) return;
+    var CI_COORDS = {
+        'abidjan':[5.3600,-4.0083],'yamoussoukro':[6.8276,-5.2893],
+        'bouaké':[7.6881,-5.0305],'bouake':[7.6881,-5.0305],
+        'san-pédro':[4.7392,-6.6363],'san pedro':[4.7392,-6.6363],'san-pedro':[4.7392,-6.6363],
+        'daloa':[6.8774,-6.4502],'korhogo':[9.4580,-5.6292],'man':[7.4127,-7.5539],
+        'divo':[5.8369,-5.3593],'gagnoa':[6.1319,-5.9503],'agboville':[5.9264,-4.2114],
+        'abengourou':[6.7298,-3.4938],'bondoukou':[8.0403,-2.8009],
+        'soubré':[5.7855,-6.5963],'soubre':[5.7855,-6.5963],'tabou':[4.4168,-7.3501],
+        'guiglo':[6.5420,-7.4897],'odienné':[9.5091,-7.5633],'odienne':[9.5091,-7.5633],
+        'séguéla':[7.9606,-6.6698],'seguela':[7.9606,-6.6698],'mankono':[8.0581,-6.1835],
+        'touba':[8.2813,-7.6916],'ferkessédougou':[9.5923,-5.1944],'ferkessedougou':[9.5923,-5.1944],
+        'boundiali':[9.5219,-6.4934],'tengréla':[10.4833,-6.4083],'tengrela':[10.4833,-6.4083],
+        'national':[7.54,-5.55],'national (toutes régions)':[7.54,-5.55],
+    };
+    var zone = "{{ programme.zone_geographique|lower|escapejs }}";
+    var coords = CI_COORDS[zone] || CI_COORDS[zone.split(' ')[0]] || CI_COORDS['national'];
+    var zoom = (zone.indexOf('national') !== -1) ? 6 : 10;
+    var map = L.map('prog-map', { scrollWheelZoom: false }).setView(coords, zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap', maxZoom: 17,
+    }).addTo(map);
+    var icon = L.divIcon({
+        className: '',
+        html: '<div style="width:40px;height:40px;background:#8B5CF6;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 3px 10px rgba(0,0,0,0.3);"></div>',
+        iconSize:[40,40], iconAnchor:[20,40], popupAnchor:[0,-44],
+    });
+    L.marker(coords, {icon: icon}).addTo(map)
+        .bindPopup(
+            '<div style="font-family:Inter,sans-serif;min-width:180px;">' +
+            '<p style="font-weight:800;font-size:13px;margin:0 0 4px;color:#1E293B;">{{ programme.code|escapejs }}</p>' +
+            '<p style="font-size:11px;color:#475569;margin:0 0 6px;">{{ programme.nom|truncatechars:60|escapejs }}</p>' +
+            '<span style="background:#EDE9FE;color:#7C3AED;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #C4B5FD;">{{ programme.zone_geographique|escapejs }}</span>' +
+            '</div>', { maxWidth: 240 }
+        ).openPopup();
+})();
+</script>
+{% endif %}
+{% endblock extra_js %}

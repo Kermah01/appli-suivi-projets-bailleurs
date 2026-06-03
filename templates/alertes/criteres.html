@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Critères de retard{% endblock %}
+{% block page_title %}Critères de retard{% endblock %}
+{% block page_subtitle %}Définissez les règles qui qualifient un projet "en retard"{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between animate-in">
+    <div>
+        <p class="text-[0.8125rem] text-ci-dark-500">Les critères actifs sont évalués automatiquement sur tous les projets <span class="font-bold text-ci-dark-700">en cours</span>. Un projet est considéré en retard si <span class="font-bold text-red-600">au moins un</span> critère actif est déclenché.</p>
+    </div>
+    {% if can_edit %}
+    <a href="{% url 'alertes:critere_creer' %}" class="btn btn-primary ml-4 flex-shrink-0">
+        <span class="material-symbols-outlined text-[16px]">add</span> Nouveau critère
+    </a>
+    {% endif %}
+</div>
+
+{% if criteres %}
+<div class="space-y-3">
+    {% for c in criteres %}
+    <div class="card animate-in {% if not c.actif %}opacity-60{% endif %}">
+        <div class="p-4 flex items-start gap-4">
+            <!-- Statut toggle -->
+            <div class="flex-shrink-0 mt-0.5">
+                {% if can_edit %}
+                <form method="post" action="{% url 'alertes:critere_toggle' c.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" title="{% if c.actif %}Désactiver{% else %}Activer{% endif %}" class="w-10 h-6 rounded-full transition-colors duration-200 flex items-center px-1 {% if c.actif %}bg-ci-green-500{% else %}bg-ci-dark-200{% endif %}">
+                        <span class="w-4 h-4 rounded-full bg-white shadow transform transition-transform duration-200 {% if c.actif %}translate-x-4{% else %}translate-x-0{% endif %}"></span>
+                    </button>
+                </form>
+                {% else %}
+                <span class="inline-flex w-4 h-4 rounded-full {% if c.actif %}bg-ci-green-500{% else %}bg-ci-dark-300{% endif %}"></span>
+                {% endif %}
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3 flex-wrap mb-1">
+                    <h3 class="text-[0.9375rem] font-bold text-ci-dark-900">{{ c.nom }}</h3>
+                    <span class="badge {% if c.actif %}badge-green{% else %}badge-gray{% endif %} text-[0.5625rem]">
+                        {% if c.actif %}Actif{% else %}Inactif{% endif %}
+                    </span>
+                    <span class="badge badge-blue text-[0.5625rem]">{{ c.get_type_critere_display }}</span>
+                </div>
+                {% if c.description %}
+                <p class="text-[0.8125rem] text-ci-dark-500 mb-2">{{ c.description }}</p>
+                {% endif %}
+
+                <!-- Seuils pertinents -->
+                <div class="flex flex-wrap gap-4 text-[0.75rem] mt-2">
+                    {% if c.type_critere == 'ecart_physique_financier' %}
+                    <div class="flex items-center gap-1.5 bg-ci-orange-50 px-3 py-1.5 rounded-lg border border-ci-orange-200">
+                        <span class="material-symbols-outlined text-ci-orange-500 text-[14px]">trending_up</span>
+                        <span class="text-ci-dark-600 font-medium">Écart min. :</span>
+                        <span class="font-bold text-ci-orange-700">{{ c.seuil_ecart_pct }}%</span>
+                    </div>
+                    {% elif c.type_critere == 'duree_ecoulee_taux_faible' %}
+                    <div class="flex items-center gap-1.5 bg-ci-orange-50 px-3 py-1.5 rounded-lg border border-ci-orange-200">
+                        <span class="material-symbols-outlined text-ci-orange-500 text-[14px]">schedule</span>
+                        <span class="text-ci-dark-600 font-medium">Durée écoulée ≥</span>
+                        <span class="font-bold text-ci-orange-700">{{ c.seuil_duree_ecoulee_pct }}%</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-red-50 px-3 py-1.5 rounded-lg border border-red-200">
+                        <span class="material-symbols-outlined text-red-500 text-[14px]">payments</span>
+                        <span class="text-ci-dark-600 font-medium">Déc. &lt;</span>
+                        <span class="font-bold text-red-700">{{ c.seuil_taux_decaissement_pct }}%</span>
+                    </div>
+                    {% elif c.type_critere == 'date_depassee' %}
+                    <div class="flex items-center gap-1.5 bg-red-50 px-3 py-1.5 rounded-lg border border-red-200">
+                        <span class="material-symbols-outlined text-red-500 text-[14px]">event_busy</span>
+                        <span class="text-ci-dark-600 font-medium">Date de fin prévue &lt; Aujourd'hui</span>
+                    </div>
+                    {% elif c.type_critere == 'decaissement_vs_prevu' %}
+                    <div class="flex items-center gap-1.5 bg-ci-orange-50 px-3 py-1.5 rounded-lg border border-ci-orange-200">
+                        <span class="material-symbols-outlined text-ci-orange-500 text-[14px]">target</span>
+                        <span class="text-ci-dark-600 font-medium">Taux réel &lt; Objectif annuel saisi</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Actions -->
+            {% if can_edit %}
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <a href="{% url 'alertes:critere_modifier' c.pk %}" class="btn btn-outline btn-sm">
+                    <span class="material-symbols-outlined text-[14px]">edit</span>
+                </a>
+                <a href="{% url 'alertes:critere_supprimer' c.pk %}" class="btn btn-outline btn-sm text-red-500 border-red-200 hover:bg-red-50">
+                    <span class="material-symbols-outlined text-[14px]">delete</span>
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card p-12 text-center animate-in">
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-red-50 flex items-center justify-center mb-4">
+        <span class="material-symbols-outlined text-red-400 text-[32px]">rule</span>
+    </div>
+    <h3 class="text-[1rem] font-bold text-ci-dark-800 mb-1">Aucun critère défini</h3>
+    <p class="text-[0.8125rem] text-ci-dark-400 mb-5">Sans critère actif, les projets sont signalés en retard uniquement quand leur date de fin est dépassée.</p>
+    {% if can_edit %}
+    <a href="{% url 'alertes:critere_creer' %}" class="btn btn-primary inline-flex">
+        <span class="material-symbols-outlined text-[16px]">add</span> Créer le premier critère
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Info box -->
+<div class="mt-6 p-4 rounded-xl bg-ci-dark-50 border border-ci-dark-200 text-[0.75rem] text-ci-dark-500 animate-in">
+    <p class="font-bold text-ci-dark-700 mb-2 flex items-center gap-1.5"><span class="material-symbols-outlined text-[14px]">info</span> Types de critères disponibles</p>
+    <ul class="space-y-1.5 ml-5 list-disc">
+        <li><span class="font-semibold text-ci-dark-700">Date de fin dépassée</span> — La date de fin prévue est antérieure à aujourd'hui.</li>
+        <li><span class="font-semibold text-ci-dark-700">Taux de décaissement &lt; Objectif annuel</span> — Le taux réel est inférieur à l'objectif annuel saisi sur le projet.</li>
+        <li><span class="font-semibold text-ci-dark-700">Écart physique / décaissement</span> — Le taux d'exécution physique dépasse le taux de décaissement d'au moins N points (configurable).</li>
+        <li><span class="font-semibold text-ci-dark-700">Taux faible en fin de projet</span> — Le taux de décaissement est inférieur à X% alors que Y% de la durée du projet est déjà écoulée (X et Y configurables).</li>
+    </ul>
+</div>
+{% endblock %}

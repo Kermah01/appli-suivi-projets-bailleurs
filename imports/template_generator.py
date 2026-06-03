@@ -63,6 +63,41 @@ def _add_example_row(ws, row, values):
         cell.border = THIN_BORDER
 
 
+def _format_col(ws, col, fmt, row_start=5, row_end=500):
+    """Applique un format numérique/date à une plage de cellules d'une colonne."""
+    for r in range(row_start, row_end + 1):
+        ws.cell(row=r, column=col).number_format = fmt
+
+
+FORMULA_FILL = PatternFill(start_color="FFFDE7", end_color="FFFDE7", fill_type="solid")
+FORMULA_FONT = Font(name="Calibri", size=10, italic=True, color="92400E")
+
+
+def _set_xof_formula(ws, col, devise_col, montant_col, taux_col=None, row_start=5, row_end=200):
+    """
+    Insère une formule de conversion en XOF dans col.
+    Si taux_col est fourni : priorité au taux manuel, sinon conversion selon Devise.
+    """
+    D = get_column_letter(devise_col)
+    M = get_column_letter(montant_col)
+    for r in range(row_start, row_end + 1):
+        base = (
+            f'IF({D}{r}="XOF",{M}{r},IF({D}{r}="UC",{M}{r}*769.083,'
+            f'IF({D}{r}="USD",{M}{r}*615,IF({D}{r}="EUR",{M}{r}*655.957,'
+            f'IF({D}{r}="GBP",{M}{r}*780,{M}{r}))))'
+        )
+        if taux_col:
+            T = get_column_letter(taux_col)
+            formula = f'=IF({M}{r}="","",IF(AND({T}{r}<>"",{T}{r}>0),{M}{r}*{T}{r},{base}))'
+        else:
+            formula = f'=IF({M}{r}="","",{base})'
+        cell = ws.cell(row=r, column=col, value=formula)
+        cell.number_format = '#,##0.00'
+        cell.fill = FORMULA_FILL
+        cell.font = FORMULA_FONT
+        cell.border = THIN_BORDER
+
+
 def _auto_width(ws, col_count, min_width=14, max_width=40):
     for c in range(1, col_count + 1):
         letter = get_column_letter(c)
@@ -75,8 +110,31 @@ def _auto_width(ws, col_count, min_width=14, max_width=40):
         ws.column_dimensions[letter].width = min(max(best + 3, min_width), max_width)
 
 
+SECTEURS_CI = [
+    'Agriculture/Développement rural',
+    'Développement Urbain',
+    'Eau & Assainissement',
+    'Environnement & Climat',
+    'Gouvernance',
+    'Infrastructure & Transport',
+    'Protection Sociale',
+    'Santé',
+    'Éducation/Formation',
+    'Énergie',
+    'Logement',
+    'Finance Publique',
+    'Autre',
+]
+
+
 def generate_template():
     """Retourne un BytesIO contenant le fichier Excel template."""
+    from projets.models import Secteur as SecteurModel
+    db_secteurs = list(SecteurModel.objects.order_by('nom').values_list('nom', flat=True))
+    secteurs_list = db_secteurs if db_secteurs else SECTEURS_CI
+    ex_secteur1 = secteurs_list[0] if len(secteurs_list) > 0 else "Santé"
+    ex_secteur2 = secteurs_list[1] if len(secteurs_list) > 1 else "Éducation"
+
     wb = openpyxl.Workbook()
 
     # ════════════════════════════════════════════════════════════════
@@ -118,7 +176,7 @@ def generate_template():
     ws1.add_data_validation(dv_type)
     dv_type.add(f"C5:C1000")
 
-    cat_vals = '"Institutions de Bretton Woods,Système des Nations Unies,Banques multilatérales de développement,Coopération bilatérale,Institutions régionales africaines,Fonds verticaux / thématiques,Secteur privé / Fondations,ONG internationales,Autre"'
+    cat_vals = '"Institutions de Bretton Woods,Système des Nations Unies,Banques multilatérales de développement,Agence publique de développement,Institutions régionales africaines,Fonds de développement,Secteur privé / Fondations,ONG internationales,Autre"'
     dv_cat = DataValidation(type="list", formula1=cat_vals, allow_blank=True)
     ws1.add_data_validation(dv_cat)
     dv_cat.add(f"D5:D1000")
@@ -134,80 +192,169 @@ def generate_template():
     ws2.cell(row=1, column=1, value="FICHE PROJETS").font = TITLE_FONT
     ws2.cell(row=2, column=1, value="La colonne 'Code projet' sert de clé unique. Si un projet avec ce code existe déjà, il sera mis à jour.").font = SUBTITLE_FONT
 
+    # Colonnes Projets : SANS données financières (montants et taux dans les feuilles dédiées)
     headers_p = [
         "Code projet *", "Titre *", "Description",
-        "Secteur (code)", "Bailleur principal (sigle)",
-        "Devise", "Montant total",
-        "Date de signature", "Date de début", "Date de fin prévue",
-        "Statut", "Taux d'avancement (%)",
-        "Zone géographique", "Responsable"
+        "Statut",
+        "Secteur (libellé)", "Bailleur principal (sigle)",
+        "Date de signature", "Date de début", "Date de fin prévue", "Date de fin effective",
+        "Zone géographique", "Responsable", "Structure responsable",
+        "Code programme"
     ]
     for c, h in enumerate(headers_p, 1):
         ws2.cell(row=4, column=c, value=h)
     _style_header(ws2, 4, len(headers_p))
 
     _add_example_row(ws2, 5, [
-        "PRJ-001", "Programme d'appui au secteur de la santé",
-        "Programme visant à renforcer le système de santé",
-        "SAN", "BM", "USD", 45000000,
-        "2023-01-15", "2023-03-01", "2027-12-31",
-        "En cours d'exécution", 62,
-        "Abidjan", "Direction SAN"
+        "PRJ-001", "Projet d'appui au secteur de la santé",
+        "Projet visant à renforcer le système de santé",
+        "En cours d'exécution",
+        ex_secteur1, "BM",
+        "2023-01-15", "2023-03-01", "2027-12-31", "",
+        "Abidjan", "Direction SAN", "Ministère de la Santé", "PROG-001"
     ])
     _add_example_row(ws2, 6, [
-        "PRJ-NEW", "Nouveau projet éducatif",
+        "PRJ-002", "Projet éducatif numérique",
         "Projet pilote d'éducation numérique",
-        "EDU", "AFD", "EUR", 5000000,
-        "2025-06-01", "2025-09-01", "2028-08-31",
-        "Préparation", 0,
-        "Bouaké", "Direction EDU"
+        "Préparation",
+        ex_secteur2, "AFD",
+        "2025-06-01", "2025-09-01", "2028-08-31", "",
+        "Bouaké", "Direction EDU", "Ministère de l'Éducation", ""
     ])
 
-    # Validations projets
-    dv_devise = DataValidation(type="list", formula1='"USD,EUR,XOF,GBP,JPY,CHF,CNY"', allow_blank=True)
-    ws2.add_data_validation(dv_devise)
-    dv_devise.add("F5:F1000")
+    # Validation secteur — liste dynamique depuis feuille cachée RefSecteurs
+    if secteurs_list:
+        n_sec = len(secteurs_list)
+        dv_secteur = DataValidation(type="list", formula1=f"=RefSecteurs!$A$1:$A${n_sec}", allow_blank=True)
+        dv_secteur.prompt = "Choisissez ou saisissez le libellé complet du secteur"
+        dv_secteur.promptTitle = "Secteur"
+        ws2.add_data_validation(dv_secteur)
+        dv_secteur.add("E5:E1000")
 
+    # Col D = Statut
     dv_statut = DataValidation(
         type="list",
-        formula1='"Identification,Préparation,Négociation,En cours d\'exécution,Suspendu,Clôturé,Annulé"',
+        formula1='"Identification,Préparation,Négociation,En cours d\'exécution,En préparation,Suspendu,Clôturé,Annulé"',
         allow_blank=True
     )
     ws2.add_data_validation(dv_statut)
-    dv_statut.add("K5:K1000")
+    dv_statut.add("D5:D1000")
+
+    for date_col in [7, 8, 9, 10]:
+        _format_col(ws2, date_col, 'YYYY-MM-DD')
+    _format_col(ws2, 14, '@')  # Code programme
 
     _auto_width(ws2, len(headers_p))
 
     # ════════════════════════════════════════════════════════════════
-    # FEUILLE 3 : FINANCEMENTS
+    # FEUILLE CACHÉE : RÉFÉRENCE SECTEURS
     # ════════════════════════════════════════════════════════════════
-    ws3 = wb.create_sheet("Financements")
+    ws_ref = wb.create_sheet("RefSecteurs")
+    ws_ref.sheet_state = "hidden"
+    ws_ref.cell(row=1, column=1, value="Secteurs disponibles").font = Font(name="Calibri", bold=True, size=10)
+    for idx, nom_sec in enumerate(secteurs_list, 1):
+        ws_ref.cell(row=idx, column=1, value=nom_sec)
+    ws_ref.column_dimensions["A"].width = 40
+
+    # ════════════════════════════════════════════════════════════════
+    # FEUILLE 3 : PROGRAMMES
+    # ════════════════════════════════════════════════════════════════
+    ws_prog = wb.create_sheet("Programmes")
+    ws_prog.sheet_properties.tabColor = "8B5CF6"
+
+    ws_prog.cell(row=1, column=1, value="FICHE PROGRAMMES").font = TITLE_FONT
+    ws_prog.cell(row=2, column=1, value=(
+        "La colonne 'Code programme' est la clé unique. "
+        "Les projets rattachés à un programme doivent y référencer son code."
+    )).font = SUBTITLE_FONT
+
+    headers_prog = [
+        "Code programme *", "Nom *", "Description",
+        "Statut",
+        "Secteur (libellé)", "Bailleur principal (sigle)",
+        "Date de signature", "Date de début", "Date de fin prévue", "Date de fin effective",
+        "Zone géographique", "Responsable", "Structure responsable",
+        "Objectif stratégique"
+    ]
+    for c, h in enumerate(headers_prog, 1):
+        ws_prog.cell(row=4, column=c, value=h)
+    _style_header(ws_prog, 4, len(headers_prog))
+
+    _add_example_row(ws_prog, 5, [
+        "PROG-001",
+        "Programme de développement rural intégré",
+        "Programme visant le renforcement des filières agricoles",
+        "En cours d'exécution",
+        ex_secteur1, "BM",
+        "2023-01-15", "2024-01-01", "2028-12-31", "",
+        "National", "Direction Développement Rural", "Ministère de l'Agriculture",
+        "Améliorer la sécurité alimentaire et les revenus ruraux"
+    ])
+    _add_example_row(ws_prog, 6, [
+        "PROG-002",
+        "Programme d'appui à l'éducation de base",
+        "Amélioration de l'accès et de la qualité de l'éducation primaire",
+        "En cours d'exécution",
+        ex_secteur2, "AFD",
+        "2023-03-01", "2023-06-01", "2027-05-31", "",
+        "Abidjan, Bouaké", "Direction Éducation", "Ministère de l'Éducation",
+        "Scolarisation universelle et amélioration des acquis"
+    ])
+
+    if secteurs_list:
+        n_sec = len(secteurs_list)
+        dv_secteur_prog = DataValidation(
+            type="list", formula1=f"=RefSecteurs!$A$1:$A${n_sec}", allow_blank=True
+        )
+        dv_secteur_prog.prompt = "Choisissez le libellé complet du secteur"
+        dv_secteur_prog.promptTitle = "Secteur"
+        ws_prog.add_data_validation(dv_secteur_prog)
+        dv_secteur_prog.add("D5:D1000")
+
+    dv_statut_prog = DataValidation(
+        type="list",
+        formula1="\"Identification,Préparation,Négociation,En cours d'exécution,Suspendu,Clôturé,Annulé\"",
+        allow_blank=True
+    )
+    ws_prog.add_data_validation(dv_statut_prog)
+    dv_statut_prog.add("D5:D1000")
+
+    for date_col in [7, 8, 9, 10]:
+        _format_col(ws_prog, date_col, 'YYYY-MM-DD')
+
+    _auto_width(ws_prog, len(headers_prog))
+
+    # ════════════════════════════════════════════════════════════════
+    # FEUILLE 4 : ACCORD DE FINANCEMENT
+    # ════════════════════════════════════════════════════════════════
+    ws3 = wb.create_sheet("Accord de Financement")
     ws3.sheet_properties.tabColor = "3B82F6"
 
-    ws3.cell(row=1, column=1, value="FICHE FINANCEMENTS").font = TITLE_FONT
-    ws3.cell(row=2, column=1, value="Le triplet (Code projet + Sigle bailleur + Type de financement) identifie un financement. Un même projet peut avoir plusieurs bailleurs (cofinancement). Un même bailleur peut apporter plusieurs types de financement.").font = SUBTITLE_FONT
+    ws3.cell(row=1, column=1, value="ACCORD DE FINANCEMENT").font = TITLE_FONT
+    ws3.cell(row=2, column=1, value=(
+        "Code projet ou programme + Sigle bailleur + Type identifient un accord. "
+        "'Montant total XOF' est calculé automatiquement selon la devise. "
+        "Le montant dans le circuit de validation est saisi dans la feuille Décaissements."
+    )).font = SUBTITLE_FONT
 
     headers_f = [
         "Code projet *", "Sigle bailleur *",
-        "Type de financement", "Montant engagé *",
-        "Devise", "Date d'accord",
-        "Référence accord", "Observations"
+        "Type de financement",
+        "Devise", "Montant total *", "Montant total XOF",
+        "Date d'accord", "Référence accord", "Observations"
     ]
     for c, h in enumerate(headers_f, 1):
         ws3.cell(row=4, column=c, value=h)
     _style_header(ws3, 4, len(headers_f))
 
     _add_example_row(ws3, 5, [
-        "PRJ-001", "BM", "Don", 35000000,
-        "USD", "2023-01-15", "IDA-12345", "Financement principal du bailleur chef de file"
+        "PRJ-001", "BM", "Don", "USD", 35000000, None, "2023-01-15", "IDA-12345", "Financement principal"
     ])
     _add_example_row(ws3, 6, [
-        "PRJ-001", "AFD", "Prêt concessionnel", 8000000,
-        "EUR", "2023-06-01", "AFD-PRET-456", "Cofinancement — 2ème bailleur"
+        "PRJ-001", "AFD", "Prêt concessionnel", "EUR", 8000000, None, "2023-06-01", "AFD-PRET-456", "Cofinancement 2ème bailleur"
     ])
     _add_example_row(ws3, 7, [
-        "PRJ-001", "UE", "Don", 5000000,
-        "EUR", "2023-09-01", "EU-GRANT-789", "Cofinancement — 3ème bailleur"
+        "PROG-001", "BAD", "Prêt concessionnel", "UC", 10000000, None, "2023-01-01", "BAD-PROG-001", "Financement du programme"
     ])
 
     dv_type_fin = DataValidation(
@@ -218,9 +365,14 @@ def generate_template():
     ws3.add_data_validation(dv_type_fin)
     dv_type_fin.add("C5:C1000")
 
-    dv_devise_f = DataValidation(type="list", formula1='"USD,EUR,XOF,GBP,JPY,CHF"', allow_blank=True)
+    dv_devise_f = DataValidation(type="list", formula1='"UC,USD,EUR,XOF,GBP,JPY,CHF"', allow_blank=True)
     ws3.add_data_validation(dv_devise_f)
-    dv_devise_f.add("E5:E1000")
+    dv_devise_f.add("D5:D1000")
+
+    # Col E = Montant total, Col F = Montant total XOF (formule Devise × Montant)
+    _format_col(ws3, 5, '#,##0.00')       # Montant total
+    _set_xof_formula(ws3, col=6, devise_col=4, montant_col=5)
+    _format_col(ws3, 7, 'YYYY-MM-DD')    # Date d'accord
 
     _auto_width(ws3, len(headers_f))
 
@@ -231,25 +383,61 @@ def generate_template():
     ws4.sheet_properties.tabColor = "22C55E"
 
     ws4.cell(row=1, column=1, value="FICHE DÉCAISSEMENTS").font = TITLE_FONT
-    ws4.cell(row=2, column=1, value="La paire (Référence + Date) sert de clé. Si elle existe déjà, le montant sera mis à jour. Sinon un nouveau décaissement sera créé.").font = SUBTITLE_FONT
+    ws4.cell(row=2, column=1, value="IMPORTANT : saisissez le montant CUMULÉ décaissé à la date de mise à jour (total depuis le début du projet). L'application calculera automatiquement la progression par différence.").font = SUBTITLE_FONT
 
     headers_d = [
         "Code projet *", "Sigle bailleur *",
-        "Montant décaissé *", "Date de décaissement *",
-        "Référence", "Description"
+        "Devise", "Montant décaissé cumulé *", "Montant décaissé XOF",
+        "Taux de décaissement",
+        "Taux de décaissement annuel prévu",
+        "Taux d'exécution physique",
+        "Taux d'exécution physique annuel prévu",
+        "Montant dans le circuit de validation",
+        "Montant dans le circuit de validation XOF",
+        "Date de mise à jour *", "Commentaire / Justificatif"
     ]
     for c, h in enumerate(headers_d, 1):
         ws4.cell(row=4, column=c, value=h)
     _style_header(ws4, 4, len(headers_d))
 
     _add_example_row(ws4, 5, [
-        "PRJ-001", "BM", 8000000, "2024-03-15",
-        "DEC-PRJ-001-001", "Décaissement tranche 1"
+        "PRJ-001", "BM",
+        "USD", 8000000, None, None, 0.25, 0.62, 0.55, 1500000, None,
+        "2024-03-31", "Cumul au 31 mars 2024 (T1)"
     ])
     _add_example_row(ws4, 6, [
-        "PRJ-001", "BM", 12000000, "2024-09-30",
-        "DEC-PRJ-001-002", "Décaissement tranche 2"
+        "PRJ-001", "AFD",
+        "EUR", 3500000, None, None, 0.20, 0.48, 0.40, 500000, None,
+        "2024-03-31", "Cumul au 31 mars 2024 (T1)"
     ])
+
+    # Validation Devise (col C = 3)
+    dv_devise_d = DataValidation(type="list", formula1='"UC,USD,EUR,XOF,GBP,JPY,CHF"', allow_blank=True)
+    ws4.add_data_validation(dv_devise_d)
+    dv_devise_d.add("C5:C1000")
+
+    # Préformatage
+    _format_col(ws4, 4, '#,##0.00')   # Montant décaissé cumulé
+    # Col E = Montant décaissé XOF
+    _set_xof_formula(ws4, col=5, devise_col=3, montant_col=4)
+    # Col F = Taux de décaissement (formule VLOOKUP + calcul auto)
+    for r in range(5, 201):
+        f = (
+            f'=IFERROR(IF(D{r}=0,"",E{r}/'
+            f'VLOOKUP(A{r},\'Accord de Financement\'!$A:$F,6,0)),"")'
+        )
+        cell = ws4.cell(row=r, column=6, value=f)
+        cell.number_format = '0.00%'
+        cell.fill = FORMULA_FILL
+        cell.font = FORMULA_FONT
+        cell.border = THIN_BORDER
+    _format_col(ws4, 7, '0.00%')    # Taux déc annuel prévu
+    _format_col(ws4, 8, '0.00%')    # Taux exécution physique
+    _format_col(ws4, 9, '0.00%')    # Taux exécution physique prévu
+    _format_col(ws4, 10, '#,##0.00') # Montant circuit validation
+    # Col K = Montant circuit validation XOF
+    _set_xof_formula(ws4, col=11, devise_col=3, montant_col=10)
+    _format_col(ws4, 12, 'YYYY-MM-DD')  # Date de mise à jour
 
     _auto_width(ws4, len(headers_d))
 
@@ -260,39 +448,49 @@ def generate_template():
     ws5.sheet_properties.tabColor = "8B5CF6"
 
     instructions = [
-        ("GUIDE DE REMPLISSAGE", TITLE_FONT),
+        ("GUIDE DE REMPLISSAGE — TEMPLATE SUIVI PROJETS BAILLEURS", TITLE_FONT),
+        ("", None),
+        ("STRUCTURE DU FICHIER (6 feuilles)", Font(name="Calibri", bold=True, size=12, color=DARK)),
+        ("• Bailleurs : Organismes financeurs — clé unique = SIGLE.", None),
+        ("• Projets : Données descriptives et administratives des projets (SANS montants financiers).", None),
+        ("• Programmes : Programmes regroupant plusieurs projets (SANS montants financiers).", None),
+        ("• Accord de Financement : Montants des accords de financement par bailleur et par projet/programme.", None),
+        ("• Décaissements : État financier cumulé — montants décaissés, taux d'exécution, circuit de validation.", None),
+        ("• Instructions : Ce guide.", None),
         ("", None),
         ("RÈGLES GÉNÉRALES", Font(name="Calibri", bold=True, size=12, color=DARK)),
-        ("• Les colonnes marquées d'un astérisque (*) sont obligatoires.", None),
-        ("• Les lignes d'exemple (en gris) doivent être supprimées ou remplacées.", None),
-        ("• Les dates doivent être au format AAAA-MM-JJ (ex: 2025-03-15).", None),
-        ("• Les montants doivent être des nombres sans espaces ni symboles monétaires.", None),
-        ("• Utilisez les listes déroulantes lorsqu'elles sont disponibles.", None),
+        ("• Les colonnes marquées (*) sont OBLIGATOIRES.", None),
+        ("• Supprimez les lignes d'exemple (fond gris) avant l'import.", None),
+        ("• Format date : AAAA-MM-JJ (ex. : 2025-03-15).", None),
+        ("• Montants : nombres bruts, sans espaces ni symboles (ex. : 64229926).", None),
+        ("• Taux : décimal entre 0 et 1 (ex. : 0.45 = 45 %). Les colonnes formatées en % gèrent cela automatiquement.", None),
+        ("• Utilisez les listes déroulantes pour Devise, Statut et Type de financement.", None),
         ("", None),
-        ("COFINANCEMENT", Font(name="Calibri", bold=True, size=12, color=DARK)),
-        ("• Un projet peut être financé par PLUSIEURS bailleurs. C'est le cofinancement.", None),
-        ("• Pour saisir un cofinancement, ajoutez PLUSIEURS lignes dans la feuille Financements avec le même code projet mais des bailleurs différents.", None),
-        ("• Exemple : PRJ-001 financé par BM (Don 35M), AFD (Prêt 8M) et UE (Don 5M) = 3 lignes dans Financements.", None),
-        ("• Le 'Bailleur principal' de la feuille Projets indique le chef de file, mais tous les bailleurs sont saisis dans Financements.", None),
-        ("• Un même bailleur peut aussi apporter plusieurs types de financement au même projet (ex: Don + Assistance technique).", None),
+        ("FEUILLE ACCORD DE FINANCEMENT", Font(name="Calibri", bold=True, size=12, color=DARK)),
+        ("• Ajoutez UNE LIGNE par bailleur et par projet/programme (cofinancement = plusieurs lignes).", None),
+        ("• Codes programmes (PRG-...) et codes projets (PRJ-...) peuvent coexister dans cette feuille.", None),
+        ("• 'Montant total XOF' : colonne à fond jaune = formule automatique, NE PAS modifier.", None),
+        ("• Taux de conversion : 1 UC = 769,083 XOF | 1 USD = 615 XOF | 1 EUR = 655,957 XOF | 1 GBP = 780 XOF.", None),
         ("", None),
-        ("LOGIQUE DE MISE À JOUR INTELLIGENTE", Font(name="Calibri", bold=True, size=12, color=DARK)),
-        ("• Bailleurs : Le SIGLE sert d'identifiant unique. Si un bailleur avec ce sigle existe déjà, ses infos seront mises à jour.", None),
-        ("• Projets : Le CODE PROJET sert d'identifiant unique. Si un projet avec ce code existe déjà, il sera mis à jour.", None),
-        ("• Financements : Le triplet (CODE PROJET + SIGLE BAILLEUR + TYPE) identifie un financement. Existant = mise à jour.", None),
-        ("• Décaissements : La combinaison (CODE PROJET + SIGLE BAILLEUR + RÉFÉRENCE + DATE) identifie un décaissement.", None),
+        ("FEUILLE DÉCAISSEMENTS", Font(name="Calibri", bold=True, size=12, color=DARK)),
+        ("• UNE LIGNE par projet/bailleur avec l'état cumulé à la date de mise à jour.", None),
+        ("• 'Montant décaissé cumulé' : total décaissé depuis le début du projet à cette date.", None),
+        ("• 'Montant décaissé XOF' et 'Circuit de validation XOF' : colonnes à fond jaune = formules auto.", None),
+        ("• 'Taux de décaissement' : formule auto = Décaissé XOF ÷ Total accord XOF (feuille Accord de Financement).", None),
+        ("• Colonnes à saisir manuellement : Taux décaissement annuel prévu, Taux d'exécution physique (réel et prévu), Montant dans le circuit de validation.", None),
         ("", None),
-        ("ORDRE DE REMPLISSAGE RECOMMANDÉ", Font(name="Calibri", bold=True, size=12, color=DARK)),
-        ("1. D'abord remplir la feuille Bailleurs (créer les organismes financeurs)", None),
-        ("2. Puis la feuille Projets (qui référencent les bailleurs par leur sigle)", None),
-        ("3. Puis Financements (qui lient projets et bailleurs — plusieurs lignes par projet pour le cofinancement)", None),
-        ("4. Enfin Décaissements (qui référencent un financement existant)", None),
+        ("ORDRE DE REMPLISSAGE CONSEILLÉ", Font(name="Calibri", bold=True, size=12, color=DARK)),
+        ("1. Bailleurs", None),
+        ("2. Programmes", None),
+        ("3. Projets (rattachés aux programmes via Code programme)", None),
+        ("4. Accord de Financement (montants des accords)", None),
+        ("5. Décaissements (état cumulé financier)", None),
         ("", None),
         ("VALEURS ACCEPTÉES", Font(name="Calibri", bold=True, size=12, color=DARK)),
-        ("Type de bailleur : Multilatéral, Bilatéral, Régional, Privé, ONG Internationale, Autre", None),
-        ("Devise : USD, EUR, XOF, GBP, JPY, CHF, CNY", None),
-        ("Statut projet : Identification, Préparation, Négociation, En cours d'exécution, Suspendu, Clôturé, Annulé", None),
+        ("Devise : UC, USD, EUR, XOF, GBP, JPY, CHF", None),
+        ("Statut : Identification, Préparation, Négociation, En cours d'exécution, En préparation, Suspendu, Clôturé, Annulé", None),
         ("Type de financement : Don, Prêt concessionnel, Prêt non concessionnel, Assistance technique, Cofinancement, Contrepartie nationale, Autre", None),
+        ("Secteur : libellé complet depuis la feuille RefSecteurs (liste déroulante disponible).", None),
     ]
 
     for i, (text, font) in enumerate(instructions, 1):

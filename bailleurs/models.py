@@ -13,15 +13,18 @@ class Bailleur(models.Model):
     ]
 
     CATEGORIE_CHOICES = [
-        ('bretton_woods', 'Institutions de Bretton Woods'),
-        ('systeme_nu', 'Système des Nations Unies'),
-        ('banque_multilaterale', 'Banques multilatérales de développement'),
-        ('cooperation_bilaterale', 'Coopération bilatérale'),
-        ('institution_regionale', 'Institutions régionales africaines'),
-        ('fonds_vertical', 'Fonds verticaux / thématiques'),
-        ('secteur_prive', 'Secteur privé / Fondations'),
-        ('ong_internationale', 'ONG internationales'),
-        ('autre', 'Autre'),
+        ('bretton_woods',       'Institutions de Bretton Woods'),
+        ('systeme_nu',          'Système des Nations Unies'),
+        ('banque_multilaterale','Banques multilatérales de développement'),
+        ('agence_publique',     'Agence publique de développement'),
+        ('institution_regionale','Institutions régionales africaines'),
+        ('fonds_developpement', 'Fonds de développement'),
+        ('secteur_prive',       'Secteur privé / Fondations'),
+        ('ong_internationale',  'ONG internationales'),
+        ('autre',               'Autre'),
+        # Anciens codes conservés pour compatibilité ascendante
+        ('cooperation_bilaterale', 'Coopération bilatérale (obsolète)'),
+        ('fonds_vertical',         'Fonds verticaux / thématiques (obsolète)'),
     ]
 
     nom = models.CharField(max_length=255, verbose_name="Nom complet")
@@ -38,6 +41,18 @@ class Bailleur(models.Model):
     description = models.TextField(blank=True, verbose_name="Description")
     site_web = models.URLField(blank=True, verbose_name="Site web")
     contact_email = models.EmailField(blank=True, verbose_name="Email de contact")
+    contact_telephone = models.CharField(max_length=30, blank=True, verbose_name="Téléphone du contact CI")
+    # Logo du bailleur (CDC §5.3, demande DSID)
+    logo = models.ImageField(
+        upload_to='bailleurs/logos/', null=True, blank=True,
+        verbose_name="Logo (PNG/SVG)"
+    )
+    # Seuil de significativité paramétrable (CDC §5.3, demande DGCOD)
+    seuil_significativite = models.DecimalField(
+        max_digits=15, decimal_places=2, default=0,
+        verbose_name="Seuil de significativité (FCFA)",
+        help_text="Montant minimal en FCFA en dessous duquel le bailleur est considéré comme négligeable"
+    )
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
 

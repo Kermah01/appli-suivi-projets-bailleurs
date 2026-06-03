@@ -62,6 +62,7 @@
         .step-dot.inactive { background: #E2E8F0; color: #94A3B8; }
         .step-line { flex: 1; height: 2px; background: #E2E8F0; transition: background 0.3s; }
         .step-line.done { background: #009A44; }
+        [x-cloak] { display: none !important; }
     </style>
 </head>
 <body class="min-h-full bg-ci-dark-50 font-sans" x-data="registerWizard()">
@@ -154,7 +155,7 @@
                 </div>
 
                 <!-- Step 2: Function & Role -->
-                <div x-show="step === 2" x-transition>
+                <div x-show="step === 2" x-cloak x-transition>
                     <div class="px-6 py-4 border-b border-ci-dark-100 bg-ci-dark-50/50">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">work</span>
@@ -188,7 +189,7 @@
                 </div>
 
                 <!-- Step 3: Bailleur selection -->
-                <div x-show="step === 3" x-transition>
+                <div x-show="step === 3" x-cloak x-transition>
                     <div class="px-6 py-4 border-b border-ci-dark-100 bg-ci-dark-50/50">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-ci-orange-500 text-[18px]">account_balance</span>
@@ -220,19 +221,21 @@
                                 </p>
                             </div>
                             <!-- Select all button -->
-                            <div class="flex items-center gap-2 mb-3" x-data="{ allChecked: false }">
-                                <button type="button" @click="allChecked = !allChecked; $el.closest('.p-6').querySelectorAll('.bailleur-cb').forEach(cb => { cb.checked = allChecked; cb.dispatchEvent(new Event('change')); })"
+                            <div class="flex items-center gap-2 mb-3">
+                                <button type="button" id="btnSelectAll"
+                                        onclick="toggleAllBailleurs(this)"
                                         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[0.75rem] font-semibold border border-ci-dark-200 text-ci-dark-600 hover:border-ci-orange-400 hover:text-ci-orange-600 hover:bg-ci-orange-50 transition-all">
                                     <span class="material-symbols-outlined text-[14px]">select_all</span>
-                                    <span x-text="allChecked ? 'Tout désélectionner' : 'Tout sélectionner'">Tout sélectionner</span>
+                                    <span id="selectAllLabel">Tout sélectionner</span>
                                 </button>
                                 <span class="text-[0.6875rem] text-ci-dark-400">{{ form.bailleurs.field.queryset.count }} bailleur(s) disponible(s)</span>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-1">
                                 {% for bailleur in form.bailleurs.field.queryset %}
-                                <label class="bailleur-card" x-data="{ checked: false }" :class="checked && 'selected'">
-                                    <input type="checkbox" name="bailleurs" value="{{ bailleur.pk }}" class="bailleur-cb" @change="checked = $el.checked"
-                                        {% if bailleur.pk|stringformat:"s" in form.bailleurs.value %}checked x-init="checked = true"{% endif %}>
+                                <label class="bailleur-card {% if bailleur.pk|stringformat:'s' in form.bailleurs.value %}selected{% endif %}">
+                                    <input type="checkbox" name="bailleurs" value="{{ bailleur.pk }}" class="bailleur-cb"
+                                        {% if bailleur.pk|stringformat:"s" in form.bailleurs.value %}checked{% endif %}
+                                        onchange="this.closest('.bailleur-card').classList.toggle('selected', this.checked)">
                                     <div class="min-w-0 flex-1">
                                         <p class="text-[0.8125rem] font-bold text-ci-dark-800 truncate">{{ bailleur.sigle|default:bailleur.nom }}</p>
                                         {% if bailleur.sigle %}<p class="text-[0.625rem] text-ci-dark-400 truncate">{{ bailleur.nom }}</p>{% endif %}
@@ -250,7 +253,14 @@
                 </div>
 
                 <!-- Navigation buttons -->
-                <div class="px-6 py-4 border-t border-ci-dark-100 bg-ci-dark-50/30 flex items-center justify-between">
+                <div class="px-6 py-4 border-t border-ci-dark-100 bg-ci-dark-50/30">
+                    {% if form.bailleurs.errors %}
+                    <div class="mb-3 flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+                        <span class="material-symbols-outlined text-amber-500 text-[16px] mt-0.5">lock</span>
+                        <p class="text-[0.75rem] text-amber-700"><strong>Mot de passe requis :</strong> Pour soumettre à nouveau, revenez à l’étape 1 pour re-saisir votre mot de passe (non conservé pour raisons de sécurité).</p>
+                    </div>
+                    {% endif %}
+                <div class="flex items-center justify-between">
                     <div>
                         <button type="button" x-show="step > 1" @click="step--"
                                 class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[0.8125rem] font-semibold text-ci-dark-600 hover:bg-ci-dark-100 transition-all">
@@ -270,6 +280,7 @@
                         </button>
                     </div>
                 </div>
+                </div>
             </form>
 
             <!-- Footer -->
@@ -286,6 +297,16 @@
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
+        function toggleAllBailleurs(btn) {
+            var cbs = document.querySelectorAll('.bailleur-cb');
+            var allChecked = Array.from(cbs).every(function(cb){ return cb.checked; });
+            cbs.forEach(function(cb) {
+                cb.checked = !allChecked;
+                cb.closest('.bailleur-card').classList.toggle('selected', !allChecked);
+            });
+            document.getElementById('selectAllLabel').textContent = allChecked ? 'Tout sélectionner' : 'Tout désélectionner';
+        }
+
         const FONCTIONS_SANS_BAILLEUR = {{ fonctions_sans_bailleur|safe }};
         function registerWizard() {
             return {
