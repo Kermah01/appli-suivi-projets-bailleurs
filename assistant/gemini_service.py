@@ -3,7 +3,7 @@ Service Gemini : construit le contexte DB et interroge l'IA.
 Retourne une réponse structurée (texte + données pour graphiques).
 """
 import json
-import google.generativeai as genai
+from google import genai
 from decimal import Decimal
 from django.db.models import Sum, Count, Q, Avg
 from django.conf import settings
