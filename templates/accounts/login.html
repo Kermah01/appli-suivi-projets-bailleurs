@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - Suivi Projets Bailleurs</title>
+    <title>Connexion - PSPC</title>
     <script src="{% static 'vendor/tailwindcss.js' %}"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -62,83 +62,151 @@
             background-image: radial-gradient(circle at 25% 25%, rgba(247,127,0,0.03) 0%, transparent 50%),
                               radial-gradient(circle at 75% 75%, rgba(0,154,68,0.03) 0%, transparent 50%);
         }
-        .ci-stripe { height: 4px; background: linear-gradient(90deg, #F77F00 33%, #fff 33%, #fff 66%, #009A44 66%); }
+        .ci-stripe { height: 4px; background: linear-gradient(90deg, #F77F00 33%, #fff 33%, #fff 66%, #009A44 66%); border-bottom: 1px solid #000; }
+
+        /* ── Video panel ── */
+        .video-panel { position: relative; overflow: hidden; background: #0B2218; }
+        .video-panel video {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: opacity 1.2s ease;
+        }
+        .video-panel video.v-hidden { opacity: 0; }
+        .video-panel video.v-visible { opacity: 1; }
+
+        /* Overlay multi-couches : vignette cinéma + gradient bas */
+        .video-overlay {
+            position: absolute; inset: 0; z-index: 1;
+            background:
+                radial-gradient(ellipse 80% 80% at 50% 50%, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.28) 100%),
+                linear-gradient(to bottom, rgba(11,34,24,0.12) 0%, rgba(11,34,24,0.06) 35%, rgba(11,34,24,0.38) 75%, rgba(11,34,24,0.68) 100%);
+        }
+        /* Vignette latérale droite : fondu vers le blanc du form */
+        .video-overlay::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(to right, transparent 55%, rgba(248,250,252,0.12) 100%);
+        }
+
+        .video-content { position: relative; z-index: 2; }
+
+        /* Carte glassmorphism centrale */
+        .glass-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.05) inset;
+        }
+
+        /* Ombres texte riches */
+        .text-shadow-strong { text-shadow: 0 2px 16px rgba(0,0,0,0.7), 0 1px 4px rgba(0,0,0,0.5); }
+        .text-shadow-soft   { text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+
+        /* Séparateur lumineux */
+        .glow-divider {
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.25), transparent);
+        }
+
+        /* Icône feature */
+        .feat-icon {
+            width: 2.75rem; height: 2.75rem;
+            border-radius: 0.875rem;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        /* Animations d'entrée du panneau */
+        @keyframes slideUp  { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
+        .panel-anim-1 { animation: slideUp 0.7s cubic-bezier(.4,0,.2,1) 0.2s both; }
+        .panel-anim-2 { animation: slideUp 0.7s cubic-bezier(.4,0,.2,1) 0.4s both; }
+        .panel-anim-3 { animation: slideUp 0.7s cubic-bezier(.4,0,.2,1) 0.6s both; }
+        .panel-anim-4 { animation: fadeIn  0.8s ease 0.8s both; }
+
+        /* Drag handle splitter */
+        #drag-handle {
+            width: 5px; flex-shrink: 0;
+            background: rgba(203,213,225,0.25);
+            cursor: col-resize; position: relative; z-index: 20;
+            transition: background 0.2s;
+        }
+        #drag-handle:hover, #drag-handle.active { background: rgba(247,127,0,0.55); }
+        #drag-handle::after {
+            content: '';
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 3px; height: 36px;
+            background: rgba(255,255,255,0.35);
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body class="h-full bg-ci-dark-50 bg-pattern font-sans">
     <!-- CI Stripe -->
     <div class="ci-stripe fixed top-0 left-0 right-0 z-50"></div>
 
-    <div class="min-h-full flex">
-        <!-- Left: decorative panel -->
-        <div class="hidden lg:flex lg:w-1/2 xl:w-[55%] relative overflow-hidden items-center justify-center" style="background: linear-gradient(135deg, #0B2218 0%, #1A4D2D 55%, #0F2C1C 100%);">
-            <!-- Decorative elements -->
-            <div class="absolute inset-0">
-                <div class="absolute top-20 left-20 w-72 h-72 bg-ci-orange-500/10 rounded-full blur-3xl"></div>
-                <div class="absolute bottom-32 right-20 w-96 h-96 bg-ci-green-500/8 rounded-full blur-3xl"></div>
-                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-white/5 rounded-full"></div>
-                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] border border-white/5 rounded-full"></div>
-            </div>
+    <div id="split-container" class="min-h-full flex">
+        <!-- Left: video panel -->
+        <div id="left-panel" class="hidden lg:flex video-panel" style="width:55%">
 
-            <div class="relative z-10 max-w-lg px-12 text-center">
-                <div class="flex items-center justify-center gap-1.5 mb-8">
-                    <div class="w-10 h-2.5 rounded-full bg-ci-orange-500"></div>
-                    <div class="w-10 h-2.5 rounded-full bg-white"></div>
-                    <div class="w-10 h-2.5 rounded-full bg-ci-green-500"></div>
-                </div>
-                <h1 class="text-4xl font-black text-white leading-tight mb-4">
-                    Plateforme de Suivi<br>des Projets Bailleurs
-                </h1>
-                <p class="text-ci-dark-400 text-base leading-relaxed mb-8">
-                    Ministère du Plan et du Développement<br>
-                    <span class="text-ci-dark-500">République de Côte d'Ivoire</span>
-                </p>
-                <div class="grid grid-cols-3 gap-6 mt-12">
-                    <div class="text-center">
-                        <div class="w-12 h-12 mx-auto rounded-xl bg-ci-orange-500/15 flex items-center justify-center mb-2">
-                            <span class="material-symbols-outlined text-ci-orange-500 text-[22px]">monitoring</span>
-                        </div>
-                        <p class="text-[0.6875rem] text-ci-dark-400 font-semibold">Suivi en<br>temps réel</p>
-                    </div>
-                    <div class="text-center">
-                        <div class="w-12 h-12 mx-auto rounded-xl bg-ci-green-500/15 flex items-center justify-center mb-2">
-                            <span class="material-symbols-outlined text-ci-green-500 text-[22px]">analytics</span>
-                        </div>
-                        <p class="text-[0.6875rem] text-ci-dark-400 font-semibold">Analyses<br>avancées</p>
-                    </div>
-                    <div class="text-center">
-                        <div class="w-12 h-12 mx-auto rounded-xl bg-white/10 flex items-center justify-center mb-2">
-                            <span class="material-symbols-outlined text-white text-[22px]">map</span>
-                        </div>
-                        <p class="text-[0.6875rem] text-ci-dark-400 font-semibold">Carte<br>interactive</p>
-                    </div>
-                </div>
-            </div>
+            <!-- Two video elements for seamless crossfade loop -->
+            <video id="vid-a" class="v-visible" muted playsinline preload="auto"
+                   src="{% static 'video/pspc_spot.mp4' %}"></video>
+
+            <!-- Overlay cinéma multi-couches -->
+            <div class="video-overlay"></div>
+
         </div>
 
+        <!-- Drag handle -->
+        <div id="drag-handle" class="hidden lg:block" title="Glisser pour redimensionner"></div>
+
         <!-- Right: login form -->
-        <div class="flex-1 flex items-center justify-center px-6 py-12">
+        <div id="right-panel" class="flex-1 flex items-start justify-center px-6 py-8 overflow-y-auto">
             <div class="w-full max-w-md">
-                <!-- Mobile logo -->
-                <div class="lg:hidden text-center mb-8 animate-in stagger-1">
-                    <div class="flex items-center justify-center gap-1 mb-3">
-                        <div class="w-6 h-1.5 rounded-full bg-ci-orange-500"></div>
-                        <div class="w-6 h-1.5 rounded-full bg-ci-dark-300"></div>
-                        <div class="w-6 h-1.5 rounded-full bg-ci-green-500"></div>
+
+                <!-- En-tête ministère centré -->
+                <div class="flex flex-col items-center text-center gap-2 mb-6 pb-5 border-b border-ci-dark-200/50 animate-in stagger-1">
+                    <img src="{% static 'img/logo_ministere.jpg' %}" alt="Logo Ministère"
+                         class="w-16 h-16 object-contain"
+                         onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='flex'">
+                    <div class="w-16 h-16 rounded-full bg-ci-green-100 border-2 border-ci-green-300 items-center justify-center hidden" id="logo-fallback">
+                        <span class="material-symbols-outlined text-ci-green-700 text-[28px]">account_balance</span>
                     </div>
-                    <h1 class="text-xl font-black text-ci-dark-900">Suivi Projets Bailleurs</h1>
-                    <p class="text-[0.75rem] text-ci-dark-400 mt-1">Ministère du Plan et du Développement</p>
+                    <div>
+                        <p class="text-[0.5625rem] font-semibold text-ci-dark-400 uppercase tracking-widest">République de Côte d'Ivoire</p>
+                        <p class="text-[0.8125rem] font-bold text-ci-dark-800 leading-tight">Cabinet du Ministre du Plan<br>et du Développement</p>
+                    </div>
                 </div>
 
-                <!-- Header -->
-                <div class="mb-8 animate-in stagger-1">
-                    <div class="flex items-center gap-3 mb-2">
-                        <div class="w-10 h-10 rounded-xl bg-ci-orange-500 flex items-center justify-center shadow-lg shadow-ci-orange-500/25">
-                            <span class="material-symbols-outlined text-white text-[20px]">lock_open</span>
+                <!-- Titre PSPC style capture centré -->
+                <div class="mb-7 animate-in stagger-2 flex justify-center">
+                    <div class="flex items-center gap-5">
+                        <div class="flex items-baseline leading-none flex-shrink-0">
+                            <span class="font-black text-[3.25rem] leading-none text-ci-orange-500">P</span>
+                            <span class="font-black text-[3.25rem] leading-none text-ci-dark-300">S</span>
+                            <span class="font-black text-[3.25rem] leading-none text-ci-dark-300">P</span>
+                            <span class="font-black text-[3.25rem] leading-none text-ci-green-600">C</span>
+                        </div>
+                        <div class="border-l-2 border-ci-dark-200 pl-4">
+                            <p class="text-[0.9375rem] font-bold text-ci-dark-700 leading-tight">Plateforme de <strong class="text-ci-dark-900">Suivi</strong></p>
+                            <p class="text-[0.9375rem] font-bold text-ci-dark-700 leading-tight">des Projets Cofinancés</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sous-titre connexion -->
+                <div class="mb-5 animate-in stagger-2">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-lg bg-ci-orange-500 flex items-center justify-center shadow shadow-ci-orange-500/30 flex-shrink-0">
+                            <span class="material-symbols-outlined text-white text-[17px]">lock_open</span>
                         </div>
                         <div>
-                            <h2 class="text-2xl font-black text-ci-dark-900 tracking-tight">Connexion</h2>
-                            <p class="text-[0.8125rem] text-ci-dark-400 font-medium">Accédez à votre espace de travail</p>
+                            <h2 class="text-lg font-black text-ci-dark-900 tracking-tight">Connexion</h2>
+                            <p class="text-[0.75rem] text-ci-dark-400">Accédez à votre espace de travail</p>
                         </div>
                     </div>
                 </div>
@@ -196,8 +264,26 @@
                     </div>
                 </form>
 
+                <!-- Features -->
+                <div class="mt-6 animate-in stagger-4">
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="flex flex-col items-center gap-1.5 bg-ci-dark-50 border border-ci-dark-200/60 rounded-xl px-3 py-3">
+                            <span class="material-symbols-outlined text-ci-orange-500 text-[22px]">monitoring</span>
+                            <p class="text-[0.625rem] text-ci-dark-600 font-semibold text-center leading-tight">Suivi en<br>temps réel</p>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5 bg-ci-dark-50 border border-ci-dark-200/60 rounded-xl px-3 py-3">
+                            <span class="material-symbols-outlined text-ci-green-500 text-[22px]">analytics</span>
+                            <p class="text-[0.625rem] text-ci-dark-600 font-semibold text-center leading-tight">Analyses<br>avancées</p>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5 bg-ci-dark-50 border border-ci-dark-200/60 rounded-xl px-3 py-3">
+                            <span class="material-symbols-outlined text-ci-dark-500 text-[22px]">map</span>
+                            <p class="text-[0.625rem] text-ci-dark-600 font-semibold text-center leading-tight">Carte<br>interactive</p>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Admin info -->
-                <div class="mt-8 text-center animate-in stagger-4">
+                <div class="mt-6 text-center animate-in stagger-4">
                     <div class="flex items-start gap-2 bg-ci-dark-100/60 rounded-xl px-4 py-3 text-left">
                         <span class="material-symbols-outlined text-ci-dark-400 text-[16px] mt-0.5 flex-shrink-0">info</span>
                         <p class="text-[0.75rem] text-ci-dark-500 leading-relaxed">
@@ -208,19 +294,77 @@
                 </div>
 
                 <!-- Footer -->
-                <div class="mt-10 text-center animate-in stagger-4">
-                    <div class="flex items-center justify-center gap-0.5 mb-2">
-                        <div class="w-3 h-1 rounded-full bg-ci-orange-500"></div>
-                        <div class="w-3 h-1 rounded-full bg-ci-dark-200"></div>
-                        <div class="w-3 h-1 rounded-full bg-ci-green-500"></div>
-                    </div>
-                    <p class="text-[0.625rem] text-ci-dark-300 font-medium">Cabinet du Ministre du Plan et du Développement</p>
-                    <p class="text-[0.5625rem] text-ci-dark-300">République de Côte d'Ivoire</p>
+                <div class="mt-6 text-center animate-in stagger-4">
+                    <p class="text-[0.5625rem] text-ci-dark-300">République de Côte d'Ivoire &mdash; PSPC &copy; {% now "Y" %}</p>
                 </div>
             </div>
         </div>
     </div>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <script>
+        (function () {
+            const vid = document.getElementById('vid-a');
+            if (!vid) return;
+
+            vid.playbackRate = 0.8;
+
+            // Lecture jusqu'à la fin puis reprise depuis le début
+            vid.addEventListener('ended', function () {
+                vid.currentTime = 0;
+                vid.playbackRate = 0.8;
+                vid.play().catch(() => {});
+            });
+
+            vid.play().catch(() => {
+                const unlock = () => {
+                    vid.play().catch(() => {});
+                    document.removeEventListener('click', unlock);
+                    document.removeEventListener('keydown', unlock);
+                };
+                document.addEventListener('click', unlock);
+                document.addEventListener('keydown', unlock);
+            });
+        })();
+    </script>
+
+    <script>
+        (function () {
+            const container = document.getElementById('split-container');
+            const leftPanel  = document.getElementById('left-panel');
+            const handle     = document.getElementById('drag-handle');
+            if (!container || !leftPanel || !handle) return;
+
+            let dragging = false;
+
+            handle.addEventListener('mousedown', function (e) {
+                dragging = true;
+                handle.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', function (e) {
+                if (!dragging) return;
+                const rect = container.getBoundingClientRect();
+                let w = e.clientX - rect.left;
+                const min = rect.width * 0.20;
+                const max = rect.width * 0.78;
+                w = Math.max(min, Math.min(max, w));
+                leftPanel.style.flex = 'none';
+                leftPanel.style.width = w + 'px';
+            });
+
+            document.addEventListener('mouseup', function () {
+                if (!dragging) return;
+                dragging = false;
+                handle.classList.remove('active');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            });
+        })();
+    </script>
 </body>
 </html>
