@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token }}">
-    <title>{% block title %}Suivi Projets Bailleurs{% endblock %}</title>
+    <title>{% block title %}PSPC — Projets Cofinancés{% endblock %}</title>
     {% load static %}
     <script src="{% static 'vendor/tailwindcss.js' %}"></script>
     <script src="{% static 'vendor/echarts.min.js' %}"></script>
@@ -299,10 +299,10 @@
             </div>
             <div class="flex flex-col">
                 <h1 class="text-[0.875rem] sm:text-[1rem] font-black text-white tracking-wide uppercase leading-tight">
-                    Plateforme de Suivi des Projets
+                    PSPC
                 </h1>
                 <p class="text-[0.625rem] sm:text-[0.6875rem] font-medium text-ci-dark-400 tracking-wider hidden sm:block">
-                    Portefeuille des projets financés par les partenaires au développement
+                    Plateforme de Suivi des Projets Cofinancés
                 </p>
             </div>
         </div>
@@ -528,9 +528,142 @@
             ></div>
         </aside>
 
-        <!-- Mobile sidebar -->
+        <!-- Mobile sidebar overlay -->
         <div x-show="mobileSidebar" x-cloak @click="mobileSidebar = false"
              class="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm" x-transition.opacity></div>
+
+        <!-- Mobile sidebar drawer -->
+        <div x-show="mobileSidebar" x-cloak
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="-translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transition ease-in duration-200"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="-translate-x-full"
+             class="fixed top-0 left-0 h-full w-[280px] bg-white z-[45] lg:hidden flex flex-col shadow-2xl overflow-y-auto">
+
+            <!-- Drawer header -->
+            <div class="flex items-center justify-between px-4 py-4 border-b border-ci-dark-200/80 bg-ci-dark-900 flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-ci-orange-500 flex items-center justify-center flex-shrink-0">
+                        <span class="material-symbols-outlined text-white text-[18px]">monitoring</span>
+                    </div>
+                    <div>
+                        <p class="text-[0.8125rem] font-black text-white uppercase tracking-wide">PSPC</p>
+                        <p class="text-[0.5625rem] text-ci-dark-400">Plateforme de Suivi des Projets Cofinancés</p>
+                    </div>
+                </div>
+                <button @click="mobileSidebar = false" class="p-1.5 rounded-lg hover:bg-white/10 text-ci-dark-400 hover:text-white transition-all">
+                    <span class="material-symbols-outlined text-[20px]">close</span>
+                </button>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-3 py-5 space-y-1">
+                <p class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Navigation</p>
+
+                <a href="{% url 'dashboard:index' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if request.resolver_match.app_name == 'dashboard' %}active{% endif %}">
+                    <span class="material-symbols-outlined">space_dashboard</span>
+                    <span>Tableau de bord</span>
+                </a>
+                <a href="{% url 'projets:liste' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if request.resolver_match.app_name == 'projets' and 'programme' not in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">article</span>
+                    <span>Projets</span>
+                </a>
+                <a href="{% url 'projets:programme_liste' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if 'programme' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">folder_open</span>
+                    <span>Programmes</span>
+                </a>
+                <a href="{% url 'bailleurs:liste' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if request.resolver_match.app_name == 'bailleurs' %}active{% endif %}">
+                    <span class="material-symbols-outlined">account_balance</span>
+                    <span>Bailleurs</span>
+                </a>
+                {% if not is_ministre %}
+                <a href="{% url 'financements:liste' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if request.resolver_match.app_name == 'financements' %}active{% endif %}">
+                    <span class="material-symbols-outlined">payments</span>
+                    <span>Financements</span>
+                </a>
+                {% endif %}
+
+                <div class="my-4 mx-2 border-t border-ci-dark-100"></div>
+                <p class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Stratégie</p>
+
+                <a href="{% url 'pnd:index' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if request.resolver_match.app_name == 'pnd' %}active{% endif %}">
+                    <span class="material-symbols-outlined">flag</span>
+                    <span>Alignements sur le PND</span>
+                </a>
+
+                <div class="my-4 mx-2 border-t border-ci-dark-100"></div>
+                <p class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Outils</p>
+
+                <a href="{% url 'assistant:index' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if request.resolver_match.app_name == 'assistant' %}active{% endif %}">
+                    <span class="material-symbols-outlined">psychology</span>
+                    <span>Assistant IA</span>
+                </a>
+                {% if not is_ministre %}
+                <a href="{% url 'alertes:criteres' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if request.resolver_match.app_name == 'alertes' %}active{% endif %}">
+                    <span class="material-symbols-outlined">rule</span>
+                    <span>Critères retard</span>
+                </a>
+                <a href="{% url 'imports:index' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if request.resolver_match.app_name == 'imports' %}active{% endif %}">
+                    <span class="material-symbols-outlined">upload_file</span>
+                    <span>Import Excel</span>
+                </a>
+                {% endif %}
+
+                {% if is_admin %}
+                <div class="my-4 mx-2 border-t border-ci-dark-100"></div>
+                <p class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Administration</p>
+                <a href="{% url 'accounts:user_management' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if 'utilisateurs' in request.path and 'modifier' not in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">group</span>
+                    <span>Utilisateurs</span>
+                </a>
+                <a href="{% url 'accounts:audit_log' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if 'journal' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">history</span>
+                    <span>Journal d'activité</span>
+                </a>
+                <a href="{% url 'dashboard:ponctualite' %}" @click="mobileSidebar = false"
+                   class="sidebar-link group {% if 'ponctualite' in request.path %}active{% endif %}">
+                    <span class="material-symbols-outlined">schedule</span>
+                    <span>Ponctualité saisies</span>
+                </a>
+                <a href="/admin/" class="sidebar-link group" target="_blank">
+                    <span class="material-symbols-outlined">settings</span>
+                    <span>Admin Django</span>
+                </a>
+                {% endif %}
+            </nav>
+
+            <!-- Drawer footer -->
+            <div class="px-4 py-4 border-t border-ci-dark-100 flex-shrink-0">
+                {% if user.is_authenticated %}
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-8 h-8 rounded-lg bg-ci-dark-200 flex items-center justify-center text-[0.75rem] font-bold text-ci-dark-700">
+                        {{ user.first_name|first|upper|default:'U' }}{{ user.last_name|first|upper }}
+                    </div>
+                    <div class="min-w-0">
+                        <p class="text-[0.8125rem] font-semibold text-ci-dark-800 truncate">{{ user.get_full_name|default:user.username }}</p>
+                        <p class="text-[0.625rem] text-ci-dark-400">{{ user.email|truncatechars:28 }}</p>
+                    </div>
+                </div>
+                <a href="{% url 'accounts:logout' %}" class="sidebar-link w-full text-red-500 hover:bg-red-50">
+                    <span class="material-symbols-outlined">logout</span>
+                    <span>Déconnexion</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
 
         <!-- Main content -->
         <div data-main class="flex-1 flex flex-col min-h-screen transition-all duration-300"
@@ -588,7 +721,7 @@
                             <div class="w-4 h-1.5 rounded-full bg-ci-dark-200"></div>
                             <div class="w-4 h-1.5 rounded-full bg-ci-green-500"></div>
                         </div>
-                        <p class="text-[0.6875rem] text-ci-dark-400 font-medium">Plateforme de Suivi des Projets &mdash; Cabinet du Ministre du Plan et du Développement</p>
+                        <p class="text-[0.6875rem] text-ci-dark-400 font-medium">PSPC &mdash; Plateforme de Suivi des Projets Cofinancés &mdash; Cabinet du Ministre du Plan et du Développement</p>
                     </div>
                     <p class="text-[0.625rem] text-ci-dark-300 font-semibold hidden sm:block">République de Côte d'Ivoire</p>
                 </div>
