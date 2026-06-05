@@ -58,6 +58,9 @@
         .sidebar-link .material-symbols-outlined { font-size: 22px; color: #64748B; transition: all 0.2s ease; }
         .sidebar-link:hover .material-symbols-outlined { color: #0F172A; }
 
+        /* ── Alpine.js x-cloak (cache les éléments avant initialisation) ── */
+        [x-cloak] { display: none !important; }
+
         /* ── Cards ── */
         .card {
             background: #fff; border-radius: 0.875rem; overflow: hidden;
@@ -540,7 +543,7 @@
              x-transition:leave="transition ease-in duration-200"
              x-transition:leave-start="translate-x-0"
              x-transition:leave-end="-translate-x-full"
-             class="fixed top-0 left-0 h-full w-[280px] bg-white z-[45] lg:hidden flex flex-col shadow-2xl overflow-y-auto">
+             class="fixed top-0 left-0 h-full w-[280px] bg-white z-[70] lg:hidden flex flex-col shadow-2xl overflow-y-auto">
 
             <!-- Drawer header -->
             <div class="flex items-center justify-between px-4 py-4 border-b border-ci-dark-200/80 bg-ci-dark-900 flex-shrink-0">
