@@ -194,15 +194,15 @@
 
     <div id="split-container" class="min-h-full flex flex-col lg:flex-row">
         <!-- Video panel -->
-        <div id="left-panel" class="video-panel h-[70vh] lg:h-auto lg:flex-[55] flex-shrink-0">
+        <div id="left-panel" class="video-panel h-[42vh] lg:h-auto lg:w-[55%] lg:flex-none flex-shrink-0">
 
             <!-- Loading spinner -->
             <div id="video-loader" class="video-loader">
                 <div class="spinner"></div>
             </div>
 
-            <!-- Poster image (fallback) avec overlay Play -->
-            <div id="video-poster-container" class="absolute inset-0 z-10 cursor-pointer">
+            <!-- Poster image (fallback mobile) avec overlay Play -->
+            <div id="video-poster-container" class="absolute inset-0 z-10 cursor-pointer lg:hidden">
                 <img id="video-poster" class="video-poster"
                      src="{% static 'img/logo_ministere.jpg' %}"
                      alt="PSPC">
@@ -453,6 +453,11 @@
                     loader.classList.add('loader-hidden');
                 }
             }, 1000);
+
+            // ── Autoplay automatique sur desktop ──
+            if (window.matchMedia('(min-width: 1024px)').matches) {
+                setTimeout(function() { startVideo(); }, 200);
+            }
 
             // Quand la vidéo est prête (progressive loading)
             vid.addEventListener('loadeddata', function() {
