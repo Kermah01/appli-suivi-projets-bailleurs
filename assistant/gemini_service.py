@@ -3,7 +3,7 @@ Service Gemini : construit le contexte DB et interroge l'IA.
 Retourne une réponse structurée (texte + données pour graphiques).
 """
 import json
-from google import genai
+import google.generativeai as genai
 from decimal import Decimal
 from django.db.models import Sum, Count, Q, Avg
 from django.conf import settings
@@ -214,7 +214,7 @@ def ask_gemini(question, conversation_history=None, user=None):
             'table': None,
         }
 
-    client = genai.Client(api_key=api_key)
+    genai.configure(api_key=api_key)
 
     db_context = _build_db_context(user=user)
 
@@ -236,11 +236,12 @@ QUESTION DE L'UTILISATEUR:
     last_error = None
     for model_name in MODELS_TO_TRY:
         try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=user_msg,
+            model = genai.GenerativeModel(
+                model_name=model_name,
                 system_instruction=SYSTEM_PROMPT,
             )
+            chat = model.start_chat(history=history_msgs if history_msgs else [])
+            response = chat.send_message(user_msg)
 
             # Parse response
             raw = response.text.strip()

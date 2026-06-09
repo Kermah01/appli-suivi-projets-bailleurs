@@ -78,7 +78,7 @@
         </div>
         <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Total décaissé</p>
         <p class="text-xl font-black text-ci-dark-900 leading-none">{{ projet.total_decaisse|fmt_fcfa }}</p>
-        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">sur {{ projet.total_engage|fmt_fcfa }}</p>
+        <p class="text-[0.5625rem] text-ci-dark-300 mt-1 font-medium">sur {{ projet.montant_total_fcfa|fmt_fcfa }}</p>
     </div>
     <div class="stat-card animate-in stagger-3">
         <div class="flex items-center gap-2 mb-3">
@@ -96,14 +96,16 @@
             </div>
         </div>
         <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Exécution physique</p>
-        {% if projet.taux_avancement %}
-        <p class="text-[1.75rem] font-black text-ci-dark-900 leading-none mt-1">{{ projet.taux_avancement }}%</p>
-        <div class="w-full bg-ci-dark-100 rounded-full h-2 mt-3 overflow-hidden">
-            <div class="h-2 rounded-full progress-bar-anim {% if projet.taux_avancement < 30 %}bg-red-400{% elif projet.taux_avancement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-500{% endif %}" style="width: {{ projet.taux_avancement }}%;"></div>
+        {% with ta=projet.taux_avancement|as_pct %}
+        {% if ta %}
+        <p class="text-[1.75rem] font-black {% if ta >= 70 %}text-ci-green-600{% elif ta >= 30 %}text-ci-orange-600{% else %}text-red-500{% endif %} leading-none mt-1">{{ ta }}%</p>
+        <div class="w-full bg-ci-dark-100 rounded-full h-3 mt-3 overflow-hidden">
+            <div class="h-3 rounded-full progress-bar-anim {% if ta >= 70 %}bg-ci-green-500{% elif ta >= 30 %}bg-ci-orange-400{% else %}bg-red-400{% endif %}" style="width: {% if ta > 100 %}100{% else %}{{ ta }}{% endif %}%;"></div>
         </div>
         {% else %}
         <p class="text-[1.75rem] font-black text-ci-dark-300 leading-none mt-1">&mdash;</p>
         {% endif %}
+        {% endwith %}
     </div>
     <div class="stat-card animate-in stagger-4">
         <div class="flex items-center gap-2 mb-3">
@@ -602,8 +604,18 @@
     <div class="card-header flex items-center gap-2">
         <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">group_work</span>
         <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition du cofinancement</h3>
-        <span class="badge badge-blue text-[0.5625rem] ml-1">{{ projet.nombre_bailleurs }} bailleurs</span>
+        <span class="badge badge-blue text-[0.5625rem] ml-1">{{ projet.nombre_bailleurs }} PTF · {{ projet.repartition_financements|length }} ligne{{ projet.repartition_financements|length|pluralize }}</span>
     </div>
+    {% if projet.etat_manquant %}
+    <div class="mx-5 mt-3 mb-0 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
+        <span class="material-symbols-outlined text-amber-500 text-[15px] flex-shrink-0 mt-0.5">info</span>
+        <p class="text-[0.75rem] text-amber-700">
+            <strong>Contribution nationale non renseignée.</strong>
+            Tous les projets étant cofinancés par l'État CI, le graphique ci-dessous ne reflète qu'une partie du financement.
+            <a href="{% url 'projets:modifier' projet.pk %}" class="underline font-bold hover:text-amber-900">Renseigner la part État →</a>
+        </p>
+    </div>
+    {% endif %}
     <div class="p-5">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <!-- Breakdown bars -->

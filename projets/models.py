@@ -58,7 +58,9 @@ class Programme(models.Model):
         ('identification', 'Identification'),
         ('preparation', 'Préparation'),
         ('negociation', 'Négociation'),
+        ('non_demarre', 'Approuvé mais non démarré'),
         ('en_cours', "En cours d'exécution"),
+        ('en_instance_cloture', 'En instance de clôture'),
         ('suspendu', 'Suspendu'),
         ('cloture', 'Clôturé'),
         ('annule', 'Annulé'),
@@ -113,6 +115,16 @@ class Programme(models.Model):
         max_length=255, blank=True, verbose_name="Structure responsable"
     )
     objectif_strategique = models.TextField(blank=True, verbose_name="Objectif stratégique")
+    part_etat = models.DecimalField(
+        max_digits=15, decimal_places=2, null=True, blank=True,
+        verbose_name="Part État (montant XOF)",
+        help_text="Montant de la contrepartie nationale (État CI) en FCFA"
+    )
+    part_etat_pourcentage = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True,
+        verbose_name="Part État (%)",
+        help_text="Pourcentage de la contrepartie nationale sur le montant total"
+    )
     date_creation = models.DateTimeField(auto_now_add=True)
     date_modification = models.DateTimeField(auto_now=True)
 
@@ -160,7 +172,9 @@ class Projet(models.Model):
         ('identification', 'Identification'),
         ('preparation', 'Préparation'),
         ('negociation', 'Négociation'),
-        ('en_cours', 'En cours d\'exécution'),
+        ('non_demarre', 'Approuvé mais non démarré'),
+        ('en_cours', "En cours d'exécution"),
+        ('en_instance_cloture', 'En instance de clôture'),
         ('suspendu', 'Suspendu'),
         ('cloture', 'Clôturé'),
         ('annule', 'Annulé'),
@@ -344,8 +358,8 @@ class Projet(models.Model):
 
     @property
     def est_cofinance(self):
-        """True si le projet est financé par plus d'un bailleur."""
-        return self.nombre_bailleurs > 1
+        """True si le projet a au moins un financement OU une part État (tous les projets sont cofinancés)."""
+        return self.nombre_bailleurs >= 1 or bool(self.part_etat and float(self.part_etat) > 0)
 
     @property
     def bailleurs_list(self):
@@ -357,39 +371,81 @@ class Projet(models.Model):
 
     @property
     def repartition_financements(self):
-        """Répartition des financements par bailleur + part État avec montants et pourcentages."""
+        """Répartition agrégée par bailleur (une ligne par PTF) + part État."""
         from financements.models import Financement, Decaissement
         financements = Financement.objects.filter(projet=self).select_related('bailleur')
-        # Base de calcul : montant total du projet (accord de financement)
-        base = float(self.montant_total) if self.montant_total else (float(self.total_engage) or 1)
-        repartition = []
+
+        # Agréger par bailleur_id pour éviter les doublons de type
+        by_bailleur = {}
         for f in financements:
+            bid = f.bailleur_id
+            if bid not in by_bailleur:
+                by_bailleur[bid] = {
+                    'bailleur': f.bailleur,
+                    'sigle': f.bailleur.sigle or f.bailleur.nom[:20],
+                    'montant_engage': 0.0,
+                    'montant_decaisse': 0.0,
+                    'devise': f.devise,
+                    'types': set(),
+                }
+            by_bailleur[bid]['montant_engage'] += float(f.montant_engage)
             dec = float(Decaissement.objects.filter(financement=f).aggregate(t=models.Sum('montant'))['t'] or 0)
-            repartition.append({
-                'bailleur': f.bailleur,
-                'sigle': f.bailleur.sigle or f.bailleur.nom[:20],
-                'type_financement': f.get_type_financement_display(),
-                'montant_engage': float(f.montant_engage),
+            by_bailleur[bid]['montant_decaisse'] += dec
+            # Ne mémoriser le type que s'il est réellement précisé
+            t = f.type_financement
+            if t and t not in ('autre', 'non_specifie', ''):
+                by_bailleur[bid]['types'].add(f.get_type_financement_display())
+
+        rows = []
+        for bid, data in by_bailleur.items():
+            eng = data['montant_engage']
+            dec = data['montant_decaisse']
+            types = data['types']
+            if not types:
+                type_display = 'Non précisé'
+            elif len(types) == 1:
+                type_display = list(types)[0]
+            else:
+                type_display = ' + '.join(sorted(types))
+            rows.append({
+                'bailleur': data['bailleur'],
+                'sigle': data['sigle'],
+                'type_financement': type_display,
+                'montant_engage': eng,
                 'montant_decaisse': dec,
-                'devise': f.devise,
-                'part_pct': round(float(f.montant_engage) / base * 100, 1),
-                'taux_decaissement': round(dec / float(f.montant_engage) * 100, 1) if f.montant_engage else 0,
+                'devise': data['devise'],
+                'taux_decaissement': round(dec / eng * 100, 1) if eng > 0 else 0,
                 'is_etat': False,
             })
-        # Ajouter la part de l'État si renseignée
-        if self.part_etat and self.part_etat > 0:
-            repartition.append({
+        rows.sort(key=lambda r: r['montant_engage'], reverse=True)
+
+        part_etat_val = float(self.part_etat) if self.part_etat and self.part_etat > 0 else 0
+        if part_etat_val > 0:
+            rows.append({
                 'bailleur': None,
                 'sigle': 'État CI',
                 'type_financement': 'Contrepartie nationale',
-                'montant_engage': float(self.part_etat),
+                'montant_engage': part_etat_val,
                 'montant_decaisse': 0,
                 'devise': self.devise,
-                'part_pct': round(float(self.part_etat) / base * 100, 1) if base else 0,
                 'taux_decaissement': 0,
                 'is_etat': True,
             })
-        return repartition
+
+        # montant_total inclut désormais la part État (colonne explicite dans l'import)
+        # → utiliser montant_total comme base si disponible, sinon fallback sur la somme des lignes
+        if self.montant_total and float(self.montant_total) > 0:
+            base = float(self.montant_total)
+        else:
+            base = sum(r['montant_engage'] for r in rows) or 1
+        for r in rows:
+            r['part_pct'] = round(r['montant_engage'] / base * 100, 1)
+        return rows
+
+    @property
+    def etat_manquant(self):
+        """True si la contrepartie nationale (État CI) n'est pas renseignée."""
+        return not (self.part_etat and float(self.part_etat) > 0)
 
     @property
     def montant_total_fcfa(self):
@@ -437,7 +493,9 @@ class Projet(models.Model):
             'identification': 'badge-gray',
             'preparation': 'badge-orange',
             'negociation': 'badge-blue',
+            'non_demarre': 'badge-gray',
             'en_cours': 'badge-green',
+            'en_instance_cloture': 'badge-orange',
             'suspendu': 'badge-red',
             'cloture': 'badge-purple',
             'annule': 'badge-red',

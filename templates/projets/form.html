@@ -24,6 +24,7 @@
             <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {% for field in form %}
                 {% if field.name != 'financements_json' %}
+                {% if field.name in 'part_etat,part_etat_pourcentage' %}{% else %}
                 <div class="{% if field.name == 'titre' or field.name == 'description' or field.name == 'objectifs_pnd' or field.name == 'motif_retard' %}md:col-span-2{% endif %}">
                     <label for="{{ field.id_for_label }}" class="block text-[0.75rem] font-medium text-ci-dark-600 mb-1">
                         {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
@@ -32,6 +33,7 @@
                     {% if field.errors %}<p class="text-red-500 text-[0.6875rem] mt-0.5">{{ field.errors.0 }}</p>{% endif %}
                     {% if field.help_text %}<p class="text-ci-dark-300 text-[0.6875rem] mt-0.5">{{ field.help_text }}</p>{% endif %}
                 </div>
+                {% endif %}
                 {% endif %}
                 {% endfor %}
             </div>
@@ -52,6 +54,57 @@
                     <span class="font-bold text-ci-dark-800 text-[0.875rem]" x-text="fcfaAmount"></span>
                 </div>
                 <p class="text-[0.6875rem] text-ci-dark-300 mt-1">Taux indicatifs &mdash; USD: 615, EUR: 655,957, GBP: 775, JPY: 4,10, CHF: 685, CNY: 85 &bull; <strong class="text-ci-orange-600">UC (Unité de Compte BAD) : 769,083</strong> (bulletin BAD mai 2026)</p>
+            </div>
+        </div>
+
+        <!-- Section 1b: Part État / Contrepartie nationale -->
+        <div class="card mb-4 overflow-hidden animate-in stagger-2" x-data="partEtatCalc()">
+            <div class="h-1 bg-ci-green-500"></div>
+            <div class="card-header flex items-center gap-2">
+                <span class="material-symbols-outlined text-ci-green-600 text-[16px]">account_balance</span>
+                <h3 class="text-[0.8125rem] font-bold text-ci-dark-700">Part de l'État (contrepartie nationale)</h3>
+                <span class="badge badge-green text-[0.5625rem]">Optionnel</span>
+            </div>
+            <div class="p-5">
+                <p class="text-[0.75rem] text-ci-dark-400 mb-4">
+                    Renseignez <strong>l'un ou l'autre</strong> des champs ci-dessous — l'autre se calcule automatiquement à partir du montant total du projet.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Pourcentage -->
+                    <div>
+                        <label for="{{ form.part_etat_pourcentage.id_for_label }}" class="block text-[0.75rem] font-medium text-ci-dark-600 mb-1">
+                            {{ form.part_etat_pourcentage.label }}
+                        </label>
+                        <div class="relative">
+                            {{ form.part_etat_pourcentage }}
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-ci-dark-400 font-bold text-[0.8125rem]">%</span>
+                        </div>
+                        {% if form.part_etat_pourcentage.errors %}<p class="text-red-500 text-[0.6875rem] mt-0.5">{{ form.part_etat_pourcentage.errors.0 }}</p>{% endif %}
+                        <p class="text-ci-dark-300 text-[0.6875rem] mt-0.5">{{ form.part_etat_pourcentage.help_text }}</p>
+                    </div>
+                    <!-- Montant -->
+                    <div>
+                        <label for="{{ form.part_etat.id_for_label }}" class="block text-[0.75rem] font-medium text-ci-dark-600 mb-1">
+                            {{ form.part_etat.label }}
+                        </label>
+                        <div class="relative">
+                            {{ form.part_etat }}
+                            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-ci-dark-400 font-medium text-[0.6875rem]" x-text="devise"></span>
+                        </div>
+                        {% if form.part_etat.errors %}<p class="text-red-500 text-[0.6875rem] mt-0.5">{{ form.part_etat.errors.0 }}</p>{% endif %}
+                        <p class="text-ci-dark-300 text-[0.6875rem] mt-0.5">{{ form.part_etat.help_text }}</p>
+                    </div>
+                </div>
+                <!-- Récap visuel -->
+                <div x-show="pctVal > 0 || montantVal > 0" class="mt-4 p-3 bg-ci-green-50 border border-ci-green-200 rounded-xl flex items-center gap-3">
+                    <span class="material-symbols-outlined text-ci-green-500 text-[20px]">account_balance</span>
+                    <div class="text-[0.75rem] text-ci-green-800">
+                        <span class="font-bold">État CI :</span>
+                        <span x-text="pctVal.toFixed(2) + '% du montant total'"></span>
+                        <span class="mx-1 text-ci-green-400">·</span>
+                        <span class="font-bold" x-text="new Intl.NumberFormat('fr-FR').format(Math.round(montantVal)) + ' ' + devise"></span>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -144,6 +197,48 @@
 
 {% block extra_js %}
 <script>
+function partEtatCalc() {
+    return {
+        pctEl: null, montantEl: null, montantTotalEl: null, deviseEl: null,
+        pctVal: 0, montantVal: 0, devise: 'USD',
+        getMontantTotal() { return parseFloat(this.montantTotalEl && this.montantTotalEl.value) || 0; },
+        onPctChange() {
+            this.pctVal = parseFloat(this.pctEl.value) || 0;
+            var mt = this.getMontantTotal();
+            if (this.pctVal > 0 && mt > 0) {
+                this.montantVal = Math.round(this.pctVal / 100 * mt * 100) / 100;
+                this.montantEl.value = this.montantVal;
+            }
+        },
+        onMontantChange() {
+            this.montantVal = parseFloat(this.montantEl.value) || 0;
+            var mt = this.getMontantTotal();
+            if (this.montantVal > 0 && mt > 0) {
+                this.pctVal = Math.round(this.montantVal / mt * 10000) / 100;
+                this.pctEl.value = this.pctVal;
+            }
+        },
+        onMontantTotalChange() {
+            // Recalcule le montant si le % est déjà renseigné
+            if (this.pctVal > 0) this.onPctChange();
+        },
+        init() {
+            this.pctEl = document.getElementById('id_part_etat_pourcentage');
+            this.montantEl = document.getElementById('id_part_etat');
+            this.montantTotalEl = document.getElementById('id_montant_total');
+            this.deviseEl = document.getElementById('id_devise');
+            if (!this.pctEl || !this.montantEl) return;
+            this.pctVal = parseFloat(this.pctEl.value) || 0;
+            this.montantVal = parseFloat(this.montantEl.value) || 0;
+            this.devise = this.deviseEl ? this.deviseEl.value : 'USD';
+            this.pctEl.addEventListener('input', () => this.onPctChange());
+            this.montantEl.addEventListener('input', () => this.onMontantChange());
+            if (this.montantTotalEl) this.montantTotalEl.addEventListener('input', () => this.onMontantTotalChange());
+            if (this.deviseEl) this.deviseEl.addEventListener('change', () => { this.devise = this.deviseEl.value; });
+        }
+    };
+}
+
 function projetForm() {
     var rates = { XOF:1, USD:615, EUR:655.957, GBP:775, JPY:4.10, CHF:685, CNY:85, UC:769.083 };
     var bailleursData = {{ form.get_bailleurs_json|safe }};

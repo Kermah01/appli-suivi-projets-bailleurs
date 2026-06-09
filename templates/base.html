@@ -284,7 +284,7 @@
     .print-btn-float:hover { background: #245838; transform: scale(1.06); box-shadow: 0 4px 14px rgba(26,77,45,0.5); }
     </style>
 </head>
-<body class="h-full bg-ci-dark-50 font-sans antialiased" x-data="{ sidebarOpen: true, mobileSidebar: false }">
+<body class="h-full bg-ci-dark-50 font-sans antialiased" x-data="{ sidebarOpen: {% if sidebar_closed_default %}false{% else %}true{% endif %}, mobileSidebar: false }">
 
     <!-- Flag bar -->
     <div class="flag-bar fixed top-0 left-0 right-0 z-[60]">
@@ -349,24 +349,40 @@
                 <div class="notif-dropdown" x-show="open" x-cloak x-transition.opacity>
                     <div class="px-4 py-3 border-b border-ci-dark-100 flex items-center justify-between">
                         <h4 class="text-[0.8125rem] font-bold text-ci-dark-800">Notifications</h4>
-                        <span class="badge badge-orange text-[0.5625rem]" x-text="count + ' alerte(s)'" x-show="count>0"></span>
+                        <div class="flex items-center gap-2">
+                            <span class="badge badge-orange text-[0.5625rem]" x-text="count + ' nouvelle(s)'" x-show="count>0"></span>
+                            <button @click="markAllRead()" x-show="notifs.length>0"
+                                    class="text-[0.625rem] text-ci-dark-400 hover:text-ci-orange-500 font-semibold transition-colors">
+                                Tout marquer lu
+                            </button>
+                        </div>
                     </div>
                     <template x-for="n in notifs" :key="n.title+n.message">
                         <a :href="n.url" class="notif-item">
                             <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                                 :class="n.type==='warning' ? 'bg-red-50 text-red-500' : n.type==='alert' ? 'bg-ci-orange-50 text-ci-orange-500' : 'bg-ci-green-50 text-ci-green-500'">
+                                 :class="iconColor(n.type)">
                                 <span class="material-symbols-outlined text-[16px]" x-text="n.icon"></span>
                             </div>
                             <div class="min-w-0 flex-1">
-                                <p class="text-[0.75rem] font-bold text-ci-dark-800" x-text="n.title"></p>
-                                <p class="text-[0.625rem] text-ci-dark-400 mt-0.5" x-text="n.message"></p>
+                                <p class="text-[0.75rem] font-bold text-ci-dark-800 leading-tight" x-text="n.title"></p>
+                                <p class="text-[0.6875rem] text-ci-dark-500 mt-0.5 leading-snug" x-text="n.message"></p>
                             </div>
-                            <span class="text-[0.5625rem] text-ci-dark-300 font-semibold flex-shrink-0" x-text="n.time"></span>
+                            <span class="text-[0.5625rem] text-ci-dark-300 font-semibold flex-shrink-0 whitespace-nowrap" x-text="n.time"></span>
                         </a>
                     </template>
-                    <div x-show="notifs.length===0" class="px-4 py-8 text-center text-ci-dark-300 text-[0.8125rem]">Aucune notification</div>
+                    <div x-show="notifs.length===0" class="px-4 py-8 text-center">
+                        <span class="material-symbols-outlined text-ci-dark-200 text-[32px] block mb-2">notifications_none</span>
+                        <p class="text-[0.8125rem] text-ci-dark-300 font-medium">Aucune notification</p>
+                    </div>
                 </div>
             </div>
+
+            {% if is_ministre %}
+            <a href="{% url 'dashboard:ministre' %}" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ci-orange-500/20 border border-ci-orange-500/40 text-ci-orange-300 hover:bg-ci-orange-500/30 transition-all text-[0.75rem] font-bold {% if is_ministre_page %}ring-1 ring-ci-orange-400{% endif %}">
+                <span class="material-symbols-outlined text-[15px]">dashboard</span>
+                <span class="hidden lg:inline">Mon tableau de bord</span>
+            </a>
+            {% endif %}
 
             <div class="hidden md:block w-px h-8 bg-white/10"></div>
 
@@ -455,7 +471,7 @@
                 <p x-show="sidebarOpen" x-transition class="px-3 mb-3 text-[0.625rem] font-extrabold uppercase tracking-[0.12em] text-ci-dark-400">Outils</p>
 
                 <a href="{% url 'assistant:index' %}" class="sidebar-link group {% if request.resolver_match.app_name == 'assistant' %}active{% endif %}">
-                    <span class="material-symbols-outlined">psychology</span>
+                    <span class="material-symbols-outlined">auto_awesome</span>
                     <span x-show="sidebarOpen" x-transition.opacity>Assistant IA</span>
                     <span x-show="!sidebarOpen" class="sidebar-tooltip group-hover:opacity-100">Assistant IA</span>
                 </a>
@@ -537,13 +553,9 @@
 
         <!-- Mobile sidebar drawer -->
         <div x-show="mobileSidebar" x-cloak
-             x-transition:enter="transition ease-out duration-300"
-             x-transition:enter-start="-translate-x-full"
-             x-transition:enter-end="translate-x-0"
-             x-transition:leave="transition ease-in duration-200"
-             x-transition:leave-start="translate-x-0"
-             x-transition:leave-end="-translate-x-full"
-             class="fixed top-0 left-0 h-full w-[280px] bg-white z-[70] lg:hidden flex flex-col shadow-2xl overflow-y-auto">
+             x-bind:class="mobileSidebar ? 'translate-x-0 opacity-100 pointer-events-auto' : '-translate-x-full opacity-0 pointer-events-none'"
+             class="fixed inset-y-0 left-0 w-[280px] bg-white z-[70] lg:hidden flex flex-col shadow-2xl transition-all duration-300 ease-out"
+             style="top: 3px; height: calc(100% - 3px);">
 
             <!-- Drawer header -->
             <div class="flex items-center justify-between px-4 py-4 border-b border-ci-dark-200/80 bg-ci-dark-900 flex-shrink-0">
@@ -607,7 +619,7 @@
 
                 <a href="{% url 'assistant:index' %}" @click="mobileSidebar = false"
                    class="sidebar-link group {% if request.resolver_match.app_name == 'assistant' %}active{% endif %}">
-                    <span class="material-symbols-outlined">psychology</span>
+                    <span class="material-symbols-outlined">auto_awesome</span>
                     <span>Assistant IA</span>
                 </a>
                 {% if not is_ministre %}
@@ -763,18 +775,31 @@
                 notifs: [], count: 0, open: false, loaded: false,
                 async toggle() {
                     this.open = !this.open;
-                    if (this.open && !this.loaded) {
-                        try {
-                            const r = await fetch('/api/notifications/');
-                            const data = await r.json();
-                            this.notifs = data.notifications || [];
-                            this.count = data.count || 0;
-                            this.loaded = true;
-                        } catch(e) { console.error(e); }
+                    if (this.open) {
+                        if (!this.loaded) {
+                            try {
+                                const r = await fetch('/api/notifications/');
+                                const data = await r.json();
+                                this.notifs = data.notifications || [];
+                                this.count = data.count || 0;
+                                this.loaded = true;
+                            } catch(e) { console.error(e); }
+                        }
+                        // Marquer comme lu : badge disparaît à la consultation
+                        this.$nextTick(() => {
+                            setTimeout(() => { this.count = 0; }, 800);
+                        });
                     }
                 },
+                markAllRead() {
+                    this.count = 0;
+                    this.open = false;
+                },
+                iconColor(type) {
+                    const map = {warning:'bg-red-50 text-red-500', alert:'bg-ci-orange-50 text-ci-orange-500', info:'bg-blue-50 text-blue-500', reminder:'bg-violet-50 text-violet-500'};
+                    return map[type] || 'bg-ci-green-50 text-ci-green-500';
+                },
                 init() {
-                    // Pre-load count on page load
                     fetch('/api/notifications/').then(r=>r.json()).then(data => { this.count = data.count || 0; }).catch(()=>{});
                 }
             };
@@ -802,7 +827,7 @@
             <div class="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-ci-orange-500 to-ci-orange-600 flex-shrink-0">
                 <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
-                        <span class="material-symbols-outlined text-[18px] text-white">psychology</span>
+                        <span class="material-symbols-outlined text-[18px] text-white">auto_awesome</span>
                     </div>
                     <div>
                         <h4 class="text-[0.8125rem] font-bold text-white leading-tight">Assistant IA</h4>
@@ -827,7 +852,7 @@
                 <!-- Welcome -->
                 <div x-show="messages.length === 0" class="flex flex-col items-center justify-center h-full text-center py-4">
                     <div class="w-12 h-12 rounded-xl bg-ci-orange-50 flex items-center justify-center mb-3">
-                        <span class="material-symbols-outlined text-[24px] text-ci-orange-500">psychology</span>
+                        <span class="material-symbols-outlined text-[24px] text-ci-orange-500">auto_awesome</span>
                     </div>
                     <p class="text-[0.75rem] text-ci-dark-500 mb-4 max-w-[260px]">Posez-moi une question sur les projets, bailleurs ou financements.</p>
                     <div class="space-y-1.5 w-full">
@@ -854,7 +879,7 @@
                             <!-- AI -->
                             <div x-show="msg.role === 'assistant'" class="flex items-start gap-2">
                                 <div class="w-5 h-5 rounded bg-ci-orange-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                                    <span class="material-symbols-outlined text-[10px] text-ci-orange-600">psychology</span>
+                                    <span class="material-symbols-outlined text-[10px] text-ci-orange-600">auto_awesome</span>
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <div class="px-3 py-2 rounded-xl rounded-tl-sm bg-ci-dark-50 border border-ci-dark-100 text-[0.75rem] text-ci-dark-700 mini-ai-msg" x-html="msg.html"></div>
@@ -934,7 +959,7 @@
         <button @click="toggleOpen()"
                 class="w-14 h-14 rounded-full bg-gradient-to-br from-ci-orange-500 to-ci-orange-600 text-white flex items-center justify-center shadow-xl hover:shadow-2xl hover:scale-105 transition-all"
                 style="box-shadow: 0 8px 25px rgba(247,127,0,0.4);">
-            <span x-show="!open" class="material-symbols-outlined text-[26px]">psychology</span>
+            <span x-show="!open" class="material-symbols-outlined text-[26px]">auto_awesome</span>
             <span x-show="open" class="material-symbols-outlined text-[26px]">keyboard_arrow_down</span>
         </button>
     </div>

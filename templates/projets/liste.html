@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load humanize %}
+{% load humanize projets_tags %}
 
 {% block title %}Projets - Suivi Projets{% endblock %}
 {% block page_title %}Projets{% endblock %}
@@ -7,8 +7,14 @@
 
 {% block extra_head %}
 <style>
-    .progress-mini { width: 48px; height: 5px; border-radius: 3px; background: #E2E8F0; overflow: hidden; }
+    .progress-mini { width: 56px; height: 6px; border-radius: 3px; background: #E2E8F0; overflow: hidden; }
     .progress-mini-fill { height: 100%; border-radius: 3px; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+    .sortable-th { cursor: pointer; user-select: none; transition: background 0.15s; }
+    .sortable-th:hover { background: #E2E8F0; }
+    .sortable-th .sort-icon { opacity: 0.3; font-size: 12px; vertical-align: middle; }
+    .sortable-th.sort-asc .sort-icon::after { content: '\e5c7'; }
+    .sortable-th.sort-desc .sort-icon::after { content: '\e5c5'; }
+    .sortable-th.sort-asc .sort-icon, .sortable-th.sort-desc .sort-icon { opacity: 1; }
     .row-hover-reveal { opacity: 0; transition: opacity 0.2s ease; }
     tr:hover .row-hover-reveal { opacity: 1; }
     tr.row-selected { background-color: #fff7ed !important; }
@@ -108,9 +114,10 @@
                     <th>Bailleur</th>
                     <th>Secteur</th>
                     <th>Statut</th>
-                    <th class="text-right">Montant</th>
-                    <th class="text-right">Avancement</th>
-                    <th class="text-right">Décaissement</th>
+                    <th class="text-right sortable-th" data-col="3">Montant<span class="material-symbols-outlined sort-icon"></span></th>
+                    <th class="text-center">Part État</th>
+                    <th class="text-right sortable-th" data-col="5">Avancement<span class="material-symbols-outlined sort-icon"></span></th>
+                    <th class="text-right sortable-th" data-col="6">Décaissement<span class="material-symbols-outlined sort-icon"></span></th>
                     <th></th>
                 </tr>
             </thead>
@@ -153,13 +160,24 @@
                         <span class="font-bold text-ci-dark-800">{{ projet.montant_total|floatformat:0|intcomma }}</span>
                         <span class="text-ci-dark-300 font-medium text-[0.625rem] ml-0.5">{{ projet.devise }}</span>
                     </td>
+                    <td class="text-center whitespace-nowrap">
+                        {% if projet.part_etat and projet.part_etat > 0 %}
+                        <span class="text-[0.75rem] font-bold text-ci-green-600" title="{{ projet.part_etat_pourcentage|floatformat:1 }}% du montant total">
+                            {% if projet.part_etat_pourcentage %}{{ projet.part_etat_pourcentage|floatformat:1 }}%{% else %}{{ projet.part_etat|floatformat:0|intcomma }} {{ projet.devise }}{% endif %}
+                        </span>
+                        {% else %}
+                        <span class="text-ci-dark-300 text-[0.75rem]">&mdash;</span>
+                        {% endif %}
+                    </td>
                     <td class="text-right whitespace-nowrap">
+                        {% with ta=projet.taux_avancement|as_pct %}
                         <div class="flex items-center justify-end gap-2">
                             <div class="progress-mini">
-                                <div class="progress-mini-fill {% if projet.taux_avancement < 30 %}bg-red-400{% elif projet.taux_avancement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-400{% endif %}" style="width: {{ projet.taux_avancement }}%;"></div>
+                                <div class="progress-mini-fill {% if ta >= 70 %}bg-ci-green-400{% elif ta >= 30 %}bg-ci-orange-400{% else %}bg-red-400{% endif %}" style="width: {% if ta > 100 %}100{% elif ta > 0 %}{{ ta }}{% else %}2{% endif %}%;"></div>
                             </div>
-                            <span class="text-[0.75rem] font-bold w-10 text-right {% if projet.taux_avancement < 30 %}text-red-500{% elif projet.taux_avancement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">{{ projet.taux_avancement }}%</span>
+                            <span class="text-[0.75rem] font-bold w-10 text-right {% if ta >= 70 %}text-ci-green-500{% elif ta >= 30 %}text-ci-orange-500{% else %}text-red-500{% endif %}">{% if ta %}{{ ta }}%{% else %}&mdash;{% endif %}</span>
                         </div>
+                        {% endwith %}
                     </td>
                     <td class="text-right whitespace-nowrap">
                         <span class="text-[0.8125rem] font-bold {% if projet.taux_decaissement < 30 %}text-red-500{% elif projet.taux_decaissement < 60 %}text-ci-orange-500{% else %}text-ci-green-500{% endif %}">
@@ -174,7 +192,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="{% if can_edit %}10{% else %}9{% endif %}" class="!py-20 text-center">
+                    <td colspan="{% if can_edit %}11{% else %}10{% endif %}" class="!py-20 text-center">
                         <div class="w-16 h-16 mx-auto rounded-2xl bg-ci-dark-50 flex items-center justify-center mb-4">
                             <span class="material-symbols-outlined text-ci-dark-200 text-[32px]">folder_off</span>
                         </div>
@@ -193,6 +211,44 @@
     </div>
 </div>
 </form>
+
+<script>
+// ── Recherche live : soumet le formulaire après frappe
+(function(){
+    var inp = document.querySelector('input[name="q"]');
+    if (!inp) return;
+    var timer;
+    inp.addEventListener('input', function(){
+        clearTimeout(timer);
+        timer = setTimeout(function(){ inp.closest('form').submit(); }, 500);
+    });
+})();
+
+// ── Tri de colonnes côté client
+(function(){
+    var tbody = document.querySelector('.data-table tbody');
+    if (!tbody) return;
+    document.querySelectorAll('.sortable-th').forEach(function(th){
+        th.addEventListener('click', function(){
+            var col = th.cellIndex;
+            var asc = !th.classList.contains('sort-asc');
+            document.querySelectorAll('.sortable-th').forEach(function(h){ h.classList.remove('sort-asc','sort-desc'); });
+            th.classList.add(asc ? 'sort-asc' : 'sort-desc');
+            var rows = Array.from(tbody.querySelectorAll('tr[id]'));
+            rows.sort(function(a, b){
+                var ca = a.querySelectorAll('td')[col];
+                var cb = b.querySelectorAll('td')[col];
+                if (!ca || !cb) return 0;
+                var va = parseFloat(ca.textContent.replace(/[^0-9.,-]/g,'').replace(',','.')) || ca.textContent.trim();
+                var vb = parseFloat(cb.textContent.replace(/[^0-9.,-]/g,'').replace(',','.')) || cb.textContent.trim();
+                if (typeof va === 'number' && typeof vb === 'number') return asc ? va-vb : vb-va;
+                return asc ? String(va).localeCompare(String(vb),'fr') : String(vb).localeCompare(String(va),'fr');
+            });
+            rows.forEach(function(r){ tbody.appendChild(r); });
+        });
+    });
+})();
+</script>
 
 {% if can_edit %}
 <!-- Floating bulk-action bar -->

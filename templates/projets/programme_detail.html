@@ -6,6 +6,7 @@
 {% block page_subtitle %}Programme {{ programme.code }}{% endblock %}
 
 {% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
     .detail-row { transition: background 0.15s ease; }
@@ -118,10 +119,12 @@
             <span class="src-badge-{% if stats.taux_avancement_src == 'saisi' %}s{% elif stats.taux_avancement_src == 'agrege' %}a{% endif %}">{% if stats.taux_avancement_src == 'saisi' %}S{% elif stats.taux_avancement_src == 'agrege' %}A{% endif %}</span>
         </div>
         <p class="text-[0.625rem] text-ci-dark-400 font-bold uppercase tracking-wider mb-1">Exécution physique</p>
-        <p class="text-[1.75rem] font-black text-ci-dark-900 leading-none mt-1">{{ stats.taux_avancement }}%</p>
-        <div class="w-full bg-ci-dark-100 rounded-full h-2 mt-3 overflow-hidden">
-            <div class="h-2 rounded-full progress-bar-anim {% if stats.taux_avancement < 30 %}bg-red-400{% elif stats.taux_avancement < 60 %}bg-ci-orange-400{% else %}bg-ci-green-500{% endif %}" style="width: {{ stats.taux_avancement }}%;"></div>
+        {% with ta=stats.taux_avancement|as_pct %}
+        <p class="text-[1.75rem] font-black {% if ta >= 70 %}text-ci-green-600{% elif ta >= 30 %}text-ci-orange-600{% else %}text-red-500{% endif %} leading-none mt-1">{% if ta %}{{ ta }}%{% else %}&mdash;{% endif %}</p>
+        <div class="w-full bg-ci-dark-100 rounded-full h-3 mt-3 overflow-hidden">
+            <div class="h-3 rounded-full progress-bar-anim {% if ta >= 70 %}bg-ci-green-500{% elif ta >= 30 %}bg-ci-orange-400{% else %}bg-red-400{% endif %}" style="width: {% if ta > 100 %}100{% elif ta > 0 %}{{ ta }}{% else %}2{% endif %}%;"></div>
         </div>
+        {% endwith %}
     </div>
 
     <!-- 5. Reste à décaisser -->
@@ -285,6 +288,78 @@
 </div>
 {% endif %}
 
+<!-- ═══ FINANCEMENT GLOBAL ═══ -->
+{% if programme.montant_total and programme.montant_total > 0 %}
+<div class="card mb-5 animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+        <span class="material-symbols-outlined text-violet-500 text-[16px]">account_balance_wallet</span>
+        <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Financement global du programme</h3>
+        {% if part_etat_pct > 0 %}
+        <span class="badge badge-green text-[0.5rem] ml-1">Cofinancé État CI</span>
+        {% endif %}
+    </div>
+    <div class="p-5">
+        <!-- Montant total -->
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-ci-dark-100">
+            <span class="text-[0.8125rem] text-ci-dark-500 font-semibold flex items-center gap-2">
+                <span class="material-symbols-outlined text-[14px]">payments</span> Montant total programme
+            </span>
+            <span class="text-[0.9375rem] font-black text-ci-dark-900">{{ programme.montant_total|floatformat:0|intcomma }}&nbsp;<span class="text-[0.625rem] font-normal text-ci-dark-400">FCFA</span></span>
+        </div>
+        <!-- Barres de répartition -->
+        <div class="space-y-4">
+            <!-- Part PTF/bailleurs -->
+            {% if part_ptf_pct > 0 %}
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[0.8125rem] font-bold text-ci-dark-800">Bailleurs / PTF</span>
+                        <span class="badge badge-blue text-[0.5rem]">Financement ext.</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[0.875rem] font-black text-ci-dark-900">{{ part_ptf_pct }}%</span>
+                        <span class="text-[0.5625rem] text-ci-dark-400 ml-1">= {{ part_ptf_montant|floatformat:0|intcomma }} FCFA</span>
+                    </div>
+                </div>
+                <div class="w-full bg-ci-dark-100 rounded-full h-3 overflow-hidden">
+                    <div class="h-3 rounded-full bg-ci-orange-500 transition-all duration-700" style="width: {{ part_ptf_pct }}%;"></div>
+                </div>
+            </div>
+            {% endif %}
+            <!-- Part État CI -->
+            {% if part_etat_pct > 0 %}
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-2">
+                        <span class="text-[0.8125rem] font-bold text-ci-dark-800">État de Côte d'Ivoire</span>
+                        <span class="badge badge-green text-[0.5rem]">Contrepartie nationale</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[0.875rem] font-black text-ci-dark-900">{{ part_etat_pct }}%</span>
+                        {% if part_etat_montant > 0 %}
+                        <span class="text-[0.5625rem] text-ci-dark-400 ml-1">= {{ part_etat_montant|floatformat:0|intcomma }} FCFA</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="w-full bg-ci-dark-100 rounded-full h-3 overflow-hidden">
+                    <div class="h-3 rounded-full bg-ci-green-500 transition-all duration-700" style="width: {{ part_etat_pct }}%;"></div>
+                </div>
+            </div>
+            {% else %}
+            <div class="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200">
+                <span class="material-symbols-outlined text-amber-500 text-[15px]">info</span>
+                <p class="text-[0.75rem] text-amber-700">
+                    <strong>Part État non renseignée.</strong>
+                    Renseigner les colonnes <em>Part État (%)</em> et <em>Part État</em> dans le fichier d'import ou via
+                    <a href="{% url 'projets:programme_modifier' programme.pk %}" class="underline font-bold hover:text-amber-900">Modifier →</a>
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- ═══ RETARD ═══ -->
 {% if est_en_retard %}
 <div class="card mb-5 animate-in stagger-6 border-red-200">
@@ -337,6 +412,24 @@
     </div>
 </div>
 {% endif %}
+
+<!-- ═══ GRAPHIQUES ═══ -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+  <div class="card animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+      <span class="material-symbols-outlined text-violet-500 text-[16px]">donut_large</span>
+      <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition des projets par statut</h3>
+    </div>
+    <div class="p-5"><div id="progStatutChart" style="width:100%;height:250px;"></div></div>
+  </div>
+  <div class="card animate-in stagger-6">
+    <div class="card-header flex items-center gap-2">
+      <span class="material-symbols-outlined text-ci-green-500 text-[16px]">trending_up</span>
+      <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Évolution des décaissements (12 mois)</h3>
+    </div>
+    <div class="p-5"><div id="progEvolChart" style="width:100%;height:250px;"></div></div>
+  </div>
+</div>
 
 <!-- ═══ PROJETS DU PROGRAMME ═══ -->
 <div class="card mb-5 animate-in stagger-6">
@@ -415,6 +508,56 @@
 {% endblock %}
 
 {% block extra_js %}
+<script>
+const _progStatut  = {{ projets_par_statut_json|safe }};
+const _progEvol    = {{ evolution_json|safe }};
+
+// ── Donut statut projets ──
+(function(){
+  const el = document.getElementById('progStatutChart');
+  if (!el || !Object.keys(_progStatut).length) return;
+  const COLORS = {
+    'Identification':'#94A3B8','Préparation':'#F77F00','Négociation':'#FB923C',
+    'Approuvé mais non démarré':'#CBD5E1',"En cours d'exécution":'#009A44',
+    'En instance de clôture':'#F59E0B','Suspendu':'#DC2626','Clôturé':'#64748B','Annulé':'#B91C1C'
+  };
+  if (typeof echarts === 'undefined') return;
+  const chart = echarts.init(el);
+  const data = Object.entries(_progStatut).map(([k,v]) => ({
+    name:k, value:v, itemStyle:{color: COLORS[k]||'#94A3B8'}
+  }));
+  chart.setOption({
+    tooltip:{ trigger:'item', formatter:p=>'<b>'+p.name+'</b><br>'+p.value+' projet(s) ('+p.percent.toFixed(1)+'%)', backgroundColor:'#fff', borderColor:'#E2E8F0', borderWidth:1, padding:[8,12], textStyle:{fontFamily:'Inter,sans-serif',fontSize:12} },
+    legend:{ orient:'vertical', right:8, top:'center', textStyle:{fontSize:10,fontWeight:600,fontFamily:'Inter,sans-serif'} },
+    series:[{ type:'pie', radius:['45%','72%'], center:['38%','50%'],
+      data, label:{show:false}, emphasis:{itemStyle:{shadowBlur:10}}
+    }]
+  });
+  window.addEventListener('resize',()=>chart.resize());
+})();
+
+// ── Ligne évolution décaissements ──
+(function(){
+  const el = document.getElementById('progEvolChart');
+  if (!el) return;
+  if (typeof echarts === 'undefined') return;
+  const chart = echarts.init(el);
+  const labels = _progEvol.map(e=>e[0]);
+  const values = _progEvol.map(e=>e[1]);
+  chart.setOption({
+    tooltip:{ trigger:'axis', formatter:p=>{ var v=p[0].value; return '<b>'+p[0].axisValue+'</b><br>'+(v>=1e9?(v/1e9).toFixed(2)+' Mrd':v>=1e6?(v/1e6).toFixed(1)+' M FCFA':v.toLocaleString()+' FCFA'); }, backgroundColor:'#fff', borderColor:'#E2E8F0', borderWidth:1, padding:[8,12] },
+    grid:{top:20,right:20,bottom:45,left:65},
+    xAxis:{ type:'category', data:labels, axisLabel:{fontSize:9,rotate:35,fontFamily:'Inter,sans-serif'} },
+    yAxis:{ type:'value', axisLabel:{fontSize:9,formatter:v=>(v/1e6).toFixed(0)+' M',fontFamily:'Inter,sans-serif'} },
+    series:[{ type:'line', data:values, smooth:true,
+      areaStyle:{color:{type:'linear',x:0,y:0,x2:0,y2:1,colorStops:[{offset:0,color:'rgba(139,92,246,.3)'},{offset:1,color:'rgba(139,92,246,.02)'}]}},
+      lineStyle:{color:'#8B5CF6',width:2.5}, itemStyle:{color:'#8B5CF6'}, symbol:'circle', symbolSize:6
+    }]
+  });
+  window.addEventListener('resize',()=>chart.resize());
+})();
+</script>
+
 {% if est_cofinance %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {

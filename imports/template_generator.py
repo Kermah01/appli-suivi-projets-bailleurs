@@ -84,7 +84,7 @@ def _set_xof_formula(ws, col, devise_col, montant_col, taux_col=None, row_start=
         base = (
             f'IF({D}{r}="XOF",{M}{r},IF({D}{r}="UC",{M}{r}*769.083,'
             f'IF({D}{r}="USD",{M}{r}*615,IF({D}{r}="EUR",{M}{r}*655.957,'
-            f'IF({D}{r}="GBP",{M}{r}*780,{M}{r}))))'
+            f'IF({D}{r}="GBP",{M}{r}*780,{M}{r})))))'
         )
         if taux_col:
             T = get_column_letter(taux_col)
@@ -199,11 +199,32 @@ def generate_template():
         "Secteur (libellé)", "Bailleur principal (sigle)",
         "Date de signature", "Date de début", "Date de fin prévue", "Date de fin effective",
         "Zone géographique", "Responsable", "Structure responsable",
-        "Code programme"
+        "Code programme",
+        "Montant total projet XOF",
+        "Part État (%)", "Part État",
     ]
     for c, h in enumerate(headers_p, 1):
         ws2.cell(row=4, column=c, value=h)
     _style_header(ws2, 4, len(headers_p))
+
+    # Mettre en évidence les colonnes Montant total + Part État
+    ETAT_FILL = PatternFill(start_color=LIGHT_GREEN, end_color=LIGHT_GREEN, fill_type="solid")
+    ETAT_FONT = Font(name="Calibri", bold=True, size=11, color="166534")
+    MT_FILL = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")
+    MT_FONT = Font(name="Calibri", bold=True, size=11, color="1E40AF")
+    # col 15 = Montant total projet XOF → style bleu
+    cell_mt = ws2.cell(row=4, column=15)
+    cell_mt.fill = MT_FILL
+    cell_mt.font = MT_FONT
+    cell_mt.alignment = HEADER_ALIGN
+    cell_mt.border = THIN_BORDER
+    # col 16, 17 = Part État (%, montant) → style vert
+    for c_etat in [16, 17]:
+        cell = ws2.cell(row=4, column=c_etat)
+        cell.fill = ETAT_FILL
+        cell.font = ETAT_FONT
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
 
     _add_example_row(ws2, 5, [
         "PRJ-001", "Projet d'appui au secteur de la santé",
@@ -211,15 +232,17 @@ def generate_template():
         "En cours d'exécution",
         ex_secteur1, "BM",
         "2023-01-15", "2023-03-01", "2027-12-31", "",
-        "Abidjan", "Direction SAN", "Ministère de la Santé", "PROG-001"
+        "Abidjan", "Direction SAN", "Ministère de la Santé", "PROG-001",
+        35000000, 20.00, 7000000
     ])
     _add_example_row(ws2, 6, [
         "PRJ-002", "Projet éducatif numérique",
         "Projet pilote d'éducation numérique",
-        "Préparation",
+        "Approuvé mais non démarré",
         ex_secteur2, "AFD",
         "2025-06-01", "2025-09-01", "2028-08-31", "",
-        "Bouaké", "Direction EDU", "Ministère de l'Éducation", ""
+        "Bouaké", "Direction EDU", "Ministère de l'Éducation", "",
+        "", 15.00, ""
     ])
 
     # Validation secteur — liste dynamique depuis feuille cachée RefSecteurs
@@ -231,18 +254,32 @@ def generate_template():
         ws2.add_data_validation(dv_secteur)
         dv_secteur.add("E5:E1000")
 
-    # Col D = Statut
-    dv_statut = DataValidation(
-        type="list",
-        formula1='"Identification,Préparation,Négociation,En cours d\'exécution,En préparation,Suspendu,Clôturé,Annulé"',
-        allow_blank=True
-    )
+    # Col D = Statut (avec nouveaux statuts)
+    statut_vals = '"Identification,Préparation,Négociation,Approuvé mais non démarré,En cours d\'exécution,En instance de clôture,Suspendu,Clôturé,Annulé"'
+    dv_statut = DataValidation(type="list", formula1=statut_vals, allow_blank=True)
     ws2.add_data_validation(dv_statut)
     dv_statut.add("D5:D1000")
 
     for date_col in [7, 8, 9, 10]:
         _format_col(ws2, date_col, 'YYYY-MM-DD')
-    _format_col(ws2, 14, '@')  # Code programme
+    _format_col(ws2, 14, '@')             # Code programme
+    _format_col(ws2, 15, '#,##0')          # Montant total projet XOF
+    _format_col(ws2, 16, '0.00')           # Part État (%)
+    _format_col(ws2, 17, '#,##0.00')       # Part État montant
+
+    # Formule auto : Part État montant = Montant total XOF × Part État (%) / 100
+    for r in range(5, 201):
+        cell_total = ws2.cell(row=r, column=15)
+        cell_total.number_format = '#,##0'
+        cell_total.border = THIN_BORDER
+        cell_pct = ws2.cell(row=r, column=16)
+        cell_pct.number_format = '0.00'
+        cell_pct.border = THIN_BORDER
+        cell_montant_etat = ws2.cell(row=r, column=17)
+        cell_montant_etat.number_format = '#,##0.00'
+        cell_montant_etat.border = THIN_BORDER
+        # Formule : si Montant total (O) et % (P) sont renseignés → calculer Part État
+        cell_montant_etat.value = f'=IF(AND(O{r}<>"",P{r}<>""),O{r}*P{r}/100,"")'
 
     _auto_width(ws2, len(headers_p))
 
@@ -274,7 +311,9 @@ def generate_template():
         "Secteur (libellé)", "Bailleur principal (sigle)",
         "Date de signature", "Date de début", "Date de fin prévue", "Date de fin effective",
         "Zone géographique", "Responsable", "Structure responsable",
-        "Objectif stratégique"
+        "Objectif stratégique",
+        "Montant total programme XOF",
+        "Part État (%)", "Part État",
     ]
     for c, h in enumerate(headers_prog, 1):
         ws_prog.cell(row=4, column=c, value=h)
@@ -288,7 +327,8 @@ def generate_template():
         ex_secteur1, "BM",
         "2023-01-15", "2024-01-01", "2028-12-31", "",
         "National", "Direction Développement Rural", "Ministère de l'Agriculture",
-        "Améliorer la sécurité alimentaire et les revenus ruraux"
+        "Améliorer la sécurité alimentaire et les revenus ruraux",
+        80000000, 20.00, 16000000
     ])
     _add_example_row(ws_prog, 6, [
         "PROG-002",
@@ -298,7 +338,8 @@ def generate_template():
         ex_secteur2, "AFD",
         "2023-03-01", "2023-06-01", "2027-05-31", "",
         "Abidjan, Bouaké", "Direction Éducation", "Ministère de l'Éducation",
-        "Scolarisation universelle et amélioration des acquis"
+        "Scolarisation universelle et amélioration des acquis",
+        "", 15.00, ""
     ])
 
     if secteurs_list:
@@ -311,16 +352,45 @@ def generate_template():
         ws_prog.add_data_validation(dv_secteur_prog)
         dv_secteur_prog.add("D5:D1000")
 
-    dv_statut_prog = DataValidation(
-        type="list",
-        formula1="\"Identification,Préparation,Négociation,En cours d'exécution,Suspendu,Clôturé,Annulé\"",
-        allow_blank=True
-    )
+    statut_vals_prog = '"Identification,Préparation,Négociation,Approuvé mais non démarré,En cours d\'exécution,En instance de clôture,Suspendu,Clôturé,Annulé"'
+    dv_statut_prog = DataValidation(type="list", formula1=statut_vals_prog, allow_blank=True)
     ws_prog.add_data_validation(dv_statut_prog)
     dv_statut_prog.add("D5:D1000")
 
     for date_col in [7, 8, 9, 10]:
         _format_col(ws_prog, date_col, 'YYYY-MM-DD')
+
+    # Style colonnes financières
+    MT_FILL_P = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")
+    MT_FONT_P = Font(name="Calibri", bold=True, size=11, color="1E40AF")
+    ETAT_FILL_P = PatternFill(start_color=LIGHT_GREEN, end_color=LIGHT_GREEN, fill_type="solid")
+    ETAT_FONT_P = Font(name="Calibri", bold=True, size=11, color="166534")
+    # col 15 = Montant total XOF → bleu
+    hdr15 = ws_prog.cell(row=4, column=15)
+    hdr15.fill = MT_FILL_P; hdr15.font = MT_FONT_P
+    hdr15.alignment = HEADER_ALIGN; hdr15.border = THIN_BORDER
+    # col 16, 17 = Part État → vert
+    for c_e in [16, 17]:
+        hdr = ws_prog.cell(row=4, column=c_e)
+        hdr.fill = ETAT_FILL_P; hdr.font = ETAT_FONT_P
+        hdr.alignment = HEADER_ALIGN; hdr.border = THIN_BORDER
+
+    _format_col(ws_prog, 15, '#,##0')      # Montant total XOF
+    _format_col(ws_prog, 16, '0.00')       # Part État (%)
+    _format_col(ws_prog, 17, '#,##0.00')   # Part État montant
+
+    # Formule auto : Part État montant = Montant total × % / 100
+    for r in range(5, 201):
+        cell_total = ws_prog.cell(row=r, column=15)
+        cell_total.number_format = '#,##0'
+        cell_total.border = THIN_BORDER
+        cell_pct = ws_prog.cell(row=r, column=16)
+        cell_pct.number_format = '0.00'
+        cell_pct.border = THIN_BORDER
+        cell_pe = ws_prog.cell(row=r, column=17)
+        cell_pe.number_format = '#,##0.00'
+        cell_pe.border = THIN_BORDER
+        cell_pe.value = f'=IF(AND(O{r}<>"",P{r}<>""),O{r}*P{r}/100,"")'
 
     _auto_width(ws_prog, len(headers_prog))
 
@@ -420,12 +490,11 @@ def generate_template():
     _format_col(ws4, 4, '#,##0.00')   # Montant décaissé cumulé
     # Col E = Montant décaissé XOF
     _set_xof_formula(ws4, col=5, devise_col=3, montant_col=4)
-    # Col F = Taux de décaissement (formule VLOOKUP + calcul auto)
+    # Col F = Taux de décaissement (formule sans apostrophes dans le nom de feuille)
+    SHEET_AF = "'Accord de Financement'"
     for r in range(5, 201):
-        f = (
-            f'=IFERROR(IF(D{r}=0,"",E{r}/'
-            f'VLOOKUP(A{r},\'Accord de Financement\'!$A:$F,6,0)),"")'
-        )
+        accord_ref = f"{SHEET_AF}!$A:$F"
+        f = f'=IFERROR(IF(D{r}=0,"",E{r}/VLOOKUP(A{r},{accord_ref},6,0)),"")'
         cell = ws4.cell(row=r, column=6, value=f)
         cell.number_format = '0.00%'
         cell.fill = FORMULA_FILL
@@ -479,16 +548,21 @@ def generate_template():
         ("• 'Taux de décaissement' : formule auto = Décaissé XOF ÷ Total accord XOF (feuille Accord de Financement).", None),
         ("• Colonnes à saisir manuellement : Taux décaissement annuel prévu, Taux d'exécution physique (réel et prévu), Montant dans le circuit de validation.", None),
         ("", None),
+        ("FEUILLE PROJETS — PART ÉTAT", Font(name="Calibri", bold=True, size=12, color=DARK)),
+        ("• Part État (%) : pourcentage de la contrepartie nationale sur le montant total (ex. : 20 pour 20 %).", None),
+        ("• Part État : montant brut de la contrepartie dans la devise du projet (calculé auto si % renseigné dans l'appli).", None),
+        ("• Renseigner l'un ou l'autre — l'application calculera le champ manquant automatiquement.", None),
+        ("", None),
         ("ORDRE DE REMPLISSAGE CONSEILLÉ", Font(name="Calibri", bold=True, size=12, color=DARK)),
         ("1. Bailleurs", None),
         ("2. Programmes", None),
-        ("3. Projets (rattachés aux programmes via Code programme)", None),
+        ("3. Projets (avec Part État si applicable)", None),
         ("4. Accord de Financement (montants des accords)", None),
         ("5. Décaissements (état cumulé financier)", None),
         ("", None),
         ("VALEURS ACCEPTÉES", Font(name="Calibri", bold=True, size=12, color=DARK)),
         ("Devise : UC, USD, EUR, XOF, GBP, JPY, CHF", None),
-        ("Statut : Identification, Préparation, Négociation, En cours d'exécution, En préparation, Suspendu, Clôturé, Annulé", None),
+        ("Statut : Identification, Préparation, Négociation, Approuvé mais non démarré (ND), En cours d'exécution (EC), En instance de clôture (CL), Suspendu, Clôturé, Annulé", None),
         ("Type de financement : Don, Prêt concessionnel, Prêt non concessionnel, Assistance technique, Cofinancement, Contrepartie nationale, Autre", None),
         ("Secteur : libellé complet depuis la feuille RefSecteurs (liste déroulante disponible).", None),
     ]

@@ -106,6 +106,22 @@ def devise_symbole(devise):
     return SYMBOLE.get(str(devise).upper(), str(devise))
 
 
+@register.filter(name='as_pct')
+def as_pct(value):
+    """
+    Normalise un taux en pourcentage pour l'affichage.
+    Si la valeur est une fraction (0 < v < 1), multiplie par 100.
+    Usage : {{ projet.taux_avancement|as_pct }}
+    """
+    try:
+        v = float(value)
+        if 0 < v < 1:
+            return round(v * 100, 1)
+        return round(v, 1)
+    except (TypeError, ValueError):
+        return 0
+
+
 @register.filter(name='split_comma')
 def split_comma(value):
     """Découpe une chaîne séparée par des virgules et renvoie une liste nettoyée."""

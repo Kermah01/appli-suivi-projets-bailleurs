@@ -60,7 +60,7 @@
         <span class="font-semibold text-ci-dark-800 text-sm">Taux d'exécution physique</span>
     </div>
     <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full text-sm" id="tableAvancement">
             <thead>
                 <tr class="bg-ci-dark-50 text-ci-dark-500 text-[0.6875rem] uppercase tracking-wider">
                     <th class="text-left px-4 py-2.5">Type</th>
@@ -68,13 +68,12 @@
                     <th class="text-left px-4 py-2.5">Intitulé</th>
                     <th class="text-left px-4 py-2.5">Statut</th>
                     <th class="text-left px-4 py-2.5">Secteur</th>
-                    <th class="text-center px-4 py-2.5">Exécution physique</th>
-                    <th class="text-center px-4 py-2.5">Avancement financier</th>
-                    <th class="text-left px-4 py-2.5">Programme</th>
+                    <th class="text-center px-4 py-2.5 min-w-[180px]">Exécution physique</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-ci-dark-100">
                 {% for item in items_programmes %}
+                {% with ta=item.taux_avancement|as_pct %}
                 <tr class="hover:bg-violet-50 transition-colors">
                     <td class="px-4 py-2.5">
                         <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full">
@@ -88,32 +87,28 @@
                         <a href="{{ item.url }}" class="hover:text-violet-600" title="{{ item.nom }}">{{ item.nom }}</a>
                         <span class="ml-1 text-[0.5625rem] text-ci-dark-400">{{ item.nb_projets }} projet{{ item.nb_projets|pluralize }}</span>
                     </td>
-                    <td class="px-4 py-2.5 text-ci-dark-500">{{ item.statut }}</td>
+                    <td class="px-4 py-2.5 text-ci-dark-500 text-xs">{{ item.statut }}</td>
                     <td class="px-4 py-2.5 text-ci-dark-500 text-xs">{{ item.secteur }}</td>
-                    <td class="px-4 py-2.5">
-                        <div class="flex items-center gap-1.5">
+                    <td class="px-4 py-3">
+                        <div class="flex items-center gap-2">
                             {% if item.taux_avancement_src == 'saisi' %}<span class="text-[0.5rem] bg-violet-100 text-violet-600 font-bold px-1 rounded flex-shrink-0" title="Saisie directe">S</span>
                             {% elif item.taux_avancement_src == 'agrege' %}<span class="text-[0.5rem] bg-blue-100 text-blue-600 font-bold px-1 rounded flex-shrink-0" title="Agrégat">A</span>{% endif %}
-                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[50px]">
-                                <div class="h-1.5 rounded-full {% if item.taux_avancement >= 80 %}bg-ci-green-500{% elif item.taux_avancement >= 50 %}bg-ci-orange-500{% else %}bg-red-400{% endif %}" style="width: {{ item.taux_avancement }}%"></div>
+                            <div class="flex-1 min-w-[100px]">
+                                <div class="w-full bg-ci-dark-100 rounded-full h-3 overflow-hidden">
+                                    <div class="h-3 rounded-full transition-all duration-700 ease-out {% if ta >= 70 %}bg-ci-green-500{% elif ta >= 30 %}bg-ci-orange-500{% else %}bg-red-400{% endif %}"
+                                         style="width: {% if ta > 100 %}100{% elif ta > 0 %}{{ ta }}{% else %}2{% endif %}%"></div>
+                                </div>
                             </div>
-                            <span class="text-xs font-bold text-ci-dark-700 w-9 text-right">{% if item.taux_avancement %}{{ item.taux_avancement }}%{% else %}&mdash;{% endif %}</span>
+                            <span class="text-xs font-black w-11 text-right flex-shrink-0 {% if ta >= 70 %}text-ci-green-600{% elif ta >= 30 %}text-ci-orange-600{% else %}text-red-500{% endif %}">
+                                {% if ta %}{{ ta }}%{% else %}&mdash;{% endif %}
+                            </span>
                         </div>
                     </td>
-                    <td class="px-4 py-2.5">
-                        <div class="flex items-center gap-1.5">
-                            {% if item.taux_avancement_financier_src == 'saisi' %}<span class="text-[0.5rem] bg-violet-100 text-violet-600 font-bold px-1 rounded flex-shrink-0" title="Saisie directe">S</span>
-                            {% elif item.taux_avancement_financier_src == 'agrege' %}<span class="text-[0.5rem] bg-blue-100 text-blue-600 font-bold px-1 rounded flex-shrink-0" title="Agrégat">A</span>{% endif %}
-                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[50px]">
-                                <div class="h-1.5 rounded-full bg-blue-400" style="width: {{ item.taux_avancement_financier }}%"></div>
-                            </div>
-                            <span class="text-xs font-bold text-ci-dark-700 w-9 text-right">{{ item.taux_avancement_financier }}%</span>
-                        </div>
-                    </td>
-                    <td class="px-4 py-2.5 text-xs text-ci-dark-400">—</td>
                 </tr>
+                {% endwith %}
                 {% endfor %}
                 {% for item in items_projets %}
+                {% with ta=item.taux_avancement|as_pct %}
                 <tr class="hover:bg-ci-orange-50 transition-colors">
                     <td class="px-4 py-2.5">
                         <span class="inline-flex items-center gap-1 text-[0.625rem] font-bold bg-ci-orange-100 text-ci-orange-700 px-2 py-0.5 rounded-full">
@@ -126,28 +121,25 @@
                     <td class="px-4 py-2.5 font-medium text-ci-dark-800 max-w-[280px] truncate">
                         <a href="{{ item.url }}" class="hover:text-ci-orange-600" title="{{ item.nom }}">{{ item.nom }}</a>
                     </td>
-                    <td class="px-4 py-2.5 text-ci-dark-500">{{ item.statut }}</td>
+                    <td class="px-4 py-2.5 text-ci-dark-500 text-xs">{{ item.statut }}</td>
                     <td class="px-4 py-2.5 text-ci-dark-500 text-xs">{{ item.secteur }}</td>
-                    <td class="px-4 py-2.5">
+                    <td class="px-4 py-3">
                         <div class="flex items-center gap-2">
-                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[60px]">
-                                <div class="h-1.5 rounded-full {% if item.taux_avancement >= 80 %}bg-ci-green-500{% elif item.taux_avancement >= 50 %}bg-ci-orange-500{% else %}bg-red-400{% endif %}" style="width: {{ item.taux_avancement }}%"></div>
+                            <div class="flex-1 min-w-[100px]">
+                                <div class="w-full bg-ci-dark-100 rounded-full h-3 overflow-hidden">
+                                    <div class="h-3 rounded-full transition-all duration-700 ease-out {% if ta >= 70 %}bg-ci-green-500{% elif ta >= 30 %}bg-ci-orange-500{% else %}bg-red-400{% endif %}"
+                                         style="width: {% if ta > 100 %}100{% elif ta > 0 %}{{ ta }}{% else %}2{% endif %}%"></div>
+                                </div>
                             </div>
-                            <span class="text-xs font-bold text-ci-dark-700 w-10 text-right">{{ item.taux_avancement }}%</span>
+                            <span class="text-xs font-black w-11 text-right flex-shrink-0 {% if ta >= 70 %}text-ci-green-600{% elif ta >= 30 %}text-ci-orange-600{% else %}text-red-500{% endif %}">
+                                {% if ta %}{{ ta }}%{% else %}&mdash;{% endif %}
+                            </span>
                         </div>
                     </td>
-                    <td class="px-4 py-2.5">
-                        <div class="flex items-center gap-2">
-                            <div class="flex-1 bg-ci-dark-100 rounded-full h-1.5 min-w-[60px]">
-                                <div class="h-1.5 rounded-full bg-blue-400" style="width: {{ item.taux_avancement_financier }}%"></div>
-                            </div>
-                            <span class="text-xs font-bold text-ci-dark-700 w-10 text-right">{{ item.taux_avancement_financier }}%</span>
-                        </div>
-                    </td>
-                    <td class="px-4 py-2.5 text-xs text-ci-dark-500 truncate max-w-[140px]">{{ item.programme }}</td>
                 </tr>
+                {% endwith %}
                 {% empty %}
-                <tr><td colspan="8" class="px-4 py-8 text-center text-ci-dark-400">Aucun projet</td></tr>
+                <tr><td colspan="6" class="px-4 py-8 text-center text-ci-dark-400">Aucun projet</td></tr>
                 {% endfor %}
             </tbody>
         </table>

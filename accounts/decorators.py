@@ -69,3 +69,25 @@ def admin_required(view_func):
             return redirect('dashboard:index')
         return view_func(request, *args, **kwargs)
     return wrapper
+
+
+def ministre_required(view_func):
+    """Réservé au Ministre, au DirCab et aux superadmin."""
+    FONCTIONS_AUTORISEES = ('ministre', 'dircab')
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            login_url = '/comptes/connexion/'
+            from urllib.parse import urlencode
+            return redirect(f'{login_url}?{urlencode({"next": request.get_full_path()})}')
+        if request.user.is_superuser:
+            return view_func(request, *args, **kwargs)
+        profile = getattr(request.user, 'profile', None)
+        if not profile or not profile.is_approved:
+            return redirect('accounts:pending')
+        if profile.role == 'superadmin' or profile.fonction in FONCTIONS_AUTORISEES:
+            return view_func(request, *args, **kwargs)
+        messages.error(request, "Cette page est réservée au Ministre, au Directeur de Cabinet et aux administrateurs.")
+        return redirect('dashboard:index')
+    return wrapper

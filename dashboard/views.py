@@ -10,7 +10,7 @@ from projets.models import Projet, Secteur, Programme, TAUX_VERS_FCFA
 from bailleurs.models import Bailleur
 from financements.models import Financement, Decaissement
 from pnd.models import PlanNational, Pilier, SousObjectif
-from accounts.decorators import login_required_custom
+from accounts.decorators import login_required_custom, ministre_required
 
 
 def _decimal_default(obj):
@@ -184,8 +184,10 @@ def index(request):
             'montant': float(p.montant_total),
             'devise': p.devise,
             'zone': p.zone_geographique or 'Non précisé',
-            'taux_avancement': float(p.taux_avancement),
+            'taux_avancement': float(p.taux_avancement) * 100 if 0 < float(p.taux_avancement) < 1 else float(p.taux_avancement),
             'taux_decaissement': float(p.taux_decaissement),
+            'part_etat': float(p.part_etat or 0),
+            'part_etat_pct': float(p.part_etat_pourcentage or 0),
             'date_signature': p.date_signature.isoformat() if p.date_signature else None,
             'date_debut': p.date_debut.isoformat() if p.date_debut else None,
             'date_fin_prevue': p.date_fin_prevue.isoformat() if p.date_fin_prevue else None,
@@ -411,7 +413,10 @@ def api_notifications(request):
             Q(financements__bailleur_id__in=bailleur_ids)
         ).distinct()
 
-    # Projects en retard
+    profile = getattr(request.user, 'profile', None)
+    is_point_focal = profile and profile.role == 'point_focal'
+
+    # 1. Projets en retard
     retards = projets_qs.filter(
         statut='en_cours', date_fin_prevue__lt=today
     ).select_related('bailleur_principal').order_by('date_fin_prevue')[:5]
@@ -426,7 +431,7 @@ def api_notifications(request):
             'time': f'{days_late}j',
         })
 
-    # Low disbursement projects
+    # 2. Faible taux de décaissement
     proj_ids = list(projets_qs.filter(statut='en_cours').values_list('id', flat=True))
     dec_by_project = {
         row['financement__projet_id']: float(row['total'] or 0)
@@ -435,7 +440,7 @@ def api_notifications(request):
         ).values('financement__projet_id').annotate(total=Sum('montant'))
     }
     for p in projets_qs.filter(statut='en_cours').only('id', 'code', 'montant_total'):
-        if len(notifs) >= 10:
+        if len(notifs) >= 8:
             break
         total_dec = dec_by_project.get(p.id, 0)
         mt = float(p.montant_total or 0)
@@ -446,35 +451,71 @@ def api_notifications(request):
                     'type': 'alert',
                     'icon': 'trending_down',
                     'title': f'{p.code} — décaissement faible',
-                    'message': f'Taux de décaissement: {taux}%',
+                    'message': f'Taux de décaissement : {taux}%',
                     'url': f'/projets/{p.pk}/',
                     'time': '',
                 })
 
-    # Recent modifications from ActivityLog
-    from accounts.models import ActivityLog
-    recent_logs = ActivityLog.objects.filter(
-        action__in=['create', 'update'],
-        timestamp__gte=timezone.now() - timezone.timedelta(days=7)
-    ).select_related('user').order_by('-timestamp')[:3]
-    for log in recent_logs:
+    # 3. Nouveaux projets (7 derniers jours) — visible par tous
+    nouveaux = projets_qs.filter(
+        date_creation__gte=timezone.now() - timezone.timedelta(days=7)
+    ).order_by('-date_creation')[:3]
+    for p in nouveaux:
+        days_ago = (today - p.date_creation.date()).days
         notifs.append({
             'type': 'info',
-            'icon': 'edit_note',
-            'title': f'{log.get_action_display()} — {log.model_name}',
-            'message': f'{log.object_repr[:50]} par {log.user.get_full_name() or log.user.username if log.user else "?"}',
-            'url': '#',
-            'time': f'{(today - log.timestamp.date()).days}j' if (today - log.timestamp.date()).days > 0 else "Aujourd'hui",
+            'icon': 'add_circle',
+            'title': f'Nouveau projet : {p.code}',
+            'message': p.titre[:60],
+            'url': f'/projets/{p.pk}/',
+            'time': "Aujourd'hui" if days_ago == 0 else f'{days_ago}j',
         })
 
-    return JsonResponse({'notifications': notifs[:10], 'count': len(notifs)})
+    # 4. Rappel mise à jour pour points focaux (si aucune action depuis >30j)
+    if is_point_focal and bailleur_ids:
+        from accounts.models import ActivityLog
+        last_activity = ActivityLog.objects.filter(
+            user=request.user,
+            action__in=['create', 'update'],
+        ).order_by('-timestamp').first()
+        if not last_activity or (timezone.now() - last_activity.timestamp).days > 30:
+            notifs.append({
+                'type': 'reminder',
+                'icon': 'edit_calendar',
+                'title': 'Rappel : mise à jour requise',
+                'message': 'Aucune modification depuis plus de 30 jours. Actualisez vos projets.',
+                'url': '/projets/',
+                'time': '',
+            })
+
+    # 5. Modifications récentes (pour directeurs/superadmins)
+    if not is_point_focal:
+        from accounts.models import ActivityLog
+        recent_logs = ActivityLog.objects.filter(
+            action__in=['create', 'update'],
+            timestamp__gte=timezone.now() - timezone.timedelta(days=3)
+        ).select_related('user').order_by('-timestamp')[:3]
+        for log in recent_logs:
+            if len(notifs) >= 12:
+                break
+            notifs.append({
+                'type': 'info',
+                'icon': 'edit_note',
+                'title': f'{log.get_action_display()} — {log.model_name}',
+                'message': f'{log.object_repr[:50]} par {log.user.get_full_name() or log.user.username if log.user else "?"}',
+                'url': '#',
+                'time': f'{(today - log.timestamp.date()).days}j' if (today - log.timestamp.date()).days > 0 else "Aujourd'hui",
+            })
+
+    count = min(len(notifs), 99)
+    return JsonResponse({'notifications': notifs[:12], 'count': count})
 
 
 # ============================================================
 # Tableau de bord Ministre (vue ultra-synthétique)
 # ============================================================
 
-@login_required_custom
+@ministre_required
 def ministre_dashboard(request):
     """Vue synthétique de décision pour le Ministre (CDC §4.2)."""
     today = timezone.now().date()
@@ -496,27 +537,33 @@ def ministre_dashboard(request):
     pipeline = total_engage - total_decaisse
     taux_decaissement = round((total_decaisse / total_engage * 100), 1) if total_engage > 0 else 0
 
-    # ── Alertes stratégiques (top 5 critiques) ──
-    alertes_retard = list(
-        projets_qs.filter(statut='en_cours', date_fin_prevue__lt=today)
-        .select_related('bailleur_principal').order_by('date_fin_prevue')[:5]
-    )
+    # ── Alertes stratégiques (retard calendaire + retard signalé) ──
+    from django.db.models import Q as _Q
+    qs_retard = projets_qs.filter(statut='en_cours').filter(
+        _Q(date_fin_prevue__lt=today) | _Q(motif_retard__gt='')
+    ).select_related('bailleur_principal', 'secteur').order_by('date_fin_prevue')
+    alertes_retard = list(qs_retard)
     for p in alertes_retard:
-        p.jours_retard = (today - p.date_fin_prevue).days
+        if p.date_fin_prevue and p.date_fin_prevue < today:
+            p.jours_retard = (today - p.date_fin_prevue).days
+            p.type_retard = 'calendaire'
+        else:
+            p.jours_retard = 0
+            p.type_retard = 'signale'
 
-    # Décaissement faible
+    # Décaissement faible (< 20 %) — tous les projets actifs
     alertes_decaissement = []
-    for p in projets_qs.filter(statut='en_cours').select_related('bailleur_principal')[:50]:
+    for p in projets_qs.filter(statut='en_cours').select_related('bailleur_principal'):
         if p.taux_decaissement < 20 and float(p.total_engage) > 0:
             alertes_decaissement.append(p)
-        if len(alertes_decaissement) >= 5:
-            break
 
     # ── Répartition sectorielle (camembert) ──
     repartition_secteur = {}
+    repartition_secteur_montant = {}
     for p in projets_qs.select_related('secteur'):
         s = p.secteur.nom if p.secteur else 'Non défini'
         repartition_secteur[s] = repartition_secteur.get(s, 0) + 1
+        repartition_secteur_montant[s] = repartition_secteur_montant.get(s, 0) + float(p.total_engage or 0)
 
     # ── Top 5 bailleurs par engagement ──
     top_bailleurs = []
@@ -534,25 +581,95 @@ def ministre_dashboard(request):
     top_bailleurs.sort(key=lambda x: x['engage'], reverse=True)
     top_bailleurs = top_bailleurs[:5]
 
-    # ── Évolution décaissements (12 derniers mois) ──
+    # ── Évolution décaissements (par trimestre, 2 ans, sans zéros) ──
     from collections import OrderedDict
-    evolution = OrderedDict()
-    for i in range(11, -1, -1):
-        m = today.replace(day=1) - timezone.timedelta(days=i*30)
-        key = m.strftime('%Y-%m')
-        evolution[key] = 0
-    for d in decaissements_qs.filter(date_decaissement__gte=today - timezone.timedelta(days=365)):
-        key = d.date_decaissement.strftime('%Y-%m')
-        if key in evolution:
-            evolution[key] += float(d.montant or 0)
+    _evolution_raw = {}
+    _two_years_ago = today - timezone.timedelta(days=730)
+    for d in decaissements_qs.filter(date_decaissement__gte=_two_years_ago):
+        if d.date_decaissement:
+            _q = (d.date_decaissement.month - 1) // 3 + 1
+            _key = f"{d.date_decaissement.year} T{_q}"
+            _evolution_raw[_key] = _evolution_raw.get(_key, 0) + float(d.montant or 0)
+    evolution = OrderedDict(sorted(_evolution_raw.items()))
 
-    # ── Carte: nombre de projets par région (PAS de montants) ──
+    # ── Objectif annuel de décaissement (depuis champ taux_decaissement_prevu_annee) ──
+    projets_avec_objectif_m = projets_qs.filter(
+        statut='en_cours', taux_decaissement_prevu_annee__gt=0
+    ).only('montant_total', 'devise', 'taux_decaissement_prevu_annee')
+    nb_projets_avec_objectif_m = projets_avec_objectif_m.count()
+    total_prevu_annee_m = sum(
+        _to_fcfa(p.montant_total, p.devise) * float(p.taux_decaissement_prevu_annee) / 100
+        for p in projets_avec_objectif_m
+    )
+    decaisse_annee_m = float(decaissements_qs.filter(
+        date_decaissement__year=today.year
+    ).aggregate(t=Sum('montant'))['t'] or 0)
+    taux_dec_annuel_prevu = round(
+        decaisse_annee_m / total_prevu_annee_m * 100, 1
+    ) if total_prevu_annee_m > 0 else None
+    total_prevu_annee_m_fmt = total_prevu_annee_m
+
+    # ── Carte: nombre de projets par région ──
+    import unicodedata
     from collections import defaultdict
+
+    def _norm_region(s):
+        """'Gbêkê' → 'GBEKE' pour matcher NomReg du GeoJSON."""
+        return ''.join(
+            c for c in unicodedata.normalize('NFD', s.upper())
+            if unicodedata.category(c) != 'Mn'
+        ).strip()
+
     projets_par_region = defaultdict(int)
-    for p in projets_qs.filter(statut='en_cours'):
+    projets_par_region_detail = defaultdict(list)
+    for p in projets_qs.select_related('bailleur_principal', 'secteur'):
         if p.zone_geographique:
             for z in [s.strip() for s in p.zone_geographique.split(',') if s.strip()]:
-                projets_par_region[z] += 1
+                z_norm = _norm_region(z)
+                projets_par_region[z_norm] += 1
+                projets_par_region_detail[z_norm].append({
+                    'id': p.pk,
+                    'code': p.code,
+                    'titre': p.titre[:55],
+                    'bailleur': p.bailleur_principal.sigle if p.bailleur_principal else '—',
+                    'taux_dec': p.taux_decaissement,
+                    'statut': p.statut,
+                    'url': f'/projets/{p.pk}/',
+                })
+
+    # ── KPI supplémentaires ──
+    from django.db.models import Avg
+    taux_moy_raw = projets_qs.filter(statut='en_cours').aggregate(m=Avg('taux_avancement'))['m'] or 0
+    taux_avancement_moyen = round(float(taux_moy_raw) if float(taux_moy_raw) <= 1 else float(taux_moy_raw) / 100 * 100, 1)
+    # normalise: si stocké en fraction (0.54) → 54
+    if taux_moy_raw and float(taux_moy_raw) < 1:
+        taux_avancement_moyen = round(float(taux_moy_raw) * 100, 1)
+    else:
+        taux_avancement_moyen = round(float(taux_moy_raw), 1)
+
+    nb_non_demarre = projets_qs.filter(statut='non_demarre').count()
+    nb_instance_cloture = projets_qs.filter(statut='en_instance_cloture').count()
+
+    # ── Répartition par statut pour donut ──
+    projets_par_statut = {}
+    for p in projets_qs:
+        label = p.get_statut_display()
+        projets_par_statut[label] = projets_par_statut.get(label, 0) + 1
+
+    # ── Alertes retard enrichies (avec motif) ──
+    alertes_retard_details = []
+    for p in alertes_retard:
+        alertes_retard_details.append({
+            'id': p.pk,
+            'code': p.code,
+            'titre': p.titre[:60],
+            'jours_retard': (today - p.date_fin_prevue).days,
+            'bailleur': p.bailleur_principal.sigle if p.bailleur_principal else '—',
+            'secteur': p.secteur.nom[:25] if p.secteur else '—',
+            'taux_dec': p.taux_decaissement,
+            'motif': (p.motif_retard[:100] if hasattr(p, 'motif_retard') and p.motif_retard else ''),
+            'url': f'/projets/{p.pk}/',
+        })
 
     context = {
         # KPIs
@@ -564,15 +681,28 @@ def ministre_dashboard(request):
         'total_decaisse': total_decaisse,
         'pipeline': pipeline,
         'taux_decaissement': taux_decaissement,
+        'taux_avancement_moyen': taux_avancement_moyen,
+        'nb_non_demarre': nb_non_demarre,
+        'nb_instance_cloture': nb_instance_cloture,
         # Alertes
         'alertes_retard': alertes_retard,
         'alertes_decaissement': alertes_decaissement,
+        'alertes_retard_json': json.dumps(alertes_retard_details),
         # Graphiques
         'repartition_secteur_json': json.dumps(repartition_secteur),
+        'projets_par_statut_json': json.dumps(projets_par_statut),
         'top_bailleurs_json': json.dumps(top_bailleurs),
         'top_bailleurs': top_bailleurs,
         'evolution_json': json.dumps(list(evolution.items())),
         'projets_par_region_json': json.dumps(dict(projets_par_region)),
+        'projets_par_region_detail_json': json.dumps(dict(projets_par_region_detail)),
+        'repartition_secteur_montant_json': json.dumps(repartition_secteur_montant),
+        'taux_dec_annuel_prevu': taux_dec_annuel_prevu,
+        'nb_projets_avec_objectif_m': nb_projets_avec_objectif_m,
+        'total_prevu_annee_m': total_prevu_annee_m_fmt,
+        'today': today,
+        'sidebar_closed_default': True,
+        'is_ministre_page': True,
     }
     return render(request, 'dashboard/ministre.html', context)
 

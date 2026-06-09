@@ -322,16 +322,26 @@
     <!-- Quick charts row -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
         <div class="card card-resizable animate-in stagger-1">
-            <div class="card-header flex items-center gap-2">
-                <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">bar_chart</span>
-                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Engagements par bailleur (Top 10)</h3>
+            <div class="card-header flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-ci-orange-500 text-[16px]">bar_chart</span>
+                    <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Engagements par bailleur (Top 10)</h3>
+                </div>
+                <button onclick="downloadSynthChart('chartSynthBailleurs','engagements_bailleurs')" title="Télécharger" class="p-1.5 rounded-lg hover:bg-ci-dark-100 text-ci-dark-400 hover:text-ci-dark-700 transition-colors flex-shrink-0">
+                    <span class="material-symbols-outlined text-[16px]">download</span>
+                </button>
             </div>
             <div class="p-4 chart-panel"><div id="chartSynthBailleurs" style="width:100%;height:300px;"></div></div>
         </div>
         <div class="card card-resizable animate-in stagger-2">
-            <div class="card-header flex items-center gap-2">
-                <span class="material-symbols-outlined text-ci-green-500 text-[16px]">donut_large</span>
-                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition par statut</h3>
+            <div class="card-header flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-ci-green-500 text-[16px]">donut_large</span>
+                    <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Répartition par statut</h3>
+                </div>
+                <button onclick="downloadSynthChart('chartSynthStatut','repartition_statut')" title="Télécharger" class="p-1.5 rounded-lg hover:bg-ci-dark-100 text-ci-dark-400 hover:text-ci-dark-700 transition-colors flex-shrink-0">
+                    <span class="material-symbols-outlined text-[16px]">download</span>
+                </button>
             </div>
             <div class="p-4 chart-panel"><div id="chartSynthStatut" style="width:100%;height:300px;"></div></div>
         </div>
@@ -340,9 +350,14 @@
     <!-- Secteurs + Zones -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
         <div class="card card-resizable animate-in stagger-3">
-            <div class="card-header flex items-center gap-2">
-                <span class="material-symbols-outlined text-ci-green-500 text-[16px]">grid_view</span>
-                <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Montants par secteur</h3>
+            <div class="card-header flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-ci-green-500 text-[16px]">grid_view</span>
+                    <h3 class="text-[0.8125rem] font-bold text-ci-dark-800">Montants par secteur</h3>
+                </div>
+                <button onclick="downloadSynthChart('chartSynthSecteurs','montants_secteurs')" title="Télécharger" class="p-1.5 rounded-lg hover:bg-ci-dark-100 text-ci-dark-400 hover:text-ci-dark-700 transition-colors flex-shrink-0">
+                    <span class="material-symbols-outlined text-[16px]">download</span>
+                </button>
             </div>
             <div class="p-4 chart-panel"><div id="chartSynthSecteurs" style="width:100%;height:300px;"></div></div>
         </div>
@@ -810,7 +825,13 @@ function initSynthCharts(mult, currLabel) {
         var c1 = echarts.init(el1);
         el1._ec = c1;
         c1.setOption({
-            tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:function(p){return p[0].name+'<br/>'+p[0].marker+' '+fmtN(p[0].value * mult)+' '+currLabel;}},
+            tooltip:{trigger:'axis',axisPointer:{type:'shadow'},
+                formatter:function(p){
+                    return '<div style="font-size:12px;font-weight:700;margin-bottom:4px">'+p[0].name+'</div>'
+                         + p[0].marker+' <b>'+fmtN(p[0].value*mult)+'</b> '+currLabel;
+                },
+                backgroundColor:'#fff',borderColor:'#E2E8F0',borderWidth:1,padding:[8,12],
+                textStyle:{color:'#1E293B',fontFamily:'Inter,sans-serif'}},
             grid:{left:10,right:60,top:10,bottom:10,containLabel:true},
             xAxis:{type:'value',axisLabel:{formatter:function(v){return fmtC(v * mult);},fontSize:10,color:'#64748B'},splitLine:{lineStyle:{color:'#F1F5F9'}}},
             yAxis:{type:'category',data:bData.map(function(b){return b.label;}),axisLabel:{fontSize:10,fontWeight:600,color:'#334155'}},
@@ -823,7 +844,11 @@ function initSynthCharts(mult, currLabel) {
     }
 
     // ── Synthesis: Statut donut (ECharts) ──
-    var sColors = {'Identification':'#94A3B8','Préparation':'#F77F00','Négociation':'#FB923C',"En cours d'exécution":'#009A44','Suspendu':'#DC2626','Clôturé':'#64748B','Annulé':'#B91C1C'};
+    var sColors = {
+        'Identification':'#94A3B8','Préparation':'#F77F00','Négociation':'#FB923C',
+        'Approuvé mais non démarré':'#CBD5E1',"En cours d'exécution":'#009A44',
+        'En instance de clôture':'#F59E0B','Suspendu':'#DC2626','Clôturé':'#64748B','Annulé':'#B91C1C'
+    };
     var sc = {}; DASH_DATA.projets.forEach(function(p){ sc[p.statut]=(sc[p.statut]||0)+1; });
     var sL = Object.keys(sc);
     var el2 = document.getElementById('chartSynthStatut');
@@ -832,9 +857,18 @@ function initSynthCharts(mult, currLabel) {
         var c2 = echarts.init(el2);
         el2._ec = c2;
         c2.setOption({
-            tooltip:{trigger:'item',formatter:'{b}: {c} projet(s) ({d}%)'},
+            tooltip:{
+                trigger:'item',
+                formatter:function(p){
+                    return '<div style="font-size:12px;font-weight:700;margin-bottom:4px">' + p.name + '</div>'
+                         + '<span style="font-size:13px;font-weight:900;color:' + p.color + '">' + p.value + ' projet(s)</span>'
+                         + '&nbsp;<span style="color:#64748B;font-size:11px">('+p.percent.toFixed(1)+'%)</span>';
+                },
+                backgroundColor:'#fff', borderColor:'#E2E8F0', borderWidth:1,
+                padding:[8,12], textStyle:{color:'#1E293B',fontFamily:'Inter,sans-serif'}
+            },
             legend:{bottom:0,type:'scroll',textStyle:{fontSize:11,fontWeight:600}},
-            series:[{type:'pie',radius:['45%','70%'],center:['50%','45%'],avoidLabelOverlap:true,
+            series:[{type:'pie',radius:['45%','70%'],center:['50%','43%'],avoidLabelOverlap:true,
                 label:{show:false},emphasis:{label:{show:true,fontSize:12,fontWeight:700}},
                 data:sL.map(function(s){return{value:sc[s],name:s,itemStyle:{color:sColors[s]||'#CBD5E1'}};}),
                 animationType:'scale',animationDuration:800}]
@@ -861,6 +895,18 @@ function initSynthCharts(mult, currLabel) {
         _synthCharts.push(c3);
     }
 
+}
+
+function downloadSynthChart(elId, filename) {
+    var el = document.getElementById(elId);
+    if (!el) return;
+    var name = (filename || elId).replace(/[^a-zA-Z0-9_-]/g, '_') + '.png';
+    if (el._ec) {
+        try {
+            var url = el._ec.getDataURL({ type: 'png', pixelRatio: 3, backgroundColor: '#ffffff' });
+            var a = document.createElement('a'); a.href = url; a.download = name; a.click();
+        } catch(e) { alert('Export non disponible : ' + e.message); }
+    }
 }
 
 // Init on DOMContentLoaded, then force resize after Alpine has processed x-show
@@ -1809,13 +1855,16 @@ function dashboardApp() {
             const byRegion = {};
             const ztr = this._zoneToRegion;
             projets.forEach(p => {
-                const zone = p.zone || 'Non précisé';
-                const reg = ztr[zone] || zone.toUpperCase();
-                if (!byRegion[reg]) byRegion[reg] = { projets: [], montant: 0, bailleurs: new Set(), tauxSum: 0 };
-                byRegion[reg].projets.push(p);
-                byRegion[reg].montant += p.montant;
-                byRegion[reg].tauxSum += p.taux_decaissement;
-                if (p.bailleur_id) byRegion[reg].bailleurs.add(p.bailleur_id);
+                const rawZones = (p.zone || '').split(',').map(z => z.trim()).filter(z => z && z !== 'Non précisé');
+                const validZones = rawZones.length ? rawZones : ['Non précisé'];
+                validZones.forEach(zone => {
+                    const reg = ztr[zone] || zone.toUpperCase();
+                    if (!byRegion[reg]) byRegion[reg] = { projets: [], montant: 0, bailleurs: new Set(), tauxSum: 0 };
+                    byRegion[reg].projets.push(p);
+                    byRegion[reg].montant += p.montant;
+                    byRegion[reg].tauxSum += p.taux_decaissement;
+                    if (p.bailleur_id) byRegion[reg].bailleurs.add(p.bailleur_id);
+                });
             });
 
             const self = this;

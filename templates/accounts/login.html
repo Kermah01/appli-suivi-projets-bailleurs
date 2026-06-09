@@ -71,9 +71,53 @@
             width: 100%; height: 100%;
             object-fit: cover;
             transition: opacity 1.2s ease;
+            background: #0B2218;
         }
         .video-panel video.v-hidden { opacity: 0; }
         .video-panel video.v-visible { opacity: 1; }
+
+        /* Poster image fallback */
+        .video-poster {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: opacity 0.8s ease;
+        }
+        .video-poster.poster-hidden { opacity: 0; pointer-events: none; }
+
+        /* Loading spinner */
+        .video-loader {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 5;
+            transition: opacity 0.3s ease;
+        }
+        .video-loader.loader-hidden { opacity: 0; pointer-events: none; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-top-color: #F77F00;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Skip video button */
+        .skip-video-btn {
+            position: absolute; bottom: 1rem; right: 1rem;
+            z-index: 10;
+            padding: 0.5rem 1rem;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 0.5rem;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .skip-video-btn:hover { background: rgba(0,0,0,0.7); }
 
         /* Overlay multi-couches : vignette cinéma + gradient bas */
         .video-overlay {
@@ -148,24 +192,52 @@
     <!-- CI Stripe -->
     <div class="ci-stripe fixed top-0 left-0 right-0 z-50"></div>
 
-    <div id="split-container" class="min-h-full flex">
-        <!-- Left: video panel -->
-        <div id="left-panel" class="hidden lg:flex video-panel" style="width:55%">
+    <div id="split-container" class="min-h-full flex flex-col lg:flex-row">
+        <!-- Video panel -->
+        <div id="left-panel" class="video-panel h-[70vh] lg:h-auto lg:flex-[55] flex-shrink-0">
 
-            <!-- Two video elements for seamless crossfade loop -->
-            <video id="vid-a" class="v-visible" muted playsinline preload="auto"
-                   src="{% static 'video/pspc_spot.mp4' %}"></video>
+            <!-- Loading spinner -->
+            <div id="video-loader" class="video-loader">
+                <div class="spinner"></div>
+            </div>
+
+            <!-- Poster image (fallback) avec overlay Play -->
+            <div id="video-poster-container" class="absolute inset-0 z-10 cursor-pointer">
+                <img id="video-poster" class="video-poster"
+                     src="{% static 'img/logo_ministere.jpg' %}"
+                     alt="PSPC">
+                <!-- Overlay Play button -->
+                <div id="play-overlay" class="absolute inset-0 flex flex-col items-center justify-center bg-black/30 hover:bg-black/20 transition-all">
+                    <div class="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                        <span class="material-symbols-outlined text-ci-orange-500 text-[32px] ml-1">play_arrow</span>
+                    </div>
+                    <p class="text-white text-xs font-medium mt-3 text-shadow-strong">Toucher pour lancer la vidéo</p>
+                </div>
+            </div>
+
+            <!-- Video element -->
+            <video id="vid-a" class="v-hidden" muted playsinline preload="metadata"
+                   poster="{% static 'img/logo_ministere.jpg' %}">
+                <source src="{% static 'video/pspc_spot.mp4' %}" type="video/mp4">
+                <!-- Fallback message if video not supported -->
+                Votre navigateur ne supporte pas les vidéos HTML5.
+            </video>
+
+            <!-- Skip button for slow connections -->
+            <button id="skip-video" class="skip-video-btn lg:hidden" onclick="hideVideoPanel()">
+                Passer la vidéo →
+            </button>
 
             <!-- Overlay cinéma multi-couches -->
             <div class="video-overlay"></div>
 
         </div>
 
-        <!-- Drag handle -->
+        <!-- Drag handle (desktop only) -->
         <div id="drag-handle" class="hidden lg:block" title="Glisser pour redimensionner"></div>
 
-        <!-- Right: login form -->
-        <div id="right-panel" class="flex-1 flex items-start justify-center px-6 py-8 overflow-y-auto">
+        <!-- Login form -->
+        <div id="right-panel" class="flex-1 flex items-start justify-center px-6 py-6 lg:py-8 overflow-y-auto">
             <div class="w-full max-w-md">
 
                 <!-- En-tête ministère centré -->
@@ -256,6 +328,21 @@
                         {% if form.password.errors %}<p class="text-red-500 text-[0.6875rem] mt-1 font-medium">{{ form.password.errors.0 }}</p>{% endif %}
                     </div>
 
+                    <!-- Rester connecté -->
+                    <div class="flex items-center justify-between animate-in stagger-3">
+                        <label class="flex items-center gap-2.5 cursor-pointer select-none group">
+                            <div class="relative flex items-center">
+                                <input type="checkbox" name="remember_me" id="remember_me"
+                                       class="w-4 h-4 rounded border border-ci-dark-300 accent-ci-orange-500 cursor-pointer"
+                                       value="1">
+                            </div>
+                            <span class="text-[0.8125rem] text-ci-dark-500 group-hover:text-ci-dark-700 transition-colors font-medium">
+                                Rester connecté
+                            </span>
+                        </label>
+                        <span class="text-[0.6875rem] text-ci-dark-400 italic">30 jours</span>
+                    </div>
+
                     <div class="animate-in stagger-4">
                         <button type="submit" class="auth-btn flex items-center justify-center gap-2">
                             <span class="material-symbols-outlined text-[18px]">login</span>
@@ -306,26 +393,107 @@
     <script>
         (function () {
             const vid = document.getElementById('vid-a');
+            const loader = document.getElementById('video-loader');
+            const poster = document.getElementById('video-poster');
+            const skipBtn = document.getElementById('skip-video');
             if (!vid) return;
+
+            let videoStarted = false;
+
+            // Fonction pour démarrer la vidéo
+            function startVideo() {
+                if (videoStarted) return;
+                videoStarted = true;
+
+                if (loader) loader.classList.remove('loader-hidden');
+
+                // Charger la vidéo
+                vid.load();
+
+                // Tentative de lecture
+                vid.play().then(function() {
+                    // Succès - masquer poster et loader, montrer vidéo
+                    hidePoster();
+                    vid.classList.remove('v-hidden');
+                    vid.classList.add('v-visible');
+                    if (loader) loader.classList.add('loader-hidden');
+                }).catch(function(err) {
+                    console.log('Video play failed:', err);
+                    videoStarted = false;
+                    if (loader) loader.classList.add('loader-hidden');
+                    // Le poster reste visible, l'utilisateur peut réessayer
+                });
+            }
+
+            // Clic sur le poster pour lancer la vidéo
+            const posterContainer = document.getElementById('video-poster-container');
+            const playOverlay = document.getElementById('play-overlay');
+
+            function hidePoster() {
+                if (posterContainer) posterContainer.style.display = 'none';
+                if (poster) poster.classList.add('poster-hidden');
+            }
+
+            if (posterContainer) {
+                posterContainer.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startVideo();
+                });
+                posterContainer.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    startVideo();
+                }, {passive: false});
+            }
+
+            // Timeout initial très court (1s) - si la vidéo ne charge pas vite, on cache le loader
+            setTimeout(function() {
+                if (!videoStarted && loader) {
+                    loader.classList.add('loader-hidden');
+                }
+            }, 1000);
+
+            // Quand la vidéo est prête (progressive loading)
+            vid.addEventListener('loadeddata', function() {
+                if (!videoStarted) {
+                    // La vidéo a commencé à charger des données
+                    hidePoster();
+                    vid.classList.remove('v-hidden');
+                    vid.classList.add('v-visible');
+                }
+            });
 
             vid.playbackRate = 0.8;
 
-            // Lecture jusqu'à la fin puis reprise depuis le début
+            // Lecture en boucle
             vid.addEventListener('ended', function () {
                 vid.currentTime = 0;
-                vid.playbackRate = 0.8;
                 vid.play().catch(() => {});
             });
 
-            vid.play().catch(() => {
-                const unlock = () => {
-                    vid.play().catch(() => {});
-                    document.removeEventListener('click', unlock);
-                    document.removeEventListener('keydown', unlock);
-                };
-                document.addEventListener('click', unlock);
-                document.addEventListener('keydown', unlock);
-            });
+            // Tentative auto-play après interaction sur la page
+            function tryAutoplay() {
+                if (videoStarted) return;
+                startVideo();
+            }
+
+            // Premier tap/clic n'importe où sur la page lance la vidéo
+            document.addEventListener('click', tryAutoplay, {once: true});
+            document.addEventListener('touchstart', tryAutoplay, {once: true, passive: true});
+            document.addEventListener('keydown', tryAutoplay, {once: true});
+
+            // Fonction pour cacher le panneau vidéo
+            window.hideVideoPanel = function() {
+                const panel = document.getElementById('left-panel');
+                if (panel) {
+                    panel.style.display = 'none';
+                }
+                const container = document.getElementById('split-container');
+                if (container) {
+                    container.classList.remove('flex-col');
+                }
+            };
         })();
     </script>
 

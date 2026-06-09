@@ -18,11 +18,22 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
+            remember_me = request.POST.get('remember_me')
+            if remember_me:
+                request.session.set_expiry(30 * 24 * 60 * 60)
+            else:
+                request.session.set_expiry(0)
             # Check approval
             profile = getattr(user, 'profile', None)
             if user.is_superuser or (profile and profile.is_approved):
                 messages.success(request, f'Bienvenue, {user.get_full_name() or user.username} !')
-                return redirect(request.GET.get('next', 'dashboard:index'))
+                next_url = request.GET.get('next', '')
+                if next_url:
+                    return redirect(next_url)
+                # Routing par fonction
+                if profile and profile.fonction in ('ministre', 'dircab', 'dircab_adjoint', 'chef_cabinet'):
+                    return redirect('dashboard:ministre')
+                return redirect('dashboard:index')
             else:
                 return redirect('accounts:pending')
         else:

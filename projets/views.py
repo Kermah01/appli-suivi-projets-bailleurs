@@ -481,6 +481,42 @@ def programme_detail(request, pk):
 
     reste_a_decaisser = max(0, stats['montant_engage'] - stats['montant_decaisse'])
 
+    # ── Répartition par statut des projets du programme ──
+    import json as _json
+    from collections import OrderedDict
+    projets_par_statut = {}
+    for p in programme.projets.all():
+        label = p.get_statut_display()
+        projets_par_statut[label] = projets_par_statut.get(label, 0) + 1
+
+    # ── Évolution décaissements 12 derniers mois ──
+    evolution = OrderedDict()
+    for i in range(11, -1, -1):
+        m = aujourd_hui.replace(day=1) - tz.timedelta(days=i * 30)
+        evolution[m.strftime('%Y-%m')] = 0
+    for d in Decaissement.objects.filter(
+        financement__projet__programme=programme,
+        date_decaissement__gte=aujourd_hui - tz.timedelta(days=365)
+    ):
+        k = d.date_decaissement.strftime('%Y-%m')
+        if k in evolution:
+            evolution[k] += float(d.montant or 0)
+
+    # ── can_edit ──
+    can_edit = request.user.is_authenticated and (
+        request.user.is_superuser or
+        getattr(request.user, 'userprofile', None) and request.user.userprofile.role in ('admin', 'editeur')
+    )
+
+    # Calcul part État / part PTF pour la section financement global
+    mt = float(programme.montant_total or 0)
+    pe = float(programme.part_etat or 0)
+    pe_pct = float(programme.part_etat_pourcentage or 0)
+    if pe_pct == 0 and mt > 0 and pe > 0:
+        pe_pct = round(pe / mt * 100, 1)
+    ptf_montant = max(0, mt - pe)
+    ptf_pct = round(100 - pe_pct, 1) if pe_pct > 0 else 0
+
     return render(request, 'projets/programme_detail.html', {
         'programme': programme,
         'stats': stats,
@@ -491,6 +527,13 @@ def programme_detail(request, pk):
         'ecart_taux_annuel': ecart_taux_annuel,
         'reste_a_decaisser': reste_a_decaisser,
         'est_cofinance': len(repartition) > 1,
+        'can_edit': can_edit,
+        'projets_par_statut_json': _json.dumps(projets_par_statut),
+        'evolution_json': _json.dumps(list(evolution.items())),
+        'part_etat_montant': pe,
+        'part_etat_pct': pe_pct,
+        'part_ptf_montant': ptf_montant,
+        'part_ptf_pct': ptf_pct,
     })
 
 

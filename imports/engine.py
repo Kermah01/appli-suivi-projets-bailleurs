@@ -42,9 +42,16 @@ STATUT_MAP = {
     'identification': 'identification',
     'préparation': 'preparation', 'preparation': 'preparation',
     'négociation': 'negociation', 'negociation': 'negociation',
+    'non démarré': 'non_demarre', 'non demarre': 'non_demarre', 'non_demarre': 'non_demarre',
+    'approuvé mais non démarré': 'non_demarre', 'approuve mais non demarre': 'non_demarre',
+    'nd': 'non_demarre',
     "en cours d'exécution": 'en_cours', 'en cours': 'en_cours', 'en_cours': 'en_cours',
+    'ec': 'en_cours',
+    'en instance de clôture': 'en_instance_cloture', 'en instance de cloture': 'en_instance_cloture',
+    'en_instance_cloture': 'en_instance_cloture',
+    'cl': 'en_instance_cloture',
     'suspendu': 'suspendu',
-    'clôturé': 'cloture', 'cloture': 'cloture',
+    'clôturé': 'cloture', 'cloture': 'cloture', 'clôture': 'cloture',
     'annulé': 'annule', 'annule': 'annule',
 }
 
@@ -57,6 +64,27 @@ TYPE_FIN_MAP = {
     'contrepartie nationale': 'contrepartie',
     'autre': 'autre',
 }
+
+
+class CIDict(dict):
+    """Dict dont les lookups de clés string sont insensibles à la casse."""
+    def get(self, key, default=None):
+        if isinstance(key, str):
+            if key in self:
+                return super().get(key, default)
+            kl = key.lower()
+            for k, v in self.items():
+                if isinstance(k, str) and k.lower() == kl:
+                    return v
+        return super().get(key, default)
+
+    def __contains__(self, key):
+        if isinstance(key, str):
+            if super().__contains__(key):
+                return True
+            kl = key.lower()
+            return any(isinstance(k, str) and k.lower() == kl for k in self.keys())
+        return super().__contains__(key)
 
 
 def _clean(val):
@@ -151,8 +179,8 @@ def _montant_to_xof(montant, devise):
 def _normalize_pct(val):
     """
     Normalise un taux en pourcentage.
-    Si la valeur est entre 0 et 1 (exclus), considérée comme fraction Excel (0.74 → 74).
-    Si la valeur est entre 1 et 100, gardée telle quelle.
+    Si 0 < valeur <= 1, considérée comme fraction Excel (0.74 → 74, 1.0 → 100).
+    Si 1 < valeur <= 100, gardée telle quelle (ex: 54 → 54).
     """
     if val is None:
         return Decimal('0')
@@ -160,10 +188,10 @@ def _normalize_pct(val):
         f = float(val)
     except (TypeError, ValueError):
         return Decimal('0')
-    if 0 < f < 1:
+    if 0 < f <= 1:
         return Decimal(str(round(f * 100, 4)))
-    if 0 <= f <= 100:
-        return Decimal(str(f))
+    if 0 < f <= 100:
+        return Decimal(str(round(f, 4)))
     return Decimal('0')
 
 
@@ -181,7 +209,7 @@ def _read_sheet(ws, header_row=4, data_start=5):
     for row in ws.iter_rows(min_row=data_start, values_only=True):
         if all(v is None or str(v).strip() == '' for v in row):
             continue
-        row_dict = {}
+        row_dict = CIDict()
         for i, v in enumerate(row):
             if i < len(headers):
                 row_dict[headers[i]] = _clean(v)
@@ -371,7 +399,7 @@ def _analyze_financements(ws):
         montant = montant_xof if (montant_xof and montant_xof > 0) else _montant_to_xof(montant_raw, fin_devise)
 
         type_raw = _to_str(row.get('Type de financement', '')).lower()
-        type_fin = TYPE_FIN_MAP.get(type_raw, 'don')
+        type_fin = TYPE_FIN_MAP.get(type_raw, 'autre') if type_raw else 'autre'
         info = f"{sigle_bailleur} → {code_projet} ({montant:,.0f} XOF)"
 
         # Vérifier si c'est un projet ou un programme
@@ -526,17 +554,61 @@ def execute_import(file_obj):
 
     fin_ws_name = 'Accord de Financement' if 'Accord de Financement' in wb.sheetnames else 'Financements'
     if fin_ws_name in wb.sheetnames:
-        # Réinitialiser montant_total programmes avant recalcul
+        # ── Collecter les montant_total EXPLICITES depuis les feuilles Projets et Programmes ──
+        # Ces valeurs priment toujours sur les sommes calculées depuis les financements.
+        explicit_proj_mt = {}
+        if 'Projets' in wb.sheetnames:
+            for row in _read_sheet(wb['Projets']):
+                code = _to_str(row.get('Code projet', ''))
+                mt_raw = (
+                    row.get('Montant total projet XOF', '')
+                    or row.get('Montant total du projet XOF', '')
+                    or row.get('Montant total du projet', '')
+                    or row.get('Montant total projet', '')
+                )
+                if code and mt_raw:
+                    mv = _to_decimal(mt_raw)
+                    if mv and mv > 0:
+                        explicit_proj_mt[code.lower()] = mv
+
+        explicit_prog_mt = {}
+        if 'Programmes' in wb.sheetnames:
+            for row in _read_sheet(wb['Programmes']):
+                code = _to_str(row.get('Code programme', ''))
+                mt_raw = (
+                    row.get('Montant total programme XOF', '')
+                    or row.get('Montant total programme', '')
+                )
+                if code and mt_raw:
+                    mv = _to_decimal(mt_raw)
+                    if mv and mv > 0:
+                        explicit_prog_mt[code.lower()] = mv
+
+        # Reset programmes puis recalcul depuis financements
         Programme.objects.all().update(montant_total=Decimal('0'))
         _import_financements(wb[fin_ws_name], counts['financements'])
-        # Mettre à jour montant_total projets depuis la somme de leurs financements
+
+        # ── Restaurer les montant_total explicites des programmes (priorité absolue) ──
+        for code_l, mv in explicit_prog_mt.items():
+            Programme.objects.filter(code__iexact=code_l).update(montant_total=mv)
+
+        # ── Projets : appliquer les valeurs explicites ou fallback sur somme financements ──
         from django.db.models import Sum as _Sum
         for p in Projet.objects.all():
-            total = Financement.objects.filter(projet=p).aggregate(s=_Sum('montant_engage'))['s']
-            if total is not None:
-                p.montant_total = total
-                p.devise = 'XOF'
-                p.save(update_fields=['montant_total', 'devise'])
+            code_l = p.code.lower()
+            if code_l in explicit_proj_mt:
+                # Valeur explicite de la feuille Projets → toujours prioritaire
+                if p.montant_total != explicit_proj_mt[code_l]:
+                    p.montant_total = explicit_proj_mt[code_l]
+                    p.devise = 'XOF'
+                    p.save(update_fields=['montant_total', 'devise'])
+            elif not (p.montant_total and p.montant_total > 0):
+                # Pas de valeur explicite → fallback financements uniquement si montant_total vide
+                total = Financement.objects.filter(projet=p).aggregate(s=_Sum('montant_engage'))['s']
+                if total:
+                    p.montant_total = total
+                    p.devise = 'XOF'
+                    p.save(update_fields=['montant_total', 'devise'])
 
     if 'Décaissements' in wb.sheetnames:
         _import_decaissements(wb['Décaissements'], counts['decaissements'], devise_map)
@@ -571,6 +643,18 @@ def _import_programmes(ws, counts):
 
             statut_raw = _to_str(row.get('Statut', '')).lower()
 
+            # Montant total programme XOF (colonne explicite, inclut la part État)
+            mt_prog_raw = (
+                row.get('Montant total programme XOF', '')
+                or row.get('Montant total programme', '')
+                or row.get('Montant total', '')
+            )
+            # Part État
+            pe_pct_raw = row.get('Part État (%)', '') or row.get('Part Etat (%)', '')
+            pe_raw = row.get('Part État', '') or row.get('Part Etat', '')
+            pe_pct = _normalize_pct(pe_pct_raw) if pe_pct_raw else None
+            pe_montant = _to_decimal(pe_raw) if pe_raw else None
+
             defaults = {
                 'nom': nom,
                 'description': _to_str(row.get('Description', '')),
@@ -586,6 +670,14 @@ def _import_programmes(ws, counts):
                 'structure_responsable': _to_str(row.get('Structure responsable', '')),
                 'objectif_strategique': _to_str(row.get('Objectif stratégique', '') or row.get('Objectif strategique', '')),
             }
+            if mt_prog_raw:
+                mt_val = _to_decimal(mt_prog_raw)
+                if mt_val and mt_val > 0:
+                    defaults['montant_total'] = mt_val
+            if pe_pct is not None:
+                defaults['part_etat_pourcentage'] = pe_pct
+            if pe_montant is not None:
+                defaults['part_etat'] = pe_montant
 
             existing = Programme.objects.filter(code__iexact=code).first()
             if existing:
@@ -665,6 +757,12 @@ def _import_projets(ws, counts):
 
             statut_raw = _to_str(row.get('Statut', '')).lower()
 
+            # Part État
+            part_etat_pct_raw = row.get('Part État (%)', '') or row.get('Part Etat (%)', '') or row.get('Contrepartie (%)', '')
+            part_etat_raw = row.get('Part État', '') or row.get('Part Etat', '') or row.get('Contrepartie nationale', '')
+            part_etat_pct = _normalize_pct(part_etat_pct_raw) if part_etat_pct_raw else None
+            part_etat_montant = _to_decimal(part_etat_raw) if part_etat_raw else None
+
             defaults = {
                 'titre': titre,
                 'description': _to_str(row.get('Description', '')),
@@ -679,6 +777,22 @@ def _import_projets(ws, counts):
                 'zone_geographique': _to_str(row.get('Zone géographique', '')),
                 'responsable': _to_str(row.get('Responsable', '')),
             }
+            if part_etat_pct is not None:
+                defaults['part_etat_pourcentage'] = part_etat_pct
+            if part_etat_montant is not None:
+                defaults['part_etat'] = part_etat_montant
+
+            # Montant total du projet (colonne explicite, inclut la part État)
+            montant_total_raw = (
+                row.get('Montant total projet XOF', '')
+                or row.get('Montant total du projet XOF', '')
+                or row.get('Montant total du projet', '')
+                or row.get('Montant total projet', '')
+            )
+            if montant_total_raw:
+                montant_total_val = _to_decimal(montant_total_raw)
+                if montant_total_val and montant_total_val > 0:
+                    defaults['montant_total'] = montant_total_val
 
             prog_code = _to_str(row.get('Code programme', ''))
             if prog_code:
@@ -740,7 +854,7 @@ def _import_financements(ws, counts):
                     'reference': _to_str(row.get('Référence accord', '')),
                     'observations': _to_str(row.get('Observations', '')),
                 }
-                type_fin = TYPE_FIN_MAP.get(type_raw, 'don')
+                type_fin = TYPE_FIN_MAP.get(type_raw, 'autre') if type_raw else 'autre'
                 obj, created = Financement.objects.update_or_create(
                     projet=projet, bailleur=bailleur, type_financement=type_fin,
                     defaults=defaults
